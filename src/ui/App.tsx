@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import type { PresetOption } from '../core/layout/options';
 import { INFO_BAR_OPTIONS } from '../core/layout/presets/infoBar';
 import { fontById } from '../core/paint/fontFamilies';
@@ -14,15 +14,28 @@ export function App() {
   const { status, options, setOption, load, download, busy, ready, hasPhoto } =
     usePipeline(canvasRef);
 
+  const [dragging, setDragging] = useState(false);
+
+  // 드롭 영역 밖에 떨구면 브라우저가 그 파일로 이동해 작업이 날아갑니다.
+  // 창 전체에서 기본 동작을 막아 둡니다.
+  useEffect(() => {
+    const swallow = (event: globalThis.DragEvent) => event.preventDefault();
+    window.addEventListener('dragover', swallow);
+    window.addEventListener('drop', swallow);
+    return () => {
+      window.removeEventListener('dragover', swallow);
+      window.removeEventListener('drop', swallow);
+    };
+  }, []);
+
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (file) void load(file);
+    setDragging(false);
+    void load([...event.dataTransfer.files]);
   };
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) void load(file);
+    void load([...(event.target.files ?? [])]);
   };
 
   const field = (option: PresetOption) => {
@@ -90,8 +103,18 @@ export function App() {
 
       <div
         onDrop={onDrop}
-        onDragOver={(event) => event.preventDefault()}
-        style={{ border: '2px dashed #bbb', borderRadius: 12, padding: 24, marginBottom: 16 }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        style={{
+          border: `2px dashed ${dragging ? '#4a9eff' : '#bbb'}`,
+          background: dragging ? 'rgba(74, 158, 255, 0.08)' : 'transparent',
+          borderRadius: 12,
+          padding: 24,
+          marginBottom: 16,
+        }}
       >
         <p style={{ margin: '0 0 12px' }}>{status}</p>
         <input

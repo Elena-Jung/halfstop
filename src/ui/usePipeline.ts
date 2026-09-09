@@ -152,7 +152,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     };
   }, [repaint]);
 
-  const load = useCallback(async (file: File) => {
+  const load = useCallback(async (files: readonly File[]) => {
+    const file = files[0];
+    if (!file) return;
+
     setStatus('읽는 중입니다');
     setLoaded((previous) => {
       previous?.preview.bitmap.close();
@@ -182,7 +185,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       });
 
       setLoaded({ file, meta, fields: toFields(meta), preview });
-      setStatus(`${file.name} 파일을 불러왔습니다`);
+      // 여러 장 처리는 아직 없습니다. 조용히 버리면 사용자는 왜 한 장만 나오는지
+      // 알 수 없으므로 넘긴 개수를 밝힙니다.
+      const skipped = files.length - 1;
+      setStatus(
+        skipped > 0
+          ? `${file.name} 파일을 불러왔습니다. 여러 장 처리는 아직 준비 중이라 나머지 ${skipped}장은 넘겼습니다`
+          : `${file.name} 파일을 불러왔습니다`,
+      );
     } catch (error) {
       console.error(error);
       setStatus(toUserMessage(error, '사진을 여는 데 실패했습니다'));
