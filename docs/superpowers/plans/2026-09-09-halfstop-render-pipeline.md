@@ -14,11 +14,13 @@
 - 이미지를 서버로 보내지 않습니다. 네트워크 요청을 만드는 코드를 넣지 않습니다.
 - `src/core/` 아래 코드는 `react`를 import 하지 않고 `document`, `window`, `localStorage`를 직접 참조하지 않습니다. 캔버스가 필요하면 `OffscreenCanvas`를 씁니다. `FontFaceSet`처럼 스레드마다 다른 것은 인자로 주입받습니다. 이 계획은 전체 해상도 내보내기를 실제로 워커에서 돌리므로, 이 규칙이 깨지면 나중이 아니라 지금 곧바로 동작하지 않습니다.
 - DOM에 묶인 코드는 `src/platform/`과 `src/ui/`에만 둡니다.
+- UI 서체는 Pretendard로 통일합니다. `pretendard` 패키지의 동적 서브셋 CSS를 불러오면 브라우저가 필요한 조각만 가져갑니다.
+- 프레임에 그리는 서체는 사용자가 고릅니다. 후보는 네 종류이고 모두 가변 굵기라 굵기 옵션이 종류와 무관하게 같게 동작합니다. 선택한 것만 등록하고 나머지는 받지 않습니다.
 - 캔버스에 그리는 글자는 시스템 폰트에 기대지 않습니다. 워커 캔버스는 문서에 로드된 폰트를 보지 못하므로, 폰트를 번들해 메인 스레드와 워커 양쪽에 `FontFace`로 등록하고 준비가 끝난 뒤에 그립니다. 이것을 빠뜨리면 미리보기와 내보내기의 서체가 달라집니다.
 - 문서와 주석은 습니다체로 씁니다. em-dash(U+2014)와 en-dash(U+2013)를 쓰지 않습니다.
 - 커밋 메시지 제목은 명사구로 씁니다.
 - 선행 프로젝트 `jeonghyeon-net/exif-frame`은 GPL-3.0입니다. 그 저장소의 코드와 이미지를 복사해 오지 않습니다.
-- 패키지 버전: `vite@^8.2.2`, `react@^19.2.8`, `react-dom@^19.2.8`, `typescript@^7.0.2`, `vitest@^4.1.11`, `@vitejs/plugin-react@^6.1.1`, `exifreader@^4.44.1`, `@fontsource-variable/inter@^5.3.0`
+- 패키지 버전: `vite@^8.2.2`, `react@^19.2.8`, `react-dom@^19.2.8`, `typescript@^7.0.2`, `vitest@^4.1.11`, `@vitejs/plugin-react@^6.1.1`, `exifreader@^4.44.1`, `@fontsource-variable/inter@^5.3.0`, `@fontsource-variable/literata@^5.3.0`, `@fontsource-variable/jetbrains-mono@^5.3.0`, `pretendard@^1.3.9`
 - 이 계획의 범위는 프리셋 한 개(하단 정보 바)입니다. 나머지 두 프리셋과 브랜드 로고, HEIC, RAW, 배치, i18n은 다음 계획에서 다룹니다.
 - 워커와 폰트 등록은 이 계획에 포함합니다. 뒤로 미루면 그때 어댑터 계층을 전부 다시 고쳐야 하고, 폰트 없이 워커만 넣으면 미리보기와 결과물의 서체가 갈립니다.
 
@@ -55,6 +57,7 @@ src/core/layout/presets/infoBar.ts    하단 정보 바 프리셋
 
 src/core/paint/paint.ts               Scene를 캔버스 컨텍스트에 그리기
 src/core/paint/measure.ts             OffscreenCanvas 기반 measureText
+src/core/paint/fontFamilies.ts        고를 수 있는 서체 목록과 이름 (순수 데이터)
 src/core/paint/fonts.ts               FontFace 등록, 메인 스레드와 워커 공용
 
 src/core/limits/clampExportSize.ts    내보내기 크기 계산과 한계 적용
@@ -72,7 +75,9 @@ src/worker/render.worker.ts           전체 해상도 디코딩, 페인팅, 인
 src/worker/client.ts                  워커 호출을 프라미스로 감싼 클라이언트
 
 src/platform/canvasLimitCache.ts      측정한 캔버스 한계를 localStorage에 보관
-src/platform/fontUrl.ts               번들된 woff2의 URL
+
+src/assets/fontUrls.ts                번들된 woff2 주소, 메인 스레드와 워커 공용
+src/assets/ui.css                     Pretendard 동적 서브셋 불러오기
 ```
 
 순수 함수는 파일 옆에 `*.test.ts`를 둡니다. 브라우저 API가 필요한 파일은 그 API를 인자로 주입받는 형태로 만들어 테스트 가능한 부분을 분리합니다.
@@ -1358,12 +1363,49 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ### Task 10: 하단 정보 바 프리셋
 
 **Files:**
-- Create: `src/core/layout/presets/infoBar.ts`
+- Create: `src/core/paint/fontFamilies.ts`, `src/core/layout/presets/infoBar.ts`
 - Test: `src/core/layout/presets/infoBar.test.ts`
 
 **Interfaces:**
 - Consumes: `types.ts`, `options.ts`, `template.ts`, `primitives.ts`
-- Produces: `const INFO_BAR_OPTIONS: PresetOption[]`, `const infoBarLayout: PresetLayout`
+- Produces: `interface CanvasFont`, `const CANVAS_FONTS`, `const FONT_IDS`, `const DEFAULT_FONT_ID`, `function fontById(id: string): CanvasFont`, `function fontStack(font: CanvasFont): string`, `const INFO_BAR_OPTIONS: PresetOption[]`, `const infoBarLayout: PresetLayout`
+
+서체 목록은 이름과 대체 계열만 담은 순수 데이터입니다. 실제 woff2 주소와 `FontFace` 등록은 Task 16에서 붙입니다. 레이아웃은 서체 이름만 알면 되므로 여기서 갈라 둡니다.
+
+**`src/core/paint/fontFamilies.ts` 를 먼저 만듭니다.**
+
+```ts
+export interface CanvasFont {
+  id: string;
+  /** 설정 화면에 보일 이름입니다. */
+  label: string;
+  /** FontFace에 등록할 이름입니다. 시스템 폰트와 겹치지 않도록 접두사를 붙입니다. */
+  family: string;
+  /** 등록이 실패해도 글자가 아예 안 나오지는 않도록 두는 일반 계열입니다. */
+  fallback: string;
+  /** 네 종류 모두 가변 굵기라 굵기 옵션이 서체와 무관하게 같게 동작합니다. */
+  weightRange: string;
+}
+
+export const CANVAS_FONTS: readonly CanvasFont[] = [
+  { id: 'inter', label: 'Inter', family: 'HalfstopInter', fallback: 'sans-serif', weightRange: '100 900' },
+  { id: 'literata', label: 'Literata', family: 'HalfstopLiterata', fallback: 'serif', weightRange: '200 900' },
+  { id: 'jetbrains-mono', label: 'JetBrains Mono', family: 'HalfstopJetBrainsMono', fallback: 'monospace', weightRange: '100 800' },
+  { id: 'pretendard', label: 'Pretendard (한글)', family: 'HalfstopPretendard', fallback: 'sans-serif', weightRange: '45 920' },
+];
+
+export const FONT_IDS: readonly string[] = CANVAS_FONTS.map((font) => font.id);
+export const DEFAULT_FONT_ID = 'inter';
+
+/** 저장된 설정에 없는 id가 들어와도 화면이 비지 않도록 기본값으로 되돌립니다. */
+export function fontById(id: string): CanvasFont {
+  return CANVAS_FONTS.find((font) => font.id === id) ?? CANVAS_FONTS[0]!;
+}
+
+export function fontStack(font: CanvasFont): string {
+  return `${font.family}, ${font.fallback}`;
+}
+```
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 
@@ -1443,6 +1485,20 @@ describe('infoBarLayout', () => {
     expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
   });
 
+  it('기본 서체는 Inter입니다', () => {
+    const scene = infoBarLayout(input(), services);
+    const text = scene.nodes.find((n) => n.kind === 'text');
+    expect(text?.style.family).toContain('Inter');
+  });
+
+  it('서체 옵션을 바꾸면 텍스트 스타일이 따라갑니다', () => {
+    const options = defaultValues(INFO_BAR_OPTIONS);
+    options.set('FONT_FAMILY', 'jetbrains-mono');
+    const scene = infoBarLayout(input({ options }), services);
+    const text = scene.nodes.find((n) => n.kind === 'text');
+    expect(text?.style.family).toContain('JetBrains');
+  });
+
   it('사진 크기가 달라도 같은 옵션이면 바 높이 비율이 같습니다', () => {
     const wide = infoBarLayout(input({ photo: { width: 3000, height: 1000 } }), services);
     const square = infoBarLayout(input({ photo: { width: 1000, height: 1000 } }), services);
@@ -1464,6 +1520,7 @@ npm test -- src/core/layout/presets/infoBar.test.ts
 `src/core/layout/presets/infoBar.ts`:
 
 ```ts
+import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { num, str, type PresetOption } from '../options';
 import { ellipsize } from '../primitives';
 import { renderTemplate } from '../template';
@@ -1476,6 +1533,7 @@ export const INFO_BAR_OPTIONS: PresetOption[] = [
   { id: 'SIDE_PADDING', type: 'number', default: 60, unit: 'u' },
   { id: 'FONT_SIZE', type: 'number', default: 34, unit: 'u' },
   { id: 'FONT_WEIGHT', type: 'range', min: 100, max: 900, step: 100, default: 400 },
+  { id: 'FONT_FAMILY', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
   { id: 'DIVIDER', type: 'text', default: '·' },
   { id: 'PRIMARY_TEMPLATE', type: 'text', default: '{MAKER}{BODY}' },
   { id: 'SECONDARY_TEMPLATE', type: 'text', default: '{MM}{F}{SEC}{ISO}' },
@@ -1490,7 +1548,7 @@ export const infoBarLayout: PresetLayout = (input, services) => {
   const divider = str(options, 'DIVIDER');
 
   const baseStyle: Omit<TextStyle, 'align'> = {
-    family: 'Inter, system-ui, sans-serif',
+    family: fontStack(fontById(str(options, 'FONT_FAMILY'))),
     size: fontSize,
     weight: num(options, 'FONT_WEIGHT'),
     style: 'normal',
@@ -2630,32 +2688,47 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 16: 폰트 등록
+### Task 16: 폰트 자산과 등록
 
-워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 등록을 빠뜨리면 미리보기는 Inter로, 내보낸 파일은 대체 서체로 나옵니다. 두 스레드가 같은 `FontFace`를 각자 등록하고, 준비가 끝나기 전에는 아무것도 그리지 않습니다.
+워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 등록을 빠뜨리면 미리보기는 고른 서체로, 내보낸 파일은 대체 서체로 나옵니다. 두 스레드가 같은 `FontFace`를 각자 등록하고, 준비가 끝나기 전에는 아무것도 그리지 않습니다.
 
 `FontFaceSet`은 메인 스레드에서 `document.fonts`, 워커에서 `self.fonts`입니다. 서로 다른 객체이므로 인자로 받습니다.
 
+UI 서체는 Pretendard로 통일합니다. 동적 서브셋 CSS를 쓰면 브라우저가 필요한 조각만 가져가므로 한글이 없는 화면에서는 라틴 조각 몇 개만 내려받습니다.
+
 **Files:**
-- Create: `src/core/paint/fonts.ts`, `src/platform/fontUrl.ts`
+- Create: `src/assets/fontUrls.ts`, `src/assets/ui.css`, `src/core/paint/fonts.ts`
+- Modify: `src/main.tsx` (CSS 불러오기)
 - Test: `src/core/paint/fonts.test.ts`
 
 **Interfaces:**
-- Consumes: 없음
-- Produces: `const CANVAS_FONT_FAMILY = 'HalfstopInter'`, `const CANVAS_FONT_STACK`, `interface FontFaceLike`, `interface FontFaceSetLike`, `type FontFaceFactory`, `function ensureCanvasFont(fonts, url, create?): Promise<void>`, `const FONT_URL: string`
+- Consumes: `src/core/paint/fontFamilies.ts`의 `CanvasFont`
+- Produces: `function fontUrl(id: string): string`, `interface FontFaceLike`, `interface FontFaceSetLike`, `type FontFaceFactory`, `function ensureCanvasFont(fonts, font, url, create?): Promise<void>`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [ ] **Step 1: 폰트 패키지 설치**
+
+```bash
+npx npm@12.0.2 install @fontsource-variable/literata@^5.3.0 @fontsource-variable/jetbrains-mono@^5.3.0 pretendard@^1.3.9
+```
+
+Task 1에서 확인했듯 시스템 기본 npm 10.9.4는 이 저장소의 의존성 그래프에서 arborist 오류를 냅니다. 설치에는 `npm@12.0.2`를 쓰고, 끝난 뒤 `npm ci`가 여전히 도는지 확인합니다.
+
+```bash
+npm ci && npm test
+```
+
+기대 결과: 설치가 끝나고 기존 테스트가 모두 통과합니다.
+
+- [ ] **Step 2: 실패하는 테스트 작성**
 
 `src/core/paint/fonts.test.ts`:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
-import {
-  CANVAS_FONT_FAMILY,
-  ensureCanvasFont,
-  type FontFaceLike,
-  type FontFaceSetLike,
-} from './fonts';
+import { fontById } from './fontFamilies';
+import { ensureCanvasFont, type FontFaceLike, type FontFaceSetLike } from './fonts';
+
+const INTER = fontById('inter');
 
 function fakeSet(initial: FontFaceLike[] = []) {
   const faces = [...initial];
@@ -2675,63 +2748,65 @@ function fakeFactory(load: () => Promise<unknown> = async () => undefined) {
 describe('ensureCanvasFont', () => {
   it('아직 없으면 만들어서 등록합니다', async () => {
     const { set, faces } = fakeSet();
-    const create = fakeFactory();
-    await ensureCanvasFont(set, '/inter.woff2', create);
+    await ensureCanvasFont(set, INTER, '/inter.woff2', fakeFactory());
     expect(faces).toHaveLength(1);
-    expect(faces[0]?.family).toBe(CANVAS_FONT_FAMILY);
+    expect(faces[0]?.family).toBe(INTER.family);
   });
 
-  it('가변 굵기 범위를 지정해 만듭니다', async () => {
-    const { set } = fakeSet();
+  it('서체가 선언한 가변 굵기 범위로 만듭니다', async () => {
     const create = fakeFactory();
-    await ensureCanvasFont(set, '/inter.woff2', create);
-    expect(create).toHaveBeenCalledWith(
-      CANVAS_FONT_FAMILY,
-      "url(/inter.woff2) format('woff2')",
-      { weight: '100 900' },
-    );
+    await ensureCanvasFont(fakeSet().set, INTER, '/inter.woff2', create);
+    expect(create).toHaveBeenCalledWith(INTER.family, "url(/inter.woff2) format('woff2')", {
+      weight: INTER.weightRange,
+    });
   });
 
-  it('이미 등록돼 있으면 다시 만들지 않습니다', async () => {
-    const { set, faces } = fakeSet([{ family: CANVAS_FONT_FAMILY, load: async () => undefined }]);
+  it('이미 등록된 서체는 다시 만들지 않습니다', async () => {
+    const { set, faces } = fakeSet([{ family: INTER.family, load: async () => undefined }]);
     const create = fakeFactory();
-    await ensureCanvasFont(set, '/inter.woff2', create);
+    await ensureCanvasFont(set, INTER, '/inter.woff2', create);
     expect(create).not.toHaveBeenCalled();
     expect(faces).toHaveLength(1);
   });
 
+  it('다른 서체가 등록돼 있어도 새로 만듭니다', async () => {
+    const { set, faces } = fakeSet([{ family: 'HalfstopOther', load: async () => undefined }]);
+    const create = fakeFactory();
+    await ensureCanvasFont(set, INTER, '/inter.woff2', create);
+    expect(create).toHaveBeenCalledOnce();
+    expect(faces).toHaveLength(2);
+  });
+
   it('로드가 끝난 뒤에 등록합니다', async () => {
     const order: string[] = [];
-    const { set } = fakeSet();
     const create = vi.fn((family: string) => ({
       family,
       load: async () => {
         order.push('load');
       },
     }));
-    const wrapped: FontFaceSetLike = {
-      add: (face) => {
+    const set: FontFaceSetLike = {
+      add: () => {
         order.push('add');
-        void face;
       },
       [Symbol.iterator]: () => [][Symbol.iterator](),
     };
-    void set;
-    await ensureCanvasFont(wrapped, '/inter.woff2', create);
+    await ensureCanvasFont(set, INTER, '/inter.woff2', create);
     expect(order).toEqual(['load', 'add']);
   });
 
   it('로드가 실패하면 던집니다', async () => {
-    const { set } = fakeSet();
     const create = fakeFactory(async () => {
       throw new Error('network');
     });
-    await expect(ensureCanvasFont(set, '/inter.woff2', create)).rejects.toThrow('network');
+    await expect(ensureCanvasFont(fakeSet().set, INTER, '/inter.woff2', create)).rejects.toThrow(
+      'network',
+    );
   });
 });
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [ ] **Step 3: 테스트가 실패하는지 확인**
 
 ```bash
 npm test -- src/core/paint/fonts.test.ts
@@ -2739,16 +2814,12 @@ npm test -- src/core/paint/fonts.test.ts
 
 기대 결과: `Failed to resolve import "./fonts"`.
 
-- [ ] **Step 3: 구현 작성**
+- [ ] **Step 4: 구현 작성**
 
 `src/core/paint/fonts.ts`:
 
 ```ts
-/** 시스템 폰트와 이름이 겹치지 않도록 고유한 이름을 씁니다. */
-export const CANVAS_FONT_FAMILY = 'HalfstopInter';
-
-/** 등록에 실패해도 글자가 아예 안 나오지는 않도록 뒤에 일반 계열을 둡니다. */
-export const CANVAS_FONT_STACK = `${CANVAS_FONT_FAMILY}, sans-serif`;
+import type { CanvasFont } from './fontFamilies';
 
 export interface FontFaceLike {
   family: string;
@@ -2775,49 +2846,73 @@ const defaultFactory: FontFaceFactory = (family, source, descriptors) =>
  */
 export async function ensureCanvasFont(
   fonts: FontFaceSetLike,
+  font: CanvasFont,
   url: string,
   create: FontFaceFactory = defaultFactory,
 ): Promise<void> {
-  for (const face of fonts) {
-    if (face.family === CANVAS_FONT_FAMILY) return;
+  for (const registered of fonts) {
+    if (registered.family === font.family) return;
   }
 
-  const face = create(CANVAS_FONT_FAMILY, `url(${url}) format('woff2')`, { weight: '100 900' });
+  const face = create(font.family, `url(${url}) format('woff2')`, { weight: font.weightRange });
   await face.load();
   fonts.add(face);
 }
 ```
 
-`src/platform/fontUrl.ts`:
+`src/assets/fontUrls.ts`:
 
 ```ts
-// Vite가 이 woff2를 자산으로 다루고 최종 URL 문자열을 돌려줍니다.
+// Vite가 이 woff2들을 자산으로 다루고 최종 URL 문자열을 돌려줍니다.
 // 라틴 서브셋 가변 폰트라 EXIF 문자열에 필요한 글자를 모두 담고 크기도 작습니다.
-import url from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+// Pretendard만 한글을 포함해 약 2MB이고, 고른 사람만 내려받습니다.
+import interUrl from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import literataUrl from '@fontsource-variable/literata/files/literata-latin-wght-normal.woff2?url';
+import monoUrl from '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url';
+import pretendardUrl from 'pretendard/dist/web/variable/woff2/PretendardVariable.woff2?url';
 
-export const FONT_URL: string = url;
+const URLS: Record<string, string> = {
+  inter: interUrl,
+  literata: literataUrl,
+  'jetbrains-mono': monoUrl,
+  pretendard: pretendardUrl,
+};
+
+export function fontUrl(id: string): string {
+  const url = URLS[id];
+  if (!url) throw new Error(`${id} 서체의 파일 주소를 찾지 못했습니다`);
+  return url;
+}
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+`src/assets/ui.css`:
+
+```css
+/* 동적 서브셋이라 브라우저가 화면에 실제로 쓰인 글자 범위만 내려받습니다. */
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+
+:root {
+  font-family: 'Pretendard Variable', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+```
+
+`src/main.tsx`의 첫 줄에 CSS를 불러옵니다.
+
+```tsx
+import './assets/ui.css';
+```
+
+- [ ] **Step 5: 테스트 통과 확인**
 
 ```bash
 npm test -- src/core/paint/fonts.test.ts
 ```
 
-기대 결과: `5 passed`.
-
-- [ ] **Step 5: infoBar 프리셋이 이 서체를 쓰도록 수정**
-
-`src/core/layout/presets/infoBar.ts`에서 `family` 값을 바꿉니다.
-
-```ts
-import { CANVAS_FONT_STACK } from '../../paint/fonts';
-```
-
-```ts
-  const baseStyle: Omit<TextStyle, 'align'> = {
-    family: CANVAS_FONT_STACK,
-```
+기대 결과: `6 passed`.
 
 - [ ] **Step 6: 전체 테스트와 타입 검사**
 
@@ -2825,13 +2920,13 @@ import { CANVAS_FONT_STACK } from '../../paint/fonts';
 npx tsc --noEmit && npm test
 ```
 
-기대 결과: 타입 오류 없음, 모든 테스트 통과. `infoBar.test.ts`는 `family` 값을 검사하지 않으므로 그대로 통과해야 합니다.
+기대 결과: 타입 오류 없음, 모든 테스트 통과.
 
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add src/core/paint/fonts.ts src/core/paint/fonts.test.ts src/platform/fontUrl.ts src/core/layout/presets/infoBar.ts
-git commit -m "캔버스 폰트 등록과 번들 폰트 추가
+git add package.json package-lock.json src/assets src/core/paint/fonts.ts src/core/paint/fonts.test.ts src/main.tsx
+git commit -m "폰트 자산과 FontFace 등록 추가
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
@@ -2951,7 +3046,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 전체 해상도 디코딩과 인코딩은 무겁습니다. 메인 스레드에서 하면 그동안 화면이 멈춥니다. 워커로 보냅니다.
 
-`Scene`은 평범한 데이터라 구조화 복제로 그대로 넘어갑니다. 레이아웃은 메인 스레드에서 이미 계산했으므로 워커는 그리고 인코딩만 합니다. `Blob`도 복제로 오갑니다.
+`Scene`은 평범한 데이터라 구조화 복제로 그대로 넘어갑니다. 레이아웃은 메인 스레드에서 이미 계산했으므로 워커는 그리고 인코딩만 합니다. `Blob`도 복제로 오갑니다. 서체는 이름만 넘기고 주소는 워커가 직접 찾습니다.
 
 **Files:**
 - Create: `src/worker/protocol.ts`, `src/worker/render.worker.ts`, `src/worker/client.ts`
@@ -2959,7 +3054,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: Task 17까지의 모든 모듈
-- Produces: `interface RenderJob`, `type RenderReply`, `function nextJobId(): number`, `interface RenderClient { render(job: Omit<RenderJob, 'id'>): Promise<RenderOutcome>; dispose(): void }`, `function createRenderClient(): RenderClient`
+- Produces: `interface RenderJob`, `type RenderReply`, `function nextJobId(): number`, `function isRenderReply(value: unknown): value is RenderReply`, `interface RenderOutcome`, `interface RenderClient`, `function createRenderClient(): RenderClient`
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 
@@ -2989,6 +3084,10 @@ describe('isRenderReply', () => {
 
   it('id가 없으면 응답이 아닙니다', () => {
     expect(isRenderReply({ ok: true })).toBe(false);
+  });
+
+  it('ok가 불리언이 아니면 응답이 아닙니다', () => {
+    expect(isRenderReply({ id: 1, ok: 'yes' })).toBe(false);
   });
 
   it('객체가 아니면 응답이 아닙니다', () => {
@@ -3026,8 +3125,8 @@ export interface RenderJob {
   preset: ExportPreset;
   format: ExportFormat;
   quality: number;
-  /** 워커가 자기 FontFaceSet에 등록할 폰트 주소입니다. */
-  fontUrl: string;
+  /** 워커가 자기 FontFaceSet에 등록할 서체입니다. 주소는 워커가 직접 찾습니다. */
+  fontId: string;
 }
 
 export type RenderReply =
@@ -3053,28 +3152,30 @@ export function isRenderReply(value: unknown): value is RenderReply {
 npm test -- src/worker/protocol.test.ts
 ```
 
-기대 결과: `6 passed`.
+기대 결과: `7 passed`.
 
 - [ ] **Step 5: render.worker.ts 작성**
 
 ```ts
+import { fontUrl } from '../assets/fontUrls';
 import { encodeCanvas } from '../core/export/encode';
 import { targetLongEdge } from '../core/export/resolution';
 import { decodeImage } from '../core/io/decode';
-import { ensureCanvasFont } from '../core/paint/fonts';
+import { fontById } from '../core/paint/fontFamilies';
+import { ensureCanvasFont, type FontFaceSetLike } from '../core/paint/fonts';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import type { RenderJob, RenderReply } from './protocol';
 
 const NO_LOGO = () => null;
 
 // 워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 여기서 따로 등록해야
-// 미리보기와 같은 서체로 그려집니다.
+// 미리보기와 같은 서체로 그려집니다. 서체별로 한 번만 받습니다.
 const fontReady = new Map<string, Promise<void>>();
-function ensureFont(url: string): Promise<void> {
-  let pending = fontReady.get(url);
+function ensureFont(id: string): Promise<void> {
+  let pending = fontReady.get(id);
   if (!pending) {
-    pending = ensureCanvasFont(self.fonts as unknown as Parameters<typeof ensureCanvasFont>[0], url);
-    fontReady.set(url, pending);
+    pending = ensureCanvasFont(self.fonts as unknown as FontFaceSetLike, fontById(id), fontUrl(id));
+    fontReady.set(id, pending);
   }
   return pending;
 }
@@ -3082,7 +3183,7 @@ function ensureFont(url: string): Promise<void> {
 async function run(job: RenderJob): Promise<RenderReply> {
   let bitmap: ImageBitmap | null = null;
   try {
-    await ensureFont(job.fontUrl);
+    await ensureFont(job.fontId);
 
     const image = await decodeImage({
       file: job.file,
@@ -3104,7 +3205,11 @@ async function run(job: RenderJob): Promise<RenderReply> {
     const blob = await encodeCanvas(canvas, job.format, job.quality);
     return { id: job.id, ok: true, blob, ...size };
   } catch (error) {
-    return { id: job.id, ok: false, message: error instanceof Error ? error.message : '렌더에 실패했습니다' };
+    return {
+      id: job.id,
+      ok: false,
+      message: error instanceof Error ? error.message : '렌더에 실패했습니다',
+    };
   } finally {
     bitmap?.close();
   }
@@ -3140,16 +3245,16 @@ export function createRenderClient(): RenderClient {
 
   worker.addEventListener('message', (event: MessageEvent<unknown>) => {
     if (!isRenderReply(event.data)) return;
-    const resolve = pending.get(event.data.id);
-    if (!resolve) return;
+    const settle = pending.get(event.data.id);
+    if (!settle) return;
     pending.delete(event.data.id);
-    resolve(event.data);
+    settle(event.data);
   });
 
   // 워커 안에서 잡히지 않은 오류가 나면 기다리던 요청이 영원히 매달립니다.
   worker.addEventListener('error', (event) => {
-    for (const [id, resolve] of pending) {
-      resolve({ id, ok: false, message: event.message || '워커에서 오류가 났습니다' });
+    for (const [id, settle] of pending) {
+      settle({ id, ok: false, message: event.message || '워커에서 오류가 났습니다' });
     }
     pending.clear();
   });
@@ -3159,8 +3264,16 @@ export function createRenderClient(): RenderClient {
       const id = nextJobId();
       return new Promise<RenderOutcome>((resolve, reject) => {
         pending.set(id, (reply) => {
-          if (reply.ok) resolve({ blob: reply.blob, width: reply.width, height: reply.height, clamped: reply.clamped });
-          else reject(new Error(reply.message));
+          if (reply.ok) {
+            resolve({
+              blob: reply.blob,
+              width: reply.width,
+              height: reply.height,
+              clamped: reply.clamped,
+            });
+          } else {
+            reject(new Error(reply.message));
+          }
         });
         worker.postMessage({ ...job, id } satisfies RenderJob);
       });
@@ -3196,6 +3309,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 이 계획의 마지막 작업입니다. UI 문구는 한국어로 직접 적습니다. 영어 사전은 다음 계획에서 붙입니다.
 
+고른 서체가 등록되기 전에 `measureText`를 부르면 대체 서체 폭으로 배치가 계산됩니다. 서체가 준비되기 전에는 그리지 않습니다.
+
 **Files:**
 - Modify: `src/ui/App.tsx`
 - Create: `src/ui/usePipeline.ts`
@@ -3209,7 +3324,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 `src/ui/usePipeline.ts`:
 
 ```ts
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fontUrl } from '../assets/fontUrls';
 import { toFields } from '../core/exif/map';
 import { readExif, type PhotoMeta } from '../core/exif/read';
 import { PREVIEW_LONG_EDGE } from '../core/export/resolution';
@@ -3220,12 +3336,12 @@ import { defaultValues } from '../core/layout/options';
 import { INFO_BAR_OPTIONS, infoBarLayout } from '../core/layout/presets/infoBar';
 import type { LayoutServices, OptionValue, TemplateToken } from '../core/layout/types';
 import type { CanvasLimit } from '../core/limits/clampExportSize';
+import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
 import { ensureCanvasFont, type FontFaceSetLike } from '../core/paint/fonts';
 import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import { cachedCanvasLimit } from '../platform/canvasLimitCache';
-import { FONT_URL } from '../platform/fontUrl';
 import { createRenderClient, type RenderClient } from '../worker/client';
 
 const NO_LOGO = () => null;
@@ -3263,10 +3379,10 @@ interface Loaded {
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const [status, setStatus] = useState('준비하는 중입니다');
-  const [ready, setReady] = useState(false);
   const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
     defaultValues(INFO_BAR_OPTIONS),
   );
+  const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -3275,43 +3391,50 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const clientRef = useRef<RenderClient | null>(null);
   const frameRef = useRef<number | null>(null);
 
-  // 폰트가 준비되기 전에 measureText를 부르면 대체 서체 폭으로 배치가 계산됩니다.
-  // 캔버스 한계 측정도 큰 할당을 여러 번 하므로 첫 파일을 기다리게 하지 않고 미리 끝냅니다.
+  const fontId = useMemo(() => {
+    const value = options.get('FONT_FAMILY');
+    return typeof value === 'string' ? value : DEFAULT_FONT_ID;
+  }, [options]);
+  const fontReady = loadedFonts.has(fontId);
+
+  // 캔버스 한계 측정은 큰 할당을 여러 번 하므로 첫 파일을 기다리게 하지 않고 미리 끝냅니다.
   useEffect(() => {
-    let alive = true;
     clientRef.current ??= createRenderClient();
     limitRef.current ??= cachedCanvasLimit();
+    servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
     void autoOrientedFlag();
-
-    void ensureCanvasFont(document.fonts as unknown as FontFaceSetLike, FONT_URL)
-      .then(() => {
-        if (!alive) return;
-        servicesRef.current = { measureText: createMeasurer(), hasLogo: () => false };
-        setReady(true);
-        setStatus('사진을 끌어다 놓거나 골라 주세요');
-      })
-      .catch(() => {
-        if (!alive) return;
-        setStatus('폰트를 불러오지 못했어요. 새로고침해 주세요');
-      });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
     return () => {
       clientRef.current?.dispose();
       clientRef.current = null;
     };
   }, []);
 
+  // 고른 서체가 준비되기 전에 measureText를 부르면 대체 서체 폭으로 배치가 계산됩니다.
+  useEffect(() => {
+    if (loadedFonts.has(fontId)) return;
+    let alive = true;
+    void ensureCanvasFont(document.fonts as unknown as FontFaceSetLike, fontById(fontId), fontUrl(fontId))
+      .then(() => {
+        if (!alive) return;
+        setLoadedFonts((previous) => new Set(previous).add(fontId));
+      })
+      .catch(() => {
+        if (alive) setStatus(`${fontById(fontId).label} 서체를 불러오지 못했어요`);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [fontId, loadedFonts]);
+
+  useEffect(() => {
+    if (fontReady && !loaded) setStatus('사진을 끌어다 놓거나 골라 주세요');
+  }, [fontReady, loaded]);
+
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
     const services = servicesRef.current;
     const limit = limitRef.current;
-    if (!canvas || !loaded || !services || !limit) return;
+    if (!canvas || !loaded || !services || !limit || !fontReady) return;
 
     const scene = buildScene({
       photoPx: { width: loaded.preview.width, height: loaded.preview.height },
@@ -3330,7 +3453,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       targetLongEdge: PREVIEW_LONG_EDGE,
       limit,
     });
-  }, [canvasRef, loaded, options]);
+  }, [canvasRef, loaded, options, fontReady]);
 
   // 옵션이 연달아 바뀌어도 프레임마다 한 번만 그립니다.
   useEffect(() => {
@@ -3388,7 +3511,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     const services = servicesRef.current;
     const limit = limitRef.current;
     const client = clientRef.current;
-    if (!loaded || !services || !limit || !client) return;
+    if (!loaded || !services || !limit || !client || !fontReady) return;
 
     setBusy(true);
     setStatus('전체 해상도로 그리는 중입니다');
@@ -3411,7 +3534,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         preset: 'original',
         format: 'image/jpeg',
         quality: 0.92,
-        fontUrl: FONT_URL,
+        fontId,
       });
 
       const url = URL.createObjectURL(result.blob);
@@ -3431,21 +3554,36 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     } finally {
       setBusy(false);
     }
-  }, [loaded, options]);
+  }, [loaded, options, fontId, fontReady]);
 
-  return { status, options, setOption, load, download, busy, ready, hasPhoto: loaded !== null };
+  return {
+    status,
+    options,
+    setOption,
+    load,
+    download,
+    busy,
+    ready: fontReady,
+    hasPhoto: loaded !== null,
+  };
 }
 ```
 
 - [ ] **Step 2: App.tsx 작성**
 
-옵션 패널은 선언 배열을 돌면서 만듭니다. 프리셋을 추가해도 이 코드는 그대로입니다.
+옵션 패널은 선언 배열을 돌면서 만듭니다. 프리셋을 추가해도 이 코드는 그대로입니다. 서체 선택도 `select` 선언 하나라 따로 다루지 않습니다.
 
 ```tsx
 import { useRef, type ChangeEvent, type DragEvent } from 'react';
 import type { PresetOption } from '../core/layout/options';
 import { INFO_BAR_OPTIONS } from '../core/layout/presets/infoBar';
+import { fontById } from '../core/paint/fontFamilies';
 import { usePipeline } from './usePipeline';
+
+/** 서체 선택만 id 대신 사람이 읽는 이름을 보여줍니다. */
+function optionLabel(optionId: string, value: string): string {
+  return optionId === 'FONT_FAMILY' ? fontById(value).label : value;
+}
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -3506,7 +3644,7 @@ export function App() {
           <select value={String(value)} onChange={(e) => setOption(option.id, e.target.value)}>
             {option.options.map((choice) => (
               <option key={choice} value={choice}>
-                {choice}
+                {optionLabel(option.id, choice)}
               </option>
             ))}
           </select>
@@ -3523,7 +3661,7 @@ export function App() {
   };
 
   return (
-    <main style={{ fontFamily: 'system-ui', padding: 24, maxWidth: 1100, margin: '0 auto' }}>
+    <main style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>halfstop</h1>
 
       <div
@@ -3563,7 +3701,7 @@ export function App() {
 }
 ```
 
-- [ ] **Step 3: core 안에 DOM 참조가 없는지 다시 확인**
+- [ ] **Step 3: core 안에 DOM 참조가 없는지 확인**
 
 ```bash
 grep -rn "document\.\|window\.\|localStorage" src/core/ && echo "위반 있음" || echo "core 깨끗함"
@@ -3590,11 +3728,13 @@ npm run dev
 1. Sony, Canon, Nikon 중 하나로 찍은 JPEG을 넣습니다. 하단 바에 제조사와 모델, 초점거리, 조리개, 셔터, ISO가 나오는지 봅니다.
 2. **세로 사진을 넣습니다. 눕지 않고 똑바로 서는지 봅니다.** 이 계획에서 가장 중요한 확인입니다.
 3. Orientation 태그가 붙은 사진과 붙지 않은 사진을 각각 넣어 둘 다 똑바로 서는지 봅니다.
-4. **미리보기와 내려받은 파일의 글자를 나란히 놓고 봅니다. 서체와 자간이 같아야 합니다.** 다르면 워커의 폰트 등록이 안 된 것입니다.
-5. EXIF가 없는 이미지를 넣습니다. 오류 없이 바가 비거나 일부만 나오는지 봅니다.
-6. 5천만 화소급 대형 JPEG을 넣습니다. 내려받기가 끝나는지, 줄었다면 안내 문구가 나오는지 봅니다.
-7. 내려받은 파일을 사진 앱에서 열어 실제로 열리는지 봅니다.
-8. 개발자 도구 네트워크 탭을 열어 두고 위 과정을 반복합니다. 이미지가 나가는 요청이 하나도 없어야 합니다. 폰트 woff2를 가져오는 요청은 같은 출처이므로 정상입니다.
+4. UI 글자가 Pretendard로 나오는지 봅니다. 개발자 도구에서 본문 요소의 계산된 `font-family`를 확인합니다.
+5. **서체를 네 종류로 차례로 바꿔 봅니다.** 미리보기 글자 모양이 실제로 달라져야 합니다. Pretendard는 약 2MB라 처음 고를 때 잠깐 걸립니다.
+6. **각 서체마다 내려받아 미리보기와 결과 파일의 글자를 나란히 놓고 봅니다. 서체와 자간이 같아야 합니다.** 다르면 워커의 폰트 등록이 안 된 것입니다.
+7. EXIF가 없는 이미지를 넣습니다. 오류 없이 바가 비거나 일부만 나오는지 봅니다.
+8. 5천만 화소급 대형 JPEG을 넣습니다. 내려받기가 끝나는지, 줄었다면 안내 문구가 나오는지 봅니다.
+9. 내려받은 파일을 사진 앱에서 열어 실제로 열리는지 봅니다.
+10. 개발자 도구 네트워크 탭을 열어 두고 위 과정을 반복합니다. 이미지가 나가는 요청이 하나도 없어야 합니다. 폰트 woff2를 가져오는 요청은 같은 출처이므로 정상입니다.
 
 - [ ] **Step 6: 반응 속도 확인**
 
@@ -3618,6 +3758,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## 이 계획을 마치면 확보되는 것
 
 - JPEG, PNG, WebP를 넣어 하단 정보 바가 붙은 이미지를 내려받을 수 있습니다.
+- 프레임 서체를 네 종류에서 고를 수 있고, 고른 것만 내려받습니다. UI 서체는 Pretendard로 통일됩니다.
 - 옵션을 만지면 미리보기가 곧바로 따라옵니다. 디코딩은 파일당 한 번이고, 전체 해상도 작업은 워커에서 일어나 화면이 멈추지 않습니다.
 - 미리보기와 내보내기가 어긋나지 않는다는 보장이 테스트로 붙어 있고, 서체까지 같습니다.
 - 캔버스 한계와 방향 회전이라는 두 가지 조용한 실패 원인이 잡혀 있습니다.
