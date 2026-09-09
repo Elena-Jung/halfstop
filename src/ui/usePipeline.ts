@@ -7,7 +7,7 @@ import { detectAutoOrientation } from '../core/io/autoOrientProbe';
 import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { swapsAxes } from '../core/io/orientation';
 import { defaultValues } from '../core/layout/options';
-import { INFO_BAR_OPTIONS, infoBarLayout } from '../core/layout/presets/infoBar';
+import { BAR_OPTIONS, barLayout } from '../core/layout/layouts/bar';
 import type { LayoutServices, OptionValue, TemplateToken } from '../core/layout/types';
 import type { CanvasLimit } from '../core/limits/clampExportSize';
 import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
@@ -68,7 +68,7 @@ interface Loaded {
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const [status, setStatus] = useState('준비하는 중입니다');
   const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
-    defaultValues(INFO_BAR_OPTIONS),
+    defaultValues(BAR_OPTIONS),
   );
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -125,7 +125,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       photoPx: { width: loaded.preview.width, height: loaded.preview.height },
       fields: loaded.fields,
       logoId: undefined,
-      layout: infoBarLayout,
+      layout: barLayout,
       options,
       services,
     });
@@ -219,7 +219,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         photoPx: { width: loaded.preview.width, height: loaded.preview.height },
         fields: loaded.fields,
         logoId: undefined,
-        layout: infoBarLayout,
+        layout: barLayout,
         options,
         services,
       });

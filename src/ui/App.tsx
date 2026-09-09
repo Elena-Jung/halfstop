@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PresetOption } from '../core/layout/options';
-import { INFO_BAR_OPTIONS } from '../core/layout/presets/infoBar';
+import { BAR_OPTIONS } from '../core/layout/layouts/bar';
 import { fontById } from '../core/paint/fontFamilies';
 import { usePipeline } from './usePipeline';
 
@@ -180,7 +180,7 @@ export function App() {
         />
 
         <aside style={{ width: 260, display: 'grid', gap: 8 }}>
-          {INFO_BAR_OPTIONS.map((option) => (
+          {BAR_OPTIONS.map((option) => (
             <label key={option.id} style={{ display: 'grid', gap: 4, fontSize: 13 }}>
               <span>{option.id}</span>
               {field(option)}
