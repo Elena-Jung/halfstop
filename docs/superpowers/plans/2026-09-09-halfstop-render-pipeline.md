@@ -4,20 +4,23 @@
 
 **Goal:** JPEG 한 장을 브라우저에 넣으면 촬영 정보가 담긴 하단 바 프레임을 붙여 파일로 내려받는 경로를 끝까지 완성합니다.
 
-**Architecture:** 프리셋은 캔버스를 만지지 않고 순수 함수 `layout()`으로 `Scene` 트리만 만듭니다. 미리보기는 긴 변 1600px로 축소 디코딩한 비트맵에 그리고, 전체 해상도 디코딩과 인코딩은 내보낼 때만 합니다. `Scene`의 좌표 단위는 픽셀이 아니라 디자인 단위이고 `1u = 사진 짧은 변 / 1000`입니다. 공용 `paint()`가 `ctx.scale(pxPerUnit, pxPerUnit)`을 한 번 걸고 그 트리를 그립니다. 미리보기와 내보내기는 `pxPerUnit`만 다른 같은 호출이므로 두 결과가 어긋날 수 없습니다.
+**Architecture:** 프리셋은 캔버스를 만지지 않고 순수 함수 `layout()`으로 `Scene` 트리만 만듭니다. 미리보기는 긴 변 1600px로 축소 디코딩한 비트맵에 메인 스레드가 그리고, 전체 해상도 디코딩과 인코딩은 워커에서 합니다. `Scene`의 좌표 단위는 픽셀이 아니라 디자인 단위이고 `1u = 사진 짧은 변 / 1000`입니다. 공용 `paint()`가 `ctx.scale(pxPerUnit, pxPerUnit)`을 한 번 걸고 그 트리를 그립니다. 미리보기와 내보내기는 `pxPerUnit`만 다른 같은 호출이므로 두 결과가 어긋날 수 없습니다.
 
-**Tech Stack:** Vite 8, React 19, TypeScript 7, Vitest 4, exifreader 4
+**Tech Stack:** Vite 8, React 19, TypeScript 7, Vitest 4, exifreader 4, Inter 가변 폰트, Web Worker
 
 ## Global Constraints
 
 - 프로젝트 루트는 `/Users/kimkm/코드싸게/exifframe`입니다. 저장소와 패키지 이름은 `halfstop`입니다.
 - 이미지를 서버로 보내지 않습니다. 네트워크 요청을 만드는 코드를 넣지 않습니다.
-- `src/core/` 아래 코드는 `react`를 import 하지 않고 `document`, `window`, `localStorage`를 직접 참조하지 않습니다. 브라우저가 필요한 기능은 인자로 주입받습니다. 이 규칙이 깨지면 나중에 워커로 옮길 수 없습니다.
+- `src/core/` 아래 코드는 `react`를 import 하지 않고 `document`, `window`, `localStorage`를 직접 참조하지 않습니다. 캔버스가 필요하면 `OffscreenCanvas`를 씁니다. `FontFaceSet`처럼 스레드마다 다른 것은 인자로 주입받습니다. 이 계획은 전체 해상도 내보내기를 실제로 워커에서 돌리므로, 이 규칙이 깨지면 나중이 아니라 지금 곧바로 동작하지 않습니다.
+- DOM에 묶인 코드는 `src/platform/`과 `src/ui/`에만 둡니다.
+- 캔버스에 그리는 글자는 시스템 폰트에 기대지 않습니다. 워커 캔버스는 문서에 로드된 폰트를 보지 못하므로, 폰트를 번들해 메인 스레드와 워커 양쪽에 `FontFace`로 등록하고 준비가 끝난 뒤에 그립니다. 이것을 빠뜨리면 미리보기와 내보내기의 서체가 달라집니다.
 - 문서와 주석은 습니다체로 씁니다. em-dash(U+2014)와 en-dash(U+2013)를 쓰지 않습니다.
 - 커밋 메시지 제목은 명사구로 씁니다.
 - 선행 프로젝트 `jeonghyeon-net/exif-frame`은 GPL-3.0입니다. 그 저장소의 코드와 이미지를 복사해 오지 않습니다.
-- 패키지 버전: `vite@^8.2.2`, `react@^19.2.8`, `react-dom@^19.2.8`, `typescript@^7.0.2`, `vitest@^4.1.11`, `@vitejs/plugin-react@^6.1.1`, `exifreader@^4.44.1`
+- 패키지 버전: `vite@^8.2.2`, `react@^19.2.8`, `react-dom@^19.2.8`, `typescript@^7.0.2`, `vitest@^4.1.11`, `@vitejs/plugin-react@^6.1.1`, `exifreader@^4.44.1`, `@fontsource-variable/inter@^5.3.0`
 - 이 계획의 범위는 프리셋 한 개(하단 정보 바)입니다. 나머지 두 프리셋과 브랜드 로고, HEIC, RAW, 배치, i18n은 다음 계획에서 다룹니다.
+- 워커와 폰트 등록은 이 계획에 포함합니다. 뒤로 미루면 그때 어댑터 계층을 전부 다시 고쳐야 하고, 폰트 없이 워커만 넣으면 미리보기와 결과물의 서체가 갈립니다.
 
 ---
 
@@ -51,7 +54,8 @@ src/core/layout/primitives.ts         말줄임과 텍스트 배치 보조
 src/core/layout/presets/infoBar.ts    하단 정보 바 프리셋
 
 src/core/paint/paint.ts               Scene를 캔버스 컨텍스트에 그리기
-src/core/paint/measure.ts             브라우저 measureText 구현
+src/core/paint/measure.ts             OffscreenCanvas 기반 measureText
+src/core/paint/fonts.ts               FontFace 등록, 메인 스레드와 워커 공용
 
 src/core/limits/clampExportSize.ts    내보내기 크기 계산과 한계 적용
 src/core/limits/probeCanvasLimit.ts   실제 캔버스 한계 측정
@@ -62,7 +66,13 @@ src/core/export/encode.ts             캔버스를 Blob으로
 
 src/core/render/buildScene.ts         사진 크기와 옵션을 Scene으로
 src/core/render/paintToCanvas.ts      Scene을 캔버스에 그리고 크기를 확정
-src/core/render/exportToBlob.ts       전체 해상도 렌더와 인코딩
+
+src/worker/protocol.ts                워커에 오가는 메시지 타입
+src/worker/render.worker.ts           전체 해상도 디코딩, 페인팅, 인코딩
+src/worker/client.ts                  워커 호출을 프라미스로 감싼 클라이언트
+
+src/platform/canvasLimitCache.ts      측정한 캔버스 한계를 localStorage에 보관
+src/platform/fontUrl.ts               번들된 woff2의 URL
 ```
 
 순수 함수는 파일 옆에 `*.test.ts`를 둡니다. 브라우저 API가 필요한 파일은 그 API를 인자로 주입받는 형태로 만들어 테스트 가능한 부분을 분리합니다.
@@ -90,12 +100,13 @@ src/core/render/exportToBlob.ts       전체 해상도 렌더와 인코딩
   "engines": { "node": ">=22" },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "exifreader": "^4.44.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
@@ -142,7 +153,7 @@ src/core/render/exportToBlob.ts       전체 해상도 렌더와 인코딩
 - [ ] **Step 3: vite.config.ts 작성**
 
 ```ts
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -859,7 +870,7 @@ export type PresetLayout = (input: LayoutInput, services: LayoutServices) => Sce
 - [ ] **Step 2: 타입 검사 통과 확인**
 
 ```bash
-npx tsc -b
+npx tsc --noEmit
 ```
 
 기대 결과: 출력 없이 종료 코드 0. 이 파일은 다른 모듈을 import 하지 않으므로 단독으로 통과해야 합니다.
@@ -2218,7 +2229,7 @@ export function toFields(meta: PhotoMeta): Partial<Record<TemplateToken, string>
 - [ ] **Step 6: 타입 검사와 전체 테스트 실행**
 
 ```bash
-npx tsc -b && npm test
+npx tsc --noEmit && npm test
 ```
 
 기대 결과: 타입 오류 없음, 모든 테스트 통과.
@@ -2357,16 +2368,18 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 15: 브라우저 어댑터
+### Task 15: 스레드 공용 캔버스 어댑터
 
-`src/core/` 규칙상 DOM을 직접 만지는 코드는 주입받는 형태여야 합니다. 실제 브라우저 구현을 여기 모읍니다. 이 파일들은 브라우저에서만 돌아가므로 Task 17의 수동 확인으로 검증합니다.
+캔버스가 필요한 곳에서 `document.createElement('canvas')` 대신 `OffscreenCanvas`를 씁니다. 워커에도 있는 API라 같은 코드가 양쪽에서 돕니다. DOM에 묶인 것은 `localStorage` 캐시 하나뿐이고 그것만 `src/platform/`에 둡니다.
+
+이 파일들은 브라우저에서만 돌아가므로 Task 19의 수동 확인으로 검증합니다.
 
 **Files:**
-- Create: `src/core/paint/measure.ts`, `src/core/limits/probeCanvasLimit.ts`, `src/core/export/webpSupport.ts`, `src/core/export/encode.ts`, `src/core/io/decode/raster.ts`, `src/core/io/decode/index.ts`
+- Create: `src/core/paint/measure.ts`, `src/core/limits/probeCanvasLimit.ts`, `src/core/export/webpSupport.ts`, `src/core/export/encode.ts`, `src/core/io/decode/raster.ts`, `src/core/io/decode/index.ts`, `src/platform/canvasLimitCache.ts`
 
 **Interfaces:**
 - Consumes: `sniff.ts`, `orientation.ts`, `resizeHint.ts`, `clampExportSize.ts`의 `CanvasLimit`, `layout/types.ts`의 `TextStyle`
-- Produces: `function createMeasurer(): (text: string, style: TextStyle) => number`, `function probeCanvasLimit(): CanvasLimit`, `function canvasSupportsWebp(): Promise<boolean>`, `type ExportFormat`, `function encodeCanvas(canvas, format, quality): Promise<Blob>`, `interface DecodedImage { bitmap: ImageBitmap; width: number; height: number }`, `interface DecodeRequest`, `function decodeImage(request: DecodeRequest): Promise<DecodedImage>`, `function detectKind(file: Blob): Promise<FileKind>`
+- Produces: `function createMeasurer(): (text: string, style: TextStyle) => number`, `function probeCanvasLimit(): CanvasLimit`, `function canvasSupportsWebp(): Promise<boolean>`, `type ExportFormat`, `function encodeCanvas(canvas: OffscreenCanvas, format: ExportFormat, quality: number): Promise<Blob>`, `interface DecodedImage { bitmap: ImageBitmap; width: number; height: number }`, `interface DecodeRequest`, `function decodeImage(request: DecodeRequest): Promise<DecodedImage>`, `function detectKind(file: Blob): Promise<FileKind>`, `function cachedCanvasLimit(): CanvasLimit`
 
 - [ ] **Step 1: measure.ts 작성**
 
@@ -2378,11 +2391,9 @@ import type { TextStyle } from '../layout/types';
  * 캔버스 하나를 재사용해 매 호출마다 새로 만들지 않습니다.
  */
 export function createMeasurer(): (text: string, style: TextStyle) => number {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1;
-  canvas.height = 1;
+  const canvas = new OffscreenCanvas(1, 1);
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D 컨텍스트를 만들지 못했습니다');
+  if (!ctx) throw new Error('측정용 2D 컨텍스트를 만들지 못했습니다');
 
   return (text, style) => {
     ctx.font = `${style.style} ${style.weight} ${style.size}px ${style.family}`;
@@ -2396,17 +2407,13 @@ export function createMeasurer(): (text: string, style: TextStyle) => number {
 ```ts
 import type { CanvasLimit } from './clampExportSize';
 
-const CACHE_KEY = 'halfstop.canvasLimit.v1';
-
 /**
  * iOS Safari는 한계를 넘겨도 예외를 던지지 않고 투명한 캔버스를 돌려줍니다.
  * 그래서 크기만 확인해서는 안 되고, 픽셀을 그린 뒤 실제로 되읽어야 합니다.
  */
 function canAllocate(side: number): boolean {
-  const canvas = document.createElement('canvas');
   try {
-    canvas.width = side;
-    canvas.height = side;
+    const canvas = new OffscreenCanvas(side, side);
     const ctx = canvas.getContext('2d');
     if (!ctx) return false;
     ctx.fillStyle = '#ff0000';
@@ -2415,36 +2422,35 @@ function canAllocate(side: number): boolean {
     return pixel[0] === 255 && pixel[3] === 255;
   } catch {
     return false;
-  } finally {
-    canvas.width = 0;
-    canvas.height = 0;
   }
 }
 
+/** 큰 할당을 여러 번 하므로 느립니다. 호출자가 결과를 캐시해야 합니다. */
 export function probeCanvasLimit(): CanvasLimit {
-  const cached = readCache();
-  if (cached) return cached;
+  if (!canAllocate(1024)) return { maxSide: 1024, maxArea: 1024 * 1024 };
 
   let low = 1024;
   let high = 32_768;
-  if (!canAllocate(low)) {
-    const limit: CanvasLimit = { maxSide: 1024, maxArea: 1024 * 1024 };
-    writeCache(limit);
-    return limit;
-  }
-
   while (high - low > 256) {
     const mid = Math.floor((low + high) / 2);
     if (canAllocate(mid)) low = mid;
     else high = mid;
   }
-
-  const limit: CanvasLimit = { maxSide: low, maxArea: low * low };
-  writeCache(limit);
-  return limit;
+  return { maxSide: low, maxArea: low * low };
 }
+```
 
-function readCache(): CanvasLimit | null {
+- [ ] **Step 3: canvasLimitCache.ts 작성**
+
+`src/platform/canvasLimitCache.ts`:
+
+```ts
+import type { CanvasLimit } from '../core/limits/clampExportSize';
+import { probeCanvasLimit } from '../core/limits/probeCanvasLimit';
+
+const CACHE_KEY = 'halfstop.canvasLimit.v1';
+
+function read(): CanvasLimit | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
@@ -2463,20 +2469,23 @@ function readCache(): CanvasLimit | null {
   }
 }
 
-function writeCache(limit: CanvasLimit): void {
+export function cachedCanvasLimit(): CanvasLimit {
+  const cached = read();
+  if (cached) return cached;
+
+  const limit = probeCanvasLimit();
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(limit));
   } catch {
     // 사생활 보호 모드에서는 저장이 막힙니다. 측정값은 그대로 쓰면 됩니다.
   }
+  return limit;
 }
 ```
 
-이 측정은 큰 캔버스를 여러 번 할당하므로 시간이 걸립니다. 첫 파일을 받을 때가 아니라 앱을 띄울 때 미리 돌려 두고, 결과를 캐시해 다음 방문에서는 건너뜁니다.
+- [ ] **Step 4: webpSupport.ts와 encode.ts 작성**
 
-- [ ] **Step 3: webpSupport.ts와 encode.ts 작성**
-
-`webpSupport.ts`:
+`src/core/export/webpSupport.ts`:
 
 ```ts
 /**
@@ -2485,38 +2494,34 @@ function writeCache(limit: CanvasLimit): void {
  */
 export async function canvasSupportsWebp(): Promise<boolean> {
   try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, 'image/webp', 0.9);
-    });
-    return blob?.type === 'image/webp';
+    const canvas = new OffscreenCanvas(1, 1);
+    const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.9 });
+    return blob.type === 'image/webp';
   } catch {
     return false;
   }
 }
 ```
 
-`encode.ts`:
+`src/core/export/encode.ts`:
 
 ```ts
 export type ExportFormat = 'image/jpeg' | 'image/png' | 'image/webp';
 
 export async function encodeCanvas(
-  canvas: HTMLCanvasElement,
+  canvas: OffscreenCanvas,
   format: ExportFormat,
   quality: number,
 ): Promise<Blob> {
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, format, quality);
-  });
-  if (!blob) throw new Error(`${format} 인코딩에 실패했습니다`);
+  const blob = await canvas.convertToBlob({ type: format, quality });
+  if (blob.type !== format) {
+    throw new Error(`${format} 인코딩을 지원하지 않습니다. 받은 형식은 ${blob.type}입니다`);
+  }
   return blob;
 }
 ```
 
-- [ ] **Step 4: 디코딩 경로 작성**
+- [ ] **Step 5: 디코딩 경로 작성**
 
 `src/core/io/decode/raster.ts`:
 
@@ -2598,45 +2603,268 @@ export async function decodeImage(request: DecodeRequest): Promise<DecodedImage>
 }
 ```
 
-- [ ] **Step 5: 타입 검사**
+- [ ] **Step 6: core 안에 DOM 참조가 없는지 확인**
 
 ```bash
-npx tsc -b
+grep -rn "document\.\|window\.\|localStorage" src/core/ && echo "위반 있음" || echo "core 깨끗함"
+```
+
+기대 결과: `core 깨끗함`. 걸리는 줄이 있으면 그 파일을 `src/platform/`으로 옮기거나 `OffscreenCanvas`로 바꿉니다.
+
+- [ ] **Step 7: 타입 검사**
+
+```bash
+npx tsc --noEmit
 ```
 
 기대 결과: 출력 없이 종료 코드 0.
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 8: 커밋**
 
 ```bash
-git add src/core/paint/measure.ts src/core/limits/probeCanvasLimit.ts src/core/export src/core/io/decode
-git commit -m "브라우저 어댑터 계층 추가
+git add src/core/paint/measure.ts src/core/limits/probeCanvasLimit.ts src/core/export src/core/io/decode src/platform
+git commit -m "OffscreenCanvas 기반 스레드 공용 어댑터 추가
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 16: 미리보기와 내보내기 분리
+### Task 16: 폰트 등록
 
-미리보기는 자주 돌고 내보내기는 가끔 돕니다. 두 경로가 같은 `Scene`과 같은 `paint()`를 쓰되 비용만 다르게 갑니다. 미리보기 경로에는 인코딩도 objectURL 발급도 없습니다.
+워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 등록을 빠뜨리면 미리보기는 Inter로, 내보낸 파일은 대체 서체로 나옵니다. 두 스레드가 같은 `FontFace`를 각자 등록하고, 준비가 끝나기 전에는 아무것도 그리지 않습니다.
+
+`FontFaceSet`은 메인 스레드에서 `document.fonts`, 워커에서 `self.fonts`입니다. 서로 다른 객체이므로 인자로 받습니다.
 
 **Files:**
-- Create: `src/core/render/buildScene.ts`, `src/core/render/paintToCanvas.ts`, `src/core/render/exportToBlob.ts`
+- Create: `src/core/paint/fonts.ts`, `src/platform/fontUrl.ts`
+- Test: `src/core/paint/fonts.test.ts`
 
 **Interfaces:**
-- Consumes: Task 5부터 15까지의 모든 모듈
-- Produces: `interface SceneRequest`, `function buildScene(request: SceneRequest): Scene`, `interface PaintToCanvasRequest`, `function paintToCanvas(request: PaintToCanvasRequest): { width: number; height: number; clamped: boolean }`, `interface ExportRequest`, `interface ExportResult { blob: Blob; width: number; height: number; clamped: boolean }`, `function exportToBlob(request: ExportRequest): Promise<ExportResult>`
+- Consumes: 없음
+- Produces: `const CANVAS_FONT_FAMILY = 'HalfstopInter'`, `const CANVAS_FONT_STACK`, `interface FontFaceLike`, `interface FontFaceSetLike`, `type FontFaceFactory`, `function ensureCanvasFont(fonts, url, create?): Promise<void>`, `const FONT_URL: string`
+
+- [ ] **Step 1: 실패하는 테스트 작성**
+
+`src/core/paint/fonts.test.ts`:
+
+```ts
+import { describe, expect, it, vi } from 'vitest';
+import {
+  CANVAS_FONT_FAMILY,
+  ensureCanvasFont,
+  type FontFaceLike,
+  type FontFaceSetLike,
+} from './fonts';
+
+function fakeSet(initial: FontFaceLike[] = []) {
+  const faces = [...initial];
+  const set: FontFaceSetLike = {
+    add: (face) => {
+      faces.push(face);
+    },
+    [Symbol.iterator]: () => faces[Symbol.iterator](),
+  };
+  return { set, faces };
+}
+
+function fakeFactory(load: () => Promise<unknown> = async () => undefined) {
+  return vi.fn((family: string) => ({ family, load }));
+}
+
+describe('ensureCanvasFont', () => {
+  it('아직 없으면 만들어서 등록합니다', async () => {
+    const { set, faces } = fakeSet();
+    const create = fakeFactory();
+    await ensureCanvasFont(set, '/inter.woff2', create);
+    expect(faces).toHaveLength(1);
+    expect(faces[0]?.family).toBe(CANVAS_FONT_FAMILY);
+  });
+
+  it('가변 굵기 범위를 지정해 만듭니다', async () => {
+    const { set } = fakeSet();
+    const create = fakeFactory();
+    await ensureCanvasFont(set, '/inter.woff2', create);
+    expect(create).toHaveBeenCalledWith(
+      CANVAS_FONT_FAMILY,
+      "url(/inter.woff2) format('woff2')",
+      { weight: '100 900' },
+    );
+  });
+
+  it('이미 등록돼 있으면 다시 만들지 않습니다', async () => {
+    const { set, faces } = fakeSet([{ family: CANVAS_FONT_FAMILY, load: async () => undefined }]);
+    const create = fakeFactory();
+    await ensureCanvasFont(set, '/inter.woff2', create);
+    expect(create).not.toHaveBeenCalled();
+    expect(faces).toHaveLength(1);
+  });
+
+  it('로드가 끝난 뒤에 등록합니다', async () => {
+    const order: string[] = [];
+    const { set } = fakeSet();
+    const create = vi.fn((family: string) => ({
+      family,
+      load: async () => {
+        order.push('load');
+      },
+    }));
+    const wrapped: FontFaceSetLike = {
+      add: (face) => {
+        order.push('add');
+        void face;
+      },
+      [Symbol.iterator]: () => [][Symbol.iterator](),
+    };
+    void set;
+    await ensureCanvasFont(wrapped, '/inter.woff2', create);
+    expect(order).toEqual(['load', 'add']);
+  });
+
+  it('로드가 실패하면 던집니다', async () => {
+    const { set } = fakeSet();
+    const create = fakeFactory(async () => {
+      throw new Error('network');
+    });
+    await expect(ensureCanvasFont(set, '/inter.woff2', create)).rejects.toThrow('network');
+  });
+});
+```
+
+- [ ] **Step 2: 테스트가 실패하는지 확인**
+
+```bash
+npm test -- src/core/paint/fonts.test.ts
+```
+
+기대 결과: `Failed to resolve import "./fonts"`.
+
+- [ ] **Step 3: 구현 작성**
+
+`src/core/paint/fonts.ts`:
+
+```ts
+/** 시스템 폰트와 이름이 겹치지 않도록 고유한 이름을 씁니다. */
+export const CANVAS_FONT_FAMILY = 'HalfstopInter';
+
+/** 등록에 실패해도 글자가 아예 안 나오지는 않도록 뒤에 일반 계열을 둡니다. */
+export const CANVAS_FONT_STACK = `${CANVAS_FONT_FAMILY}, sans-serif`;
+
+export interface FontFaceLike {
+  family: string;
+  load(): Promise<unknown>;
+}
+
+export interface FontFaceSetLike extends Iterable<FontFaceLike> {
+  add(face: FontFaceLike): void;
+}
+
+export type FontFaceFactory = (
+  family: string,
+  source: string,
+  descriptors: { weight: string },
+) => FontFaceLike;
+
+const defaultFactory: FontFaceFactory = (family, source, descriptors) =>
+  new FontFace(family, source, descriptors) as unknown as FontFaceLike;
+
+/**
+ * 메인 스레드는 document.fonts를, 워커는 self.fonts를 넘깁니다. 두 스레드가
+ * 각자 등록해야 같은 서체로 그려집니다. 반드시 이 프라미스를 기다린 뒤에
+ * measureText와 paint를 부릅니다. 기다리지 않으면 첫 렌더가 대체 서체로 나갑니다.
+ */
+export async function ensureCanvasFont(
+  fonts: FontFaceSetLike,
+  url: string,
+  create: FontFaceFactory = defaultFactory,
+): Promise<void> {
+  for (const face of fonts) {
+    if (face.family === CANVAS_FONT_FAMILY) return;
+  }
+
+  const face = create(CANVAS_FONT_FAMILY, `url(${url}) format('woff2')`, { weight: '100 900' });
+  await face.load();
+  fonts.add(face);
+}
+```
+
+`src/platform/fontUrl.ts`:
+
+```ts
+// Vite가 이 woff2를 자산으로 다루고 최종 URL 문자열을 돌려줍니다.
+// 라틴 서브셋 가변 폰트라 EXIF 문자열에 필요한 글자를 모두 담고 크기도 작습니다.
+import url from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+
+export const FONT_URL: string = url;
+```
+
+- [ ] **Step 4: 테스트 통과 확인**
+
+```bash
+npm test -- src/core/paint/fonts.test.ts
+```
+
+기대 결과: `5 passed`.
+
+- [ ] **Step 5: infoBar 프리셋이 이 서체를 쓰도록 수정**
+
+`src/core/layout/presets/infoBar.ts`에서 `family` 값을 바꿉니다.
+
+```ts
+import { CANVAS_FONT_STACK } from '../../paint/fonts';
+```
+
+```ts
+  const baseStyle: Omit<TextStyle, 'align'> = {
+    family: CANVAS_FONT_STACK,
+```
+
+- [ ] **Step 6: 전체 테스트와 타입 검사**
+
+```bash
+npx tsc --noEmit && npm test
+```
+
+기대 결과: 타입 오류 없음, 모든 테스트 통과. `infoBar.test.ts`는 `family` 값을 검사하지 않으므로 그대로 통과해야 합니다.
+
+- [ ] **Step 7: 커밋**
+
+```bash
+git add src/core/paint/fonts.ts src/core/paint/fonts.test.ts src/platform/fontUrl.ts src/core/layout/presets/infoBar.ts
+git commit -m "캔버스 폰트 등록과 번들 폰트 추가
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 17: Scene 조립과 캔버스 페인팅
+
+**Files:**
+- Create: `src/core/render/buildScene.ts`, `src/core/render/paintToCanvas.ts`
+
+**Interfaces:**
+- Consumes: `layout/types.ts`, `layout/units.ts`, `paint/paint.ts`, `limits/clampExportSize.ts`
+- Produces: `interface SceneRequest`, `function buildScene(request: SceneRequest): Scene`, `type AnyCanvas = HTMLCanvasElement | OffscreenCanvas`, `interface PaintToCanvasRequest`, `function paintToCanvas(request: PaintToCanvasRequest): { width: number; height: number; clamped: boolean }`
 
 - [ ] **Step 1: buildScene.ts 작성**
 
 ```ts
-import type { OptionValue } from '../layout/types';
-import type { LayoutServices, PresetLayout, Scene, TemplateToken } from '../layout/types';
+import type {
+  LayoutServices,
+  OptionValue,
+  PresetLayout,
+  Scene,
+  TemplateToken,
+} from '../layout/types';
 import { toUnits } from '../layout/units';
 
 export interface SceneRequest {
-  /** 미리보기 비트맵을 넘겨도 됩니다. 디자인 단위는 비율만 보므로 결과가 같습니다. */
+  /**
+   * 미리보기 비트맵 크기를 넘겨도 됩니다. 디자인 단위는 비율만 보므로
+   * 전체 해상도로 계산한 Scene과 사실상 같습니다. 축소 디코딩에서 생긴
+   * 1픽셀 미만의 반올림 차이만 남고, 1500 단위에서 0.1 아래입니다.
+   */
   photoPx: { width: number; height: number };
   fields: Partial<Record<TemplateToken, string>>;
   logoId: string | undefined;
@@ -2657,13 +2885,15 @@ export function buildScene(request: SceneRequest): Scene {
 - [ ] **Step 2: paintToCanvas.ts 작성**
 
 ```ts
-import { clampExportSize, type CanvasLimit } from '../limits/clampExportSize';
 import type { Scene } from '../layout/types';
+import { clampExportSize, type CanvasLimit } from '../limits/clampExportSize';
 import { paint } from '../paint/paint';
+
+export type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
 
 export interface PaintToCanvasRequest {
   scene: Scene;
-  canvas: HTMLCanvasElement;
+  canvas: AnyCanvas;
   photo: CanvasImageSource;
   logo: (logoId: string) => Path2D | null;
   targetLongEdge: number;
@@ -2684,7 +2914,10 @@ export function paintToCanvas(request: PaintToCanvasRequest): {
 
   canvas.width = size.width;
   canvas.height = size.height;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d') as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D
+    | null;
   if (!ctx) throw new Error('2D 컨텍스트를 만들지 못했습니다');
 
   ctx.imageSmoothingQuality = 'high';
@@ -2695,76 +2928,271 @@ export function paintToCanvas(request: PaintToCanvasRequest): {
 }
 ```
 
-- [ ] **Step 3: exportToBlob.ts 작성**
-
-```ts
-import { encodeCanvas, type ExportFormat } from '../export/encode';
-import { targetLongEdge, type ExportPreset } from '../export/resolution';
-import type { CanvasLimit } from '../limits/clampExportSize';
-import type { Scene } from '../layout/types';
-import { paintToCanvas } from './paintToCanvas';
-
-export interface ExportRequest {
-  scene: Scene;
-  /** 전체 해상도 비트맵입니다. 이 함수를 부르기 직전에 디코딩합니다. */
-  photo: CanvasImageSource;
-  photoLongEdgePx: number;
-  logo: (logoId: string) => Path2D | null;
-  limit: CanvasLimit;
-  preset: ExportPreset;
-  format: ExportFormat;
-  quality: number;
-}
-
-export interface ExportResult {
-  blob: Blob;
-  width: number;
-  height: number;
-  /** 기기 한계로 요청보다 작아졌으면 true입니다. 화면에 알려야 합니다. */
-  clamped: boolean;
-}
-
-export async function exportToBlob(request: ExportRequest): Promise<ExportResult> {
-  const canvas = document.createElement('canvas');
-  try {
-    const size = paintToCanvas({
-      scene: request.scene,
-      canvas,
-      photo: request.photo,
-      logo: request.logo,
-      targetLongEdge: targetLongEdge(request.preset, request.photoLongEdgePx),
-      limit: request.limit,
-    });
-    const blob = await encodeCanvas(canvas, request.format, request.quality);
-    return { blob, ...size };
-  } finally {
-    // 백킹 스토어를 즉시 반납합니다. 참조만 버리면 해제가 늦습니다.
-    canvas.width = 0;
-    canvas.height = 0;
-  }
-}
-```
-
-- [ ] **Step 4: 타입 검사와 전체 테스트**
+- [ ] **Step 3: 타입 검사와 전체 테스트**
 
 ```bash
-npx tsc -b && npm test
+npx tsc --noEmit && npm test
 ```
 
 기대 결과: 타입 오류 없음, 모든 테스트 통과.
 
-- [ ] **Step 5: 커밋**
+- [ ] **Step 4: 커밋**
 
 ```bash
 git add src/core/render
-git commit -m "미리보기와 내보내기 렌더 경로 분리
+git commit -m "Scene 조립과 캔버스 페인팅 진입점 추가
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 17: 미리보기 UI와 엔드투엔드 확인
+### Task 18: 렌더 워커
+
+전체 해상도 디코딩과 인코딩은 무겁습니다. 메인 스레드에서 하면 그동안 화면이 멈춥니다. 워커로 보냅니다.
+
+`Scene`은 평범한 데이터라 구조화 복제로 그대로 넘어갑니다. 레이아웃은 메인 스레드에서 이미 계산했으므로 워커는 그리고 인코딩만 합니다. `Blob`도 복제로 오갑니다.
+
+**Files:**
+- Create: `src/worker/protocol.ts`, `src/worker/render.worker.ts`, `src/worker/client.ts`
+- Test: `src/worker/protocol.test.ts`
+
+**Interfaces:**
+- Consumes: Task 17까지의 모든 모듈
+- Produces: `interface RenderJob`, `type RenderReply`, `function nextJobId(): number`, `interface RenderClient { render(job: Omit<RenderJob, 'id'>): Promise<RenderOutcome>; dispose(): void }`, `function createRenderClient(): RenderClient`
+
+- [ ] **Step 1: 실패하는 테스트 작성**
+
+`src/worker/protocol.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { isRenderReply, nextJobId } from './protocol';
+
+describe('nextJobId', () => {
+  it('부를 때마다 커집니다', () => {
+    const a = nextJobId();
+    const b = nextJobId();
+    expect(b).toBeGreaterThan(a);
+  });
+});
+
+describe('isRenderReply', () => {
+  it('성공 응답을 알아봅니다', () => {
+    const reply = { id: 1, ok: true, blob: new Blob(), width: 10, height: 5, clamped: false };
+    expect(isRenderReply(reply)).toBe(true);
+  });
+
+  it('실패 응답을 알아봅니다', () => {
+    expect(isRenderReply({ id: 1, ok: false, message: '실패' })).toBe(true);
+  });
+
+  it('id가 없으면 응답이 아닙니다', () => {
+    expect(isRenderReply({ ok: true })).toBe(false);
+  });
+
+  it('객체가 아니면 응답이 아닙니다', () => {
+    expect(isRenderReply(null)).toBe(false);
+    expect(isRenderReply('ok')).toBe(false);
+    expect(isRenderReply(undefined)).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: 테스트가 실패하는지 확인**
+
+```bash
+npm test -- src/worker/protocol.test.ts
+```
+
+기대 결과: `Failed to resolve import "./protocol"`.
+
+- [ ] **Step 3: protocol.ts 작성**
+
+```ts
+import type { ExportFormat } from '../core/export/encode';
+import type { ExportPreset } from '../core/export/resolution';
+import type { Scene } from '../core/layout/types';
+import type { CanvasLimit } from '../core/limits/clampExportSize';
+
+export interface RenderJob {
+  id: number;
+  file: Blob;
+  /** 메인 스레드가 미리 계산한 레이아웃입니다. 워커는 그리기만 합니다. */
+  scene: Scene;
+  autoOriented: boolean;
+  orientation: number;
+  limit: CanvasLimit;
+  preset: ExportPreset;
+  format: ExportFormat;
+  quality: number;
+  /** 워커가 자기 FontFaceSet에 등록할 폰트 주소입니다. */
+  fontUrl: string;
+}
+
+export type RenderReply =
+  | { id: number; ok: true; blob: Blob; width: number; height: number; clamped: boolean }
+  | { id: number; ok: false; message: string };
+
+let counter = 0;
+export function nextJobId(): number {
+  counter += 1;
+  return counter;
+}
+
+export function isRenderReply(value: unknown): value is RenderReply {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<RenderReply>;
+  return typeof candidate.id === 'number' && typeof candidate.ok === 'boolean';
+}
+```
+
+- [ ] **Step 4: 테스트 통과 확인**
+
+```bash
+npm test -- src/worker/protocol.test.ts
+```
+
+기대 결과: `6 passed`.
+
+- [ ] **Step 5: render.worker.ts 작성**
+
+```ts
+import { encodeCanvas } from '../core/export/encode';
+import { targetLongEdge } from '../core/export/resolution';
+import { decodeImage } from '../core/io/decode';
+import { ensureCanvasFont } from '../core/paint/fonts';
+import { paintToCanvas } from '../core/render/paintToCanvas';
+import type { RenderJob, RenderReply } from './protocol';
+
+const NO_LOGO = () => null;
+
+// 워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 여기서 따로 등록해야
+// 미리보기와 같은 서체로 그려집니다.
+const fontReady = new Map<string, Promise<void>>();
+function ensureFont(url: string): Promise<void> {
+  let pending = fontReady.get(url);
+  if (!pending) {
+    pending = ensureCanvasFont(self.fonts as unknown as Parameters<typeof ensureCanvasFont>[0], url);
+    fontReady.set(url, pending);
+  }
+  return pending;
+}
+
+async function run(job: RenderJob): Promise<RenderReply> {
+  let bitmap: ImageBitmap | null = null;
+  try {
+    await ensureFont(job.fontUrl);
+
+    const image = await decodeImage({
+      file: job.file,
+      autoOriented: job.autoOriented,
+      orientation: job.orientation,
+    });
+    bitmap = image.bitmap;
+
+    const canvas = new OffscreenCanvas(1, 1);
+    const size = paintToCanvas({
+      scene: job.scene,
+      canvas,
+      photo: image.bitmap,
+      logo: NO_LOGO,
+      targetLongEdge: targetLongEdge(job.preset, Math.max(image.width, image.height)),
+      limit: job.limit,
+    });
+
+    const blob = await encodeCanvas(canvas, job.format, job.quality);
+    return { id: job.id, ok: true, blob, ...size };
+  } catch (error) {
+    return { id: job.id, ok: false, message: error instanceof Error ? error.message : '렌더에 실패했습니다' };
+  } finally {
+    bitmap?.close();
+  }
+}
+
+self.addEventListener('message', (event: MessageEvent<RenderJob>) => {
+  void run(event.data).then((reply) => {
+    self.postMessage(reply);
+  });
+});
+```
+
+- [ ] **Step 6: client.ts 작성**
+
+```ts
+import { isRenderReply, nextJobId, type RenderJob, type RenderReply } from './protocol';
+
+export interface RenderOutcome {
+  blob: Blob;
+  width: number;
+  height: number;
+  clamped: boolean;
+}
+
+export interface RenderClient {
+  render(job: Omit<RenderJob, 'id'>): Promise<RenderOutcome>;
+  dispose(): void;
+}
+
+export function createRenderClient(): RenderClient {
+  const worker = new Worker(new URL('./render.worker.ts', import.meta.url), { type: 'module' });
+  const pending = new Map<number, (reply: RenderReply) => void>();
+
+  worker.addEventListener('message', (event: MessageEvent<unknown>) => {
+    if (!isRenderReply(event.data)) return;
+    const resolve = pending.get(event.data.id);
+    if (!resolve) return;
+    pending.delete(event.data.id);
+    resolve(event.data);
+  });
+
+  // 워커 안에서 잡히지 않은 오류가 나면 기다리던 요청이 영원히 매달립니다.
+  worker.addEventListener('error', (event) => {
+    for (const [id, resolve] of pending) {
+      resolve({ id, ok: false, message: event.message || '워커에서 오류가 났습니다' });
+    }
+    pending.clear();
+  });
+
+  return {
+    render(job) {
+      const id = nextJobId();
+      return new Promise<RenderOutcome>((resolve, reject) => {
+        pending.set(id, (reply) => {
+          if (reply.ok) resolve({ blob: reply.blob, width: reply.width, height: reply.height, clamped: reply.clamped });
+          else reject(new Error(reply.message));
+        });
+        worker.postMessage({ ...job, id } satisfies RenderJob);
+      });
+    },
+    dispose() {
+      worker.terminate();
+      pending.clear();
+    },
+  };
+}
+```
+
+- [ ] **Step 7: 타입 검사와 전체 테스트**
+
+```bash
+npx tsc --noEmit && npm test
+```
+
+기대 결과: 타입 오류 없음, 모든 테스트 통과.
+
+- [ ] **Step 8: 커밋**
+
+```bash
+git add src/worker
+git commit -m "전체 해상도 렌더를 담당하는 워커 추가
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 19: 미리보기 UI와 엔드투엔드 확인
 
 이 계획의 마지막 작업입니다. UI 문구는 한국어로 직접 적습니다. 영어 사전은 다음 계획에서 붙입니다.
 
@@ -2773,7 +3201,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Create: `src/ui/usePipeline.ts`
 
 **Interfaces:**
-- Consumes: Task 16까지의 모든 모듈
+- Consumes: Task 18까지의 모든 모듈
 - Produces: 동작하는 페이지
 
 - [ ] **Step 1: 파이프라인 훅 작성**
@@ -2782,21 +3210,23 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ```ts
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { detectAutoOrientation } from '../core/io/autoOrientProbe';
-import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { toFields } from '../core/exif/map';
 import { readExif, type PhotoMeta } from '../core/exif/read';
 import { PREVIEW_LONG_EDGE } from '../core/export/resolution';
-import { defaultValues, type OptionValue } from '../core/layout/options';
-import { INFO_BAR_OPTIONS, infoBarLayout } from '../core/layout/presets/infoBar';
+import { detectAutoOrientation } from '../core/io/autoOrientProbe';
+import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { swapsAxes } from '../core/io/orientation';
+import { defaultValues } from '../core/layout/options';
+import { INFO_BAR_OPTIONS, infoBarLayout } from '../core/layout/presets/infoBar';
+import type { LayoutServices, OptionValue, TemplateToken } from '../core/layout/types';
 import type { CanvasLimit } from '../core/limits/clampExportSize';
-import { probeCanvasLimit } from '../core/limits/probeCanvasLimit';
+import { ensureCanvasFont, type FontFaceSetLike } from '../core/paint/fonts';
 import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
-import { exportToBlob } from '../core/render/exportToBlob';
 import { paintToCanvas } from '../core/render/paintToCanvas';
-import type { LayoutServices, TemplateToken } from '../core/layout/types';
+import { cachedCanvasLimit } from '../platform/canvasLimitCache';
+import { FONT_URL } from '../platform/fontUrl';
+import { createRenderClient, type RenderClient } from '../worker/client';
 
 const NO_LOGO = () => null;
 
@@ -2806,19 +3236,12 @@ const NO_LOGO = () => null;
  * 바이트를 하드코딩하는 대신 캔버스로 만들어 실제로 유효한 JPEG임을 보장합니다.
  */
 async function makeProbeJpeg(): Promise<Uint8Array> {
-  const canvas = document.createElement('canvas');
-  canvas.width = 3;
-  canvas.height = 2;
+  const canvas = new OffscreenCanvas(3, 2);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('탐지용 2D 컨텍스트를 만들지 못했습니다');
   ctx.fillStyle = '#808080';
   ctx.fillRect(0, 0, 3, 2);
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, 'image/jpeg', 0.9);
-  });
-  canvas.width = 0;
-  canvas.height = 0;
-  if (!blob) throw new Error('탐지용 JPEG 인코딩에 실패했습니다');
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
   return new Uint8Array(await blob.arrayBuffer());
 }
 
@@ -2839,7 +3262,8 @@ interface Loaded {
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const [status, setStatus] = useState('사진을 끌어다 놓거나 골라 주세요');
+  const [status, setStatus] = useState('준비하는 중입니다');
+  const [ready, setReady] = useState(false);
   const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
     defaultValues(INFO_BAR_OPTIONS),
   );
@@ -2848,13 +3272,39 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
   const servicesRef = useRef<LayoutServices | null>(null);
   const limitRef = useRef<CanvasLimit | null>(null);
+  const clientRef = useRef<RenderClient | null>(null);
   const frameRef = useRef<number | null>(null);
 
-  // 캔버스 한계 측정은 큰 할당을 여러 번 합니다. 첫 파일을 기다리게 하지 않도록 미리 돌립니다.
+  // 폰트가 준비되기 전에 measureText를 부르면 대체 서체 폭으로 배치가 계산됩니다.
+  // 캔버스 한계 측정도 큰 할당을 여러 번 하므로 첫 파일을 기다리게 하지 않고 미리 끝냅니다.
   useEffect(() => {
-    limitRef.current ??= probeCanvasLimit();
-    servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
+    let alive = true;
+    clientRef.current ??= createRenderClient();
+    limitRef.current ??= cachedCanvasLimit();
     void autoOrientedFlag();
+
+    void ensureCanvasFont(document.fonts as unknown as FontFaceSetLike, FONT_URL)
+      .then(() => {
+        if (!alive) return;
+        servicesRef.current = { measureText: createMeasurer(), hasLogo: () => false };
+        setReady(true);
+        setStatus('사진을 끌어다 놓거나 골라 주세요');
+      })
+      .catch(() => {
+        if (!alive) return;
+        setStatus('폰트를 불러오지 못했어요. 새로고침해 주세요');
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clientRef.current?.dispose();
+      clientRef.current = null;
+    };
   }, []);
 
   const repaint = useCallback(() => {
@@ -2926,7 +3376,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       setLoaded({ file, meta, fields: toFields(meta), preview });
       setStatus(`${file.name} 을 불러왔어요`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '알 수 없는 오류가 났습니다');
+      setStatus(error instanceof Error ? error.message : '알 수 없는 오류가 났어요');
     }
   }, []);
 
@@ -2937,17 +3387,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const download = useCallback(async () => {
     const services = servicesRef.current;
     const limit = limitRef.current;
-    if (!loaded || !services || !limit) return;
+    const client = clientRef.current;
+    if (!loaded || !services || !limit || !client) return;
 
     setBusy(true);
     setStatus('전체 해상도로 그리는 중입니다');
-    let full: DecodedImage | null = null;
     try {
-      const autoOriented = await autoOrientedFlag();
-      full = await decodeImage({ file: loaded.file, autoOriented, orientation: loaded.meta.orientation });
-
       const scene = buildScene({
-        photoPx: { width: full.width, height: full.height },
+        photoPx: { width: loaded.preview.width, height: loaded.preview.height },
         fields: loaded.fields,
         logoId: undefined,
         layout: infoBarLayout,
@@ -2955,21 +3402,22 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         services,
       });
 
-      const result = await exportToBlob({
+      const result = await client.render({
+        file: loaded.file,
         scene,
-        photo: full.bitmap,
-        photoLongEdgePx: Math.max(full.width, full.height),
-        logo: NO_LOGO,
+        autoOriented: await autoOrientedFlag(),
+        orientation: loaded.meta.orientation,
         limit,
         preset: 'original',
         format: 'image/jpeg',
         quality: 0.92,
+        fontUrl: FONT_URL,
       });
 
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = loaded.file.name.replace(/\.[^.]+$/, '') + '-halfstop.jpg';
+      anchor.download = `${loaded.file.name.replace(/\.[^.]+$/, '')}-halfstop.jpg`;
       anchor.click();
       URL.revokeObjectURL(url);
 
@@ -2981,12 +3429,11 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '내보내기에 실패했어요');
     } finally {
-      full?.bitmap.close();
       setBusy(false);
     }
   }, [loaded, options]);
 
-  return { status, options, setOption, load, download, busy, ready: loaded !== null };
+  return { status, options, setOption, load, download, busy, ready, hasPhoto: loaded !== null };
 }
 ```
 
@@ -2996,13 +3443,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
 ```tsx
 import { useRef, type ChangeEvent, type DragEvent } from 'react';
-import { INFO_BAR_OPTIONS } from '../core/layout/presets/infoBar';
 import type { PresetOption } from '../core/layout/options';
+import { INFO_BAR_OPTIONS } from '../core/layout/presets/infoBar';
 import { usePipeline } from './usePipeline';
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { status, options, setOption, load, download, busy, ready } = usePipeline(canvasRef);
+  const { status, options, setOption, load, download, busy, ready, hasPhoto } =
+    usePipeline(canvasRef);
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -3084,7 +3532,12 @@ export function App() {
         style={{ border: '2px dashed #bbb', borderRadius: 12, padding: 24, marginBottom: 16 }}
       >
         <p style={{ margin: '0 0 12px' }}>{status}</p>
-        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} />
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={onPick}
+          disabled={!ready}
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
@@ -3100,7 +3553,7 @@ export function App() {
               {field(option)}
             </label>
           ))}
-          <button type="button" onClick={() => void download()} disabled={!ready || busy}>
+          <button type="button" onClick={() => void download()} disabled={!hasPhoto || busy}>
             {busy ? '만드는 중' : '내려받기'}
           </button>
         </aside>
@@ -3110,15 +3563,23 @@ export function App() {
 }
 ```
 
-- [ ] **Step 3: 타입 검사와 전체 테스트**
+- [ ] **Step 3: core 안에 DOM 참조가 없는지 다시 확인**
 
 ```bash
-npx tsc -b && npm test
+grep -rn "document\.\|window\.\|localStorage" src/core/ && echo "위반 있음" || echo "core 깨끗함"
+```
+
+기대 결과: `core 깨끗함`.
+
+- [ ] **Step 4: 타입 검사와 전체 테스트**
+
+```bash
+npx tsc --noEmit && npm test
 ```
 
 기대 결과: 타입 오류 없음, 모든 테스트 통과.
 
-- [ ] **Step 4: 개발 서버로 직접 확인**
+- [ ] **Step 5: 개발 서버로 직접 확인**
 
 ```bash
 npm run dev
@@ -3129,20 +3590,21 @@ npm run dev
 1. Sony, Canon, Nikon 중 하나로 찍은 JPEG을 넣습니다. 하단 바에 제조사와 모델, 초점거리, 조리개, 셔터, ISO가 나오는지 봅니다.
 2. **세로 사진을 넣습니다. 눕지 않고 똑바로 서는지 봅니다.** 이 계획에서 가장 중요한 확인입니다.
 3. Orientation 태그가 붙은 사진과 붙지 않은 사진을 각각 넣어 둘 다 똑바로 서는지 봅니다.
-4. EXIF가 없는 이미지를 넣습니다. 오류 없이 바가 비거나 일부만 나오는지 봅니다.
-5. 5천만 화소급 대형 JPEG을 넣습니다. 내려받기가 끝나는지, 줄었다면 안내 문구가 나오는지 봅니다.
-6. 내려받은 파일을 사진 앱에서 열어 실제로 열리는지 봅니다.
-7. 개발자 도구 네트워크 탭을 열어 두고 위 과정을 반복합니다. 이미지가 나가는 요청이 하나도 없어야 합니다.
+4. **미리보기와 내려받은 파일의 글자를 나란히 놓고 봅니다. 서체와 자간이 같아야 합니다.** 다르면 워커의 폰트 등록이 안 된 것입니다.
+5. EXIF가 없는 이미지를 넣습니다. 오류 없이 바가 비거나 일부만 나오는지 봅니다.
+6. 5천만 화소급 대형 JPEG을 넣습니다. 내려받기가 끝나는지, 줄었다면 안내 문구가 나오는지 봅니다.
+7. 내려받은 파일을 사진 앱에서 열어 실제로 열리는지 봅니다.
+8. 개발자 도구 네트워크 탭을 열어 두고 위 과정을 반복합니다. 이미지가 나가는 요청이 하나도 없어야 합니다. 폰트 woff2를 가져오는 요청은 같은 출처이므로 정상입니다.
 
-- [ ] **Step 5: 반응 속도 확인**
+- [ ] **Step 6: 반응 속도 확인**
 
-이 계획에 반응 속도 요구가 있으므로 눈대중이 아니라 숫자로 확인합니다. 개발자 도구 Performance 패널을 켜고 5천만 화소 JPEG으로 다음을 재고, 결과를 기록합니다.
+눈대중이 아니라 숫자로 확인합니다. 개발자 도구 Performance 패널을 켜고 5천만 화소 JPEG으로 다음을 재어 기록합니다.
 
-1. 파일을 놓은 시점부터 미리보기가 뜰 때까지의 시간입니다. 축소 디코딩이 걸렸다면 1초 안쪽이어야 합니다. 몇 초가 걸린다면 `resizeHint`가 `{}`를 돌려주고 있다는 뜻이므로, EXIF에 원본 크기가 있는지부터 확인합니다.
-2. 바 높이 슬라이더를 끝까지 끌 때의 프레임 흐름입니다. 디코딩이 다시 일어나면 안 됩니다. Performance 기록에 `createImageBitmap`이 보이면 미리보기 경로에 디코딩이 섞인 것입니다.
-3. 색상과 템플릿 문자열을 바꿀 때도 같은지 봅니다.
+1. 파일을 놓은 시점부터 미리보기가 뜰 때까지의 시간입니다. 축소 디코딩이 걸렸다면 1초 안쪽이어야 합니다. 몇 초가 걸린다면 `resizeHint`가 `{}`를 돌려주고 있다는 뜻이므로 EXIF에 원본 크기가 있는지부터 확인합니다.
+2. 바 높이 슬라이더를 끝까지 끌 때의 프레임 흐름입니다. 디코딩이 다시 일어나면 안 됩니다. 기록에 `createImageBitmap`이 보이면 미리보기 경로에 디코딩이 섞인 것입니다.
+3. **내려받기를 누른 동안 메인 스레드가 멈추지 않는지 봅니다.** Performance 기록의 메인 스레드 트랙이 비어 있고 워커 트랙이 일해야 합니다. 메인 스레드가 길게 막히면 워커를 타지 않고 있는 것입니다.
 
-- [ ] **Step 6: 커밋**
+- [ ] **Step 7: 커밋**
 
 ```bash
 git add src/ui
@@ -3156,11 +3618,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## 이 계획을 마치면 확보되는 것
 
 - JPEG, PNG, WebP를 넣어 하단 정보 바가 붙은 이미지를 내려받을 수 있습니다.
-- 옵션을 만지면 미리보기가 곧바로 따라옵니다. 디코딩은 파일당 한 번이고, 전체 해상도 작업은 내려받을 때만 일어납니다.
-- 미리보기와 내보내기가 어긋나지 않는다는 보장이 테스트로 붙어 있습니다.
+- 옵션을 만지면 미리보기가 곧바로 따라옵니다. 디코딩은 파일당 한 번이고, 전체 해상도 작업은 워커에서 일어나 화면이 멈추지 않습니다.
+- 미리보기와 내보내기가 어긋나지 않는다는 보장이 테스트로 붙어 있고, 서체까지 같습니다.
 - 캔버스 한계와 방향 회전이라는 두 가지 조용한 실패 원인이 잡혀 있습니다.
+- `src/core/`가 실제로 워커에서 돌아간다는 것이 말이 아니라 동작으로 증명됩니다.
 - 옵션 패널이 선언에서 자동으로 만들어지므로, 프리셋을 늘릴 때 UI 코드를 새로 쓰지 않습니다.
 
 ## 다음 계획에서 다루는 것
 
-브랜드 정규화와 로고 `Path2D` 빌드 스텝, 폰트 로딩, EXIF 수동 편집 패널, 한국어와 영어 사전입니다. 그 뒤가 나머지 프리셋 두 개, HEIC, RAW, 배치와 ZIP입니다.
+브랜드 정규화와 로고 `Path2D` 빌드 스텝, EXIF 수동 편집 패널, 한국어와 영어 사전입니다. 그 뒤가 나머지 프리셋 두 개, HEIC, RAW, 배치와 ZIP입니다.
