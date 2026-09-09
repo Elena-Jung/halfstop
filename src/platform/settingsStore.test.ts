@@ -56,3 +56,16 @@ describe('writeSettings 와 readSettings', () => {
     expect(() => writeSettings({ presetId: 'a', values: {} }, throwingStorage())).not.toThrow();
   });
 });
+
+describe('저장소를 안 넘겼을 때', () => {
+  // 이 테스트는 localStorage 가 없는 환경에서 돕니다. 이름을 읽는 것만으로 ReferenceError
+  // 가 나므로, 그 접근이 try 안에 있는지를 그대로 확인하는 셈입니다.
+  it('읽기가 예외를 밖으로 내보내지 않고 null 을 돌려줍니다', () => {
+    expect(() => readSettings()).not.toThrow();
+    expect(readSettings()).toBeNull();
+  });
+
+  it('쓰기가 예외를 밖으로 내보내지 않습니다', () => {
+    expect(() => writeSettings({ presetId: 'a', values: {} })).not.toThrow();
+  });
+});
