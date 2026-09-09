@@ -92,6 +92,63 @@ describe('barLayout split 모드', () => {
   });
 });
 
+describe('barLayout 두 줄 y 좌표', () => {
+  it('FOOTER와 PRIMARY_SUB를 함께 두면 주 줄과 부 줄이 사진 아래에 있고 꼬리 줄과 겹치지 않습니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('PRIMARY_SUB', '{LENS}');
+    options.set('FOOTER', '{ISO}');
+    const scene = barLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    const main = nodes.find((n) => n.text === 'Canon · EOS R6');
+    const sub = nodes.find((n) => n.text === 'RF 50mm');
+    const footer = nodes.find((n) => n.text === 'ISO 400');
+    expect(main).toBeDefined();
+    expect(sub).toBeDefined();
+    expect(footer).toBeDefined();
+    // BAR_HEIGHT 120 기본값: slotHeight 81.6, gap 42.5. slotCenterY = 1040.8.
+    expect(main?.y).toBeCloseTo(1019.55);
+    expect(sub?.y).toBeCloseTo(1062.05);
+    expect(footer?.y).toBeCloseTo(1100.8);
+    expect(main?.y ?? 0).toBeGreaterThanOrEqual(1000);
+    expect(sub?.y ?? 0).toBeGreaterThanOrEqual(1000);
+    // 부 줄과 꼬리 줄은 둘 다 글자 크기가 23.8이므로, 반높이의 합(23.8*0.62*2)
+    // 이상 떨어져 있어야 겹치지 않습니다.
+    expect((footer?.y ?? 0) - (sub?.y ?? 0)).toBeGreaterThanOrEqual(23.8 * 1.24);
+  });
+
+  it('BAR_HEIGHT를 60으로 낮추고 FOOTER와 PRIMARY_SUB를 함께 두어도 모든 텍스트가 사진 아래에 있습니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('BAR_HEIGHT', 60);
+    options.set('PRIMARY_SUB', '{LENS}');
+    options.set('FOOTER', '{ISO}');
+    const scene = barLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    expect(nodes.length).toBe(4);
+    for (const node of nodes) {
+      expect(node.y).toBeGreaterThanOrEqual(1000);
+    }
+  });
+});
+
+describe('barLayout 로고 겹침', () => {
+  it('MODE single, ALIGN center, 로고가 있으면 글이 로고 오른쪽 끝을 넘어서지 않습니다', () => {
+    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('MODE', 'single');
+    options.set('ALIGN', 'center');
+    options.set('PRIMARY_MAIN', '가'.repeat(200));
+    const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
+    const node = textNodes(scene.nodes)[0];
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    expect(node).toBeDefined();
+    expect(logo).toBeDefined();
+    const textWidth = services.measureText(node!.text, node!.style);
+    const leftEdge = node!.x - textWidth / 2;
+    const logoRight = (logo?.x ?? 0) + (logo?.w ?? 0);
+    expect(leftEdge).toBeGreaterThan(logoRight);
+  });
+});
+
 describe('barLayout single 모드', () => {
   it('가운데 정렬이면 한 덩어리가 가운데에 놓입니다', () => {
     const options = defaultValues(BAR_OPTIONS);

@@ -62,7 +62,10 @@ export const matteLayout: PresetLayout = (input, services) => {
   // 글은 아래 여백 안에만 놓습니다.
   const areaTop = padTop + photoHeight;
   const areaCenterY = areaTop + padBottom / 2;
-  const textWidth = width - padLeft - padRight;
+  // 좌우 여백이 0 이어도 글이 가장자리에 붙지 않도록 최소 안쪽 여백을 둡니다.
+  const leftInset = Math.max(padLeft, fontSize);
+  const rightInset = Math.max(padRight, fontSize);
+  const textWidth = width - leftInset - rightInset;
 
   const primary = resolveSlot(options, 'PRIMARY', input.fields, divider);
   const secondary = resolveSlot(options, 'SECONDARY', input.fields, divider);
@@ -74,29 +77,35 @@ export const matteLayout: PresetLayout = (input, services) => {
     if (clipped) nodes.push({ kind: 'text', x, y, text: clipped, style: textStyle });
   };
 
+  // 부 줄이 주 줄보다 커질 수 있으므로 두 크기를 모두 보고 간격을 정합니다.
+  const wanted = Math.max(fontSize * 1.25, (fontSize + subSize) * 0.62);
+  const room = padBottom - Math.max(fontSize, subSize);
+  const gap = Math.max(0, Math.min(wanted, room));
+
   if (mode === 'poster') {
     // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.
-    const step = padBottom / 4;
+    // 가운데 줄이 커지면 간격도 함께 벌리되, 아래 여백을 넘지 않게 묶어 둡니다.
+    const posterWanted = Math.max(padBottom / 4, (fontSize + subSize) * 0.62);
+    const posterRoom = padBottom / 2 - Math.max(fontSize, subSize) * 0.62;
+    const step = Math.max(0, Math.min(posterWanted, posterRoom));
     const align = str(options, 'ALIGN') as TextStyle['align'];
-    const x = align === 'left' ? padLeft : align === 'right' ? width - padRight : width / 2;
-    put(primary.main, fontSize, align, x, areaTop + step, textWidth);
-    put(primary.sub, subSize, align, x, areaTop + step * 2, textWidth);
-    put(secondary.main, fontSize, align, x, areaTop + step * 3, textWidth);
+    const x = align === 'left' ? leftInset : align === 'right' ? width - rightInset : width / 2;
+    put(primary.main, fontSize, align, x, areaCenterY - step, textWidth);
+    put(primary.sub, subSize, align, x, areaCenterY, textWidth);
+    put(secondary.main, fontSize, align, x, areaCenterY + step, textWidth);
   } else if (mode === 'single') {
     const align = str(options, 'ALIGN') as TextStyle['align'];
-    const x = align === 'left' ? padLeft : align === 'right' ? width - padRight : width / 2;
-    const gap = fontSize * 1.25;
+    const x = align === 'left' ? leftInset : align === 'right' ? width - rightInset : width / 2;
     const twoLines = primary.main !== '' && primary.sub !== '';
     put(primary.main, fontSize, align, x, twoLines ? areaCenterY - gap / 2 : areaCenterY, textWidth);
     put(primary.sub, subSize, align, x, twoLines ? areaCenterY + gap / 2 : areaCenterY, textWidth);
   } else {
     const half = textWidth / 2 - fontSize;
-    const gap = fontSize * 1.25;
     const leftTwo = primary.main !== '' && primary.sub !== '';
-    put(primary.main, fontSize, 'left', padLeft, leftTwo ? areaCenterY - gap / 2 : areaCenterY, half);
-    put(primary.sub, subSize, 'left', padLeft, leftTwo ? areaCenterY + gap / 2 : areaCenterY, half);
+    put(primary.main, fontSize, 'left', leftInset, leftTwo ? areaCenterY - gap / 2 : areaCenterY, half);
+    put(primary.sub, subSize, 'left', leftInset, leftTwo ? areaCenterY + gap / 2 : areaCenterY, half);
     const rightTwo = secondary.main !== '' && secondary.sub !== '';
-    const rx = width - padRight;
+    const rx = width - rightInset;
     put(secondary.main, fontSize, 'right', rx, rightTwo ? areaCenterY - gap / 2 : areaCenterY, half);
     put(secondary.sub, subSize, 'right', rx, rightTwo ? areaCenterY + gap / 2 : areaCenterY, half);
   }

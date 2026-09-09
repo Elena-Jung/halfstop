@@ -77,7 +77,10 @@ export const barLayout: PresetLayout = (input, services) => {
   /** 주 줄과 부 줄을 세로 가운데를 기준으로 벌려 놓습니다. */
   const push = (slot: 'PRIMARY' | 'SECONDARY', x: number, align: TextStyle['align'], width: number) => {
     const resolved = resolveSlot(options, slot, input.fields, divider);
-    const gap = fontSize * 1.25;
+    // 두 줄이 서로 겹치지도, 슬롯 밖으로 나가지도 않도록 간격을 좁힙니다.
+    const wanted = Math.max(fontSize * 1.25, (fontSize + subSize) * 0.62);
+    const room = slotHeight - Math.max(fontSize, subSize);
+    const gap = Math.max(0, Math.min(wanted, room));
     const twoLines = resolved.main !== '' && resolved.sub !== '';
 
     if (resolved.main) {
@@ -98,7 +101,9 @@ export const barLayout: PresetLayout = (input, services) => {
 
   if (mode === 'single') {
     const align = str(options, 'ALIGN') as TextStyle['align'];
-    const width = photoWidth - padding * 2 - logoGap;
+    // 가운데 정렬은 사진 한가운데를 기준으로 삼으므로 로고 쪽 여백을 양쪽에서 뺍니다.
+    const width =
+      align === 'center' ? photoWidth - (padding + logoGap) * 2 : photoWidth - padding * 2 - logoGap;
     const x =
       align === 'left' ? padding + logoGap : align === 'right' ? photoWidth - padding : photoWidth / 2;
     push('PRIMARY', x, align, width);

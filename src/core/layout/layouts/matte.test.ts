@@ -93,6 +93,52 @@ describe('matteLayout', () => {
     expect(ys[1]).toBeLessThan(ys[2] ?? 0);
   });
 
+  it('single 모드에서 부 줄이 주 줄보다 커도(SUB_SCALE 3) 두 줄 간격이 두 크기 합의 절반 이상입니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'single');
+    options.set('PRIMARY_SUB', '{MM}');
+    options.set('SUB_SCALE', 3);
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    const main = nodes.find((n) => n.text === 'Canon · EOS R6');
+    const sub = nodes.find((n) => n.text === '50mm');
+    expect(main).toBeDefined();
+    expect(sub).toBeDefined();
+    const gap = Math.abs((sub?.y ?? 0) - (main?.y ?? 0));
+    expect(gap).toBeGreaterThanOrEqual((30 + 90) / 2);
+    // areaCenterY = 1160. wanted = max(37.5, 74.4) = 74.4, room = 200-90=110, gap = 74.4.
+    expect(main?.y).toBeCloseTo(1122.8);
+    expect(sub?.y).toBeCloseTo(1197.2);
+  });
+
+  it('SUB_SCALE를 3으로 올린 poster에서 세 줄이 모두 아래 여백 안에 있습니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'poster');
+    options.set('PRIMARY_SUB', '여름의 끝');
+    options.set('SUB_SCALE', 3);
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    const areaTop = 60 + 1000; // padTop + photoHeight
+    const height = 1000 + 60 + 200; // photoHeight + padTop + padBottom
+    expect(nodes.length).toBe(3);
+    for (const node of nodes) {
+      const half = node.style.size * 0.62;
+      expect(node.y - half).toBeGreaterThanOrEqual(areaTop);
+      expect(node.y + half).toBeLessThanOrEqual(height);
+    }
+  });
+
+  it('PAD_LEFT 0, PAD_RIGHT 0인 split에서 왼쪽 글의 x가 0보다 큽니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('PAD_LEFT', 0);
+    options.set('PAD_RIGHT', 0);
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    const left = nodes.find((n) => n.style.align === 'left');
+    expect(left).toBeDefined();
+    expect(left?.x ?? 0).toBeGreaterThan(0);
+  });
+
   it('배경색 옵션이 Scene 배경에 반영됩니다', () => {
     const options = defaultValues(MATTE_OPTIONS);
     options.set('BACKGROUND', '#000000');
