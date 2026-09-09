@@ -53,6 +53,22 @@ describe('mergeValues', () => {
   });
 });
 
+describe('mergeValues 의 시작값', () => {
+  it('시작값 위에 저장된 값을 덮습니다', () => {
+    const base = mergeValues(SCHEMA, { BAR_HEIGHT: 80 });
+    const merged = mergeValues(SCHEMA, { BACKGROUND: '#000000' }, base);
+    expect(merged.get('BACKGROUND')).toBe('#000000');
+    expect(merged.get('BAR_HEIGHT')).toBe(80);
+  });
+
+  it('이상한 저장값은 선언 기본값이 아니라 시작값으로 떨어집니다', () => {
+    const base = mergeValues(SCHEMA, { BAR_HEIGHT: 80 });
+    const merged = mergeValues(SCHEMA, { BAR_HEIGHT: '높게' }, base);
+    // 선언 기본값 120 으로 돌아가면 안 됩니다.
+    expect(merged.get('BAR_HEIGHT')).toBe(80);
+  });
+});
+
 describe('접근 헬퍼', () => {
   it('타입에 맞는 값을 꺼냅니다', () => {
     const values = defaultValues(SCHEMA);

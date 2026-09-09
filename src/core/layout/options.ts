@@ -38,8 +38,9 @@ function coerce(option: PresetOption, raw: unknown): OptionValue | undefined {
 export function mergeValues(
   options: readonly PresetOption[],
   stored: Record<string, unknown>,
+  base: ReadonlyMap<string, OptionValue> = defaultValues(options),
 ): Map<string, OptionValue> {
-  const values = defaultValues(options);
+  const values = new Map(base);
   for (const option of options) {
     if (!Object.hasOwn(stored, option.id)) continue;
     const coerced = coerce(option, stored[option.id]);
