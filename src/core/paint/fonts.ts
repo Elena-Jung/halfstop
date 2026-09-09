@@ -37,3 +37,25 @@ export async function ensureCanvasFont(
   await face.load();
   fonts.add(face);
 }
+
+const inFlight = new Map<string, Promise<void>>();
+
+/**
+ * `ensureCanvasFont` 은 검사와 등록 사이에 `await` 가 있어, 동시에 두 번 부르면
+ * 둘 다 통과해 같은 서체가 두 벌 등록됩니다. Pretendard 처럼 큰 서체에서는
+ * 파싱된 폰트를 두 벌 들게 됩니다. 진행 중인 등록을 공유해 막습니다.
+ */
+export function ensureCanvasFontOnce(
+  fonts: FontFaceSetLike,
+  font: CanvasFont,
+  url: string,
+  create: FontFaceFactory = defaultFactory,
+): Promise<void> {
+  let pending = inFlight.get(font.family);
+  if (!pending) {
+    pending = ensureCanvasFont(fonts, font, url, create);
+    void pending.catch(() => inFlight.delete(font.family));
+    inFlight.set(font.family, pending);
+  }
+  return pending;
+}

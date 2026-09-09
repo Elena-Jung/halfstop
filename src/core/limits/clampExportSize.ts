@@ -24,6 +24,17 @@ export function clampExportSize(
   targetLongEdge: number,
   limit: CanvasLimit,
 ): ExportSize {
+  if (
+    !Number.isFinite(sceneWidth) ||
+    !Number.isFinite(sceneHeight) ||
+    sceneWidth <= 0 ||
+    sceneHeight <= 0 ||
+    !Number.isFinite(targetLongEdge) ||
+    targetLongEdge <= 0
+  ) {
+    throw new Error(`내보내기 크기가 올바르지 않습니다: ${sceneWidth}x${sceneHeight} -> ${targetLongEdge}`);
+  }
+
   const sceneLongEdge = Math.max(sceneWidth, sceneHeight);
   const requested = targetLongEdge / sceneLongEdge;
 

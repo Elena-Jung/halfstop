@@ -11,8 +11,10 @@ function read(): CanvasLimit | null {
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
-      typeof (parsed as CanvasLimit).maxSide === 'number' &&
-      typeof (parsed as CanvasLimit).maxArea === 'number'
+      Number.isFinite((parsed as CanvasLimit).maxSide) &&
+      Number.isFinite((parsed as CanvasLimit).maxArea) &&
+      (parsed as CanvasLimit).maxSide > 0 &&
+      (parsed as CanvasLimit).maxArea > 0
     ) {
       return parsed as CanvasLimit;
     }

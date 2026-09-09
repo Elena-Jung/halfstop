@@ -3,32 +3,24 @@ import { encodeCanvas } from '../core/export/encode';
 import { targetLongEdge } from '../core/export/resolution';
 import { decodeImage } from '../core/io/decode';
 import { fontById } from '../core/paint/fontFamilies';
-import { ensureCanvasFont, type FontFaceSetLike } from '../core/paint/fonts';
+import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import type { RenderJob, RenderReply } from './protocol';
 
 const NO_LOGO = () => null;
 
-// 워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 여기서 따로 등록해야
-// 미리보기와 같은 서체로 그려집니다. 서체별로 한 번만 받습니다.
-const fontReady = new Map<string, Promise<void>>();
-function ensureFont(id: string): Promise<void> {
-  let pending = fontReady.get(id);
-  if (!pending) {
-    pending = ensureCanvasFont(self.fonts as unknown as FontFaceSetLike, fontById(id), fontUrl(id));
-    // 실패한 프라미스를 그대로 두면 한 번의 네트워크 오류가 그 서체를 세션 내내
-    // 못 쓰게 만듭니다. 실패하면 지워서 다음 시도가 다시 받게 합니다.
-    void pending.catch(() => fontReady.delete(id));
-    fontReady.set(id, pending);
-  }
-  return pending;
-}
-
 async function run(job: RenderJob): Promise<RenderReply> {
   let bitmap: ImageBitmap | null = null;
   let canvas: OffscreenCanvas | null = null;
   try {
-    await ensureFont(job.fontId);
+    // 워커 캔버스는 문서에 로드된 폰트를 보지 못합니다. 여기서 따로 등록해야
+    // 미리보기와 같은 서체로 그려집니다. 진행 중인 등록과 실패 재시도는
+    // ensureCanvasFontOnce가 이미 처리합니다.
+    await ensureCanvasFontOnce(
+      self.fonts as unknown as FontFaceSetLike,
+      fontById(job.fontId),
+      fontUrl(job.fontId),
+    );
 
     const image = await decodeImage({
       file: job.file,

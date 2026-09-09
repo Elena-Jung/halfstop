@@ -11,14 +11,21 @@ import { INFO_BAR_OPTIONS, infoBarLayout } from '../core/layout/presets/infoBar'
 import type { LayoutServices, OptionValue, TemplateToken } from '../core/layout/types';
 import type { CanvasLimit } from '../core/limits/clampExportSize';
 import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
-import { ensureCanvasFont, type FontFaceSetLike } from '../core/paint/fonts';
+import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
 import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import { cachedCanvasLimit } from '../platform/canvasLimitCache';
 import { createRenderClient, type RenderClient } from '../worker/client';
+import { toUserMessage } from './errorMessage';
 
 const NO_LOGO = () => null;
+
+/**
+ * 미리보기는 긴 변 1600 이라 어떤 기기에서도 한계에 걸리지 않습니다. 실제 측정은
+ * 큰 캔버스를 할당해 보는 일이라 내보내기 직전으로 미룹니다.
+ */
+const PREVIEW_LIMIT: CanvasLimit = { maxSide: 4096, maxArea: 4096 * 4096 };
 
 /**
  * 탐지용 원본은 반드시 정사각형이 아니어야 합니다. 가로세로가 같으면 회전이
@@ -78,10 +85,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [options]);
   const fontReady = loadedFonts.has(fontId);
 
-  // 캔버스 한계 측정은 큰 할당을 여러 번 하므로 첫 파일을 기다리게 하지 않고 미리 끝냅니다.
   useEffect(() => {
     clientRef.current ??= createRenderClient();
-    limitRef.current ??= cachedCanvasLimit();
     servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
     void autoOrientedFlag().catch(() => undefined);
     return () => {
@@ -94,7 +99,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   useEffect(() => {
     if (loadedFonts.has(fontId)) return;
     let alive = true;
-    void ensureCanvasFont(document.fonts as unknown as FontFaceSetLike, fontById(fontId), fontUrl(fontId))
+    void ensureCanvasFontOnce(document.fonts as unknown as FontFaceSetLike, fontById(fontId), fontUrl(fontId))
       .then(() => {
         if (!alive) return;
         setLoadedFonts((previous) => new Set(previous).add(fontId));
@@ -114,8 +119,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
     const services = servicesRef.current;
-    const limit = limitRef.current;
-    if (!canvas || !loaded || !services || !limit || !fontReady) return;
+    if (!canvas || !loaded || !services || !fontReady) return;
 
     const scene = buildScene({
       photoPx: { width: loaded.preview.width, height: loaded.preview.height },
@@ -132,7 +136,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       photo: loaded.preview.bitmap,
       logo: NO_LOGO,
       targetLongEdge: PREVIEW_LONG_EDGE,
-      limit,
+      limit: PREVIEW_LIMIT,
     });
   }, [canvasRef, loaded, options, fontReady]);
 
@@ -159,9 +163,9 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const meta = await readExif(await file.arrayBuffer());
       const autoOriented = await autoOrientedFlag();
 
-      // EXIF 크기는 회전 전 기준입니다. 축이 바뀌는 방향이면 뒤집어서 넘겨야
-      // 미리보기 축소 축을 제대로 고릅니다.
-      const swap = !autoOriented && swapsAxes(meta.orientation);
+      // resizeWidth 와 resizeHeight 는 회전이 적용된 뒤의 축에 걸립니다. EXIF 에 적힌
+      // 크기는 회전 전 기준이므로, 브라우저가 이미 회전을 적용했을 때 뒤집어야 합니다.
+      const swap = autoOriented && swapsAxes(meta.orientation);
       const sourceSize =
         meta.pixelWidth !== undefined && meta.pixelHeight !== undefined
           ? swap
@@ -180,7 +184,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       setLoaded({ file, meta, fields: toFields(meta), preview });
       setStatus(`${file.name} 을 불러왔어요`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '알 수 없는 오류가 났어요');
+      console.error(error);
+      setStatus(toUserMessage(error, '사진을 여는 데 실패했어요'));
     }
   }, []);
 
@@ -190,9 +195,13 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
   const download = useCallback(async () => {
     const services = servicesRef.current;
-    const limit = limitRef.current;
     const client = clientRef.current;
-    if (!loaded || !services || !limit || !client || !fontReady) return;
+    if (!loaded || !services || !client || !fontReady) return;
+
+    // 실제 캔버스 한계는 큰 할당을 여러 번 해 봐야 알 수 있어 느립니다. 미리보기에는
+    // 필요 없으니 내보내기 직전인 여기서 처음 재고, 이후로는 캐시된 값을 씁니다.
+    limitRef.current ??= cachedCanvasLimit();
+    const limit = limitRef.current;
 
     setBusy(true);
     setStatus('전체 해상도로 그리는 중이에요');
@@ -233,7 +242,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
           : `내려받았어요. ${result.width}x${result.height}`,
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '내보내기에 실패했어요');
+      console.error(error);
+      setStatus(toUserMessage(error, '내보내기에 실패했어요'));
     } finally {
       setBusy(false);
     }

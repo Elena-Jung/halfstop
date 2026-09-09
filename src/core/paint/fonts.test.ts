@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fontById } from './fontFamilies';
-import { ensureCanvasFont, type FontFaceLike, type FontFaceSetLike } from './fonts';
+import { ensureCanvasFont, ensureCanvasFontOnce, type FontFaceLike, type FontFaceSetLike } from './fonts';
 
 const INTER = fontById('inter');
 
@@ -76,5 +76,17 @@ describe('ensureCanvasFont', () => {
     await expect(ensureCanvasFont(fakeSet().set, INTER, '/inter.woff2', create)).rejects.toThrow(
       'network',
     );
+  });
+});
+
+describe('ensureCanvasFontOnce', () => {
+  it('동시에 불러도 create를 한 번만 부릅니다', async () => {
+    const { set } = fakeSet();
+    const create = fakeFactory();
+    await Promise.all([
+      ensureCanvasFontOnce(set, INTER, '/inter.woff2', create),
+      ensureCanvasFontOnce(set, INTER, '/inter.woff2', create),
+    ]);
+    expect(create).toHaveBeenCalledOnce();
   });
 });

@@ -87,4 +87,36 @@ describe('clampExportSize', () => {
     const size = clampExportSize(1500, 1120, 3840, ROOMY);
     expect(size.scale).toBe(3840 / 1500);
   });
+
+  it('sceneWidth가 NaN이면 던집니다', () => {
+    expect(() => clampExportSize(NaN, 1000, 1920, ROOMY)).toThrow();
+  });
+
+  it('sceneHeight가 Infinity면 던집니다', () => {
+    expect(() => clampExportSize(1500, Infinity, 1920, ROOMY)).toThrow();
+  });
+
+  it('targetLongEdge가 NaN이면 던집니다', () => {
+    expect(() => clampExportSize(1500, 1000, NaN, ROOMY)).toThrow();
+  });
+
+  it('targetLongEdge가 Infinity면 던집니다', () => {
+    expect(() => clampExportSize(1500, 1000, Infinity, ROOMY)).toThrow();
+  });
+
+  it('sceneWidth가 0이면 던집니다', () => {
+    expect(() => clampExportSize(0, 1000, 1920, ROOMY)).toThrow();
+  });
+
+  it('sceneHeight가 음수면 던집니다', () => {
+    expect(() => clampExportSize(1500, -1000, 1920, ROOMY)).toThrow();
+  });
+
+  it('targetLongEdge가 0이면 던집니다', () => {
+    expect(() => clampExportSize(1500, 1000, 0, ROOMY)).toThrow();
+  });
+
+  it('targetLongEdge가 음수면 던집니다', () => {
+    expect(() => clampExportSize(1500, 1000, -1920, ROOMY)).toThrow();
+  });
 });
