@@ -16,6 +16,9 @@ function ensureFont(id: string): Promise<void> {
   let pending = fontReady.get(id);
   if (!pending) {
     pending = ensureCanvasFont(self.fonts as unknown as FontFaceSetLike, fontById(id), fontUrl(id));
+    // 실패한 프라미스를 그대로 두면 한 번의 네트워크 오류가 그 서체를 세션 내내
+    // 못 쓰게 만듭니다. 실패하면 지워서 다음 시도가 다시 받게 합니다.
+    void pending.catch(() => fontReady.delete(id));
     fontReady.set(id, pending);
   }
   return pending;
@@ -23,6 +26,7 @@ function ensureFont(id: string): Promise<void> {
 
 async function run(job: RenderJob): Promise<RenderReply> {
   let bitmap: ImageBitmap | null = null;
+  let canvas: OffscreenCanvas | null = null;
   try {
     await ensureFont(job.fontId);
 
@@ -33,7 +37,7 @@ async function run(job: RenderJob): Promise<RenderReply> {
     });
     bitmap = image.bitmap;
 
-    const canvas = new OffscreenCanvas(1, 1);
+    canvas = new OffscreenCanvas(1, 1);
     const size = paintToCanvas({
       scene: job.scene,
       canvas,
@@ -53,6 +57,12 @@ async function run(job: RenderJob): Promise<RenderReply> {
     };
   } finally {
     bitmap?.close();
+    // 전체 해상도 캔버스는 수백 메가바이트일 수 있습니다. 연달아 내보낼 때
+    // 이전 것이 수거를 기다리며 남지 않도록 즉시 반납합니다.
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
   }
 }
 

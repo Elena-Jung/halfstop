@@ -70,4 +70,21 @@ describe('clampExportSize', () => {
     expect(size.width).toBe(4096);
     expect(size.clamped).toBe(false);
   });
+
+  it('세로가 긴 장면에서는 width로 되계산한 배율이 실제 배율과 어긋납니다', () => {
+    // width와 height를 각각 내림하므로, width만 보고 배율을 되계산하면 어긋납니다.
+    // 세로가 긴 장면에서는 이 어긋남이 캔버스 아래쪽의 안 칠해진 띠로 나타납니다.
+    // 이 테스트는 그 어긋남이 실제로 일어난다는 것을 고정합니다.
+    const size = clampExportSize(100.3, 500, 1000, { maxSide: 1e9, maxArea: 1e18 });
+    expect(size.scale).toBe(2.0);
+    expect(size.width).toBe(200);
+    expect(size.height).toBe(1000);
+    // width로 되계산한 배율은 실제로 쓰인 배율(size.scale)과 다릅니다.
+    expect(size.width / 100.3).not.toBe(size.scale);
+  });
+
+  it('가로가 긴 장면에서는 scale이 targetLongEdge/sceneWidth와 같습니다', () => {
+    const size = clampExportSize(1500, 1120, 3840, ROOMY);
+    expect(size.scale).toBe(3840 / 1500);
+  });
 });

@@ -34,8 +34,9 @@ export function paintToCanvas(request: PaintToCanvasRequest): {
   if (!ctx) throw new Error('2D 컨텍스트를 만들지 못했습니다');
 
   ctx.imageSmoothingQuality = 'high';
-  // Scene 전체의 긴 변을 기준으로 배율을 정해야 프레임까지 목표 크기 안에 들어옵니다.
-  paint(scene, ctx, size.width / scene.width, { photo: request.photo, logo: request.logo });
+  // clampExportSize가 실제로 쓴 배율을 그대로 받아 씁니다. size.width로 되계산하면
+  // 두 변을 각각 내림한 탓에 세로가 긴 장면에서 배율이 어긋납니다.
+  paint(scene, ctx, size.scale, { photo: request.photo, logo: request.logo });
 
-  return size;
+  return { width: size.width, height: size.height, clamped: size.clamped };
 }

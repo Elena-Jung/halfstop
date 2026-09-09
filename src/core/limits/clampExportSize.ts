@@ -10,6 +10,12 @@ export interface ExportSize {
   height: number;
   /** 기기 한계 때문에 요청보다 작아졌으면 true입니다. 화면에 알려야 합니다. */
   clamped: boolean;
+  /**
+   * width와 height를 만든 배율입니다. 두 변을 각각 내림하므로
+   * `width / sceneWidth` 로 되계산하면 값이 어긋납니다. 세로가 긴 장면에서는
+   * 그 차이가 캔버스 아래쪽의 안 칠해진 띠로 나타납니다.
+   */
+  scale: number;
 }
 
 export function clampExportSize(
@@ -34,5 +40,5 @@ export function clampExportSize(
   // 무시합니다.
   const clamped = scale < requested * (1 - 1e-9);
 
-  return { width, height, clamped };
+  return { width, height, clamped, scale };
 }

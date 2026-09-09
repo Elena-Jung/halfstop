@@ -53,6 +53,11 @@ export function createRenderClient(): RenderClient {
     },
     dispose() {
       worker.terminate();
+      // 그냥 비우면 기다리던 프라미스가 영원히 미결로 남습니다. 화면을 떠나면서
+      // 정리할 때 흔히 밟는 경로입니다.
+      for (const [id, settle] of pending) {
+        settle({ id, ok: false, message: '워커를 정리했습니다' });
+      }
       pending.clear();
     },
   };
