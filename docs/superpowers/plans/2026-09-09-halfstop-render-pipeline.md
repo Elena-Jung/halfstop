@@ -3221,7 +3221,7 @@ export function isRenderReply(value: unknown): value is RenderReply {
 npm test -- src/worker/protocol.test.ts
 ```
 
-기대 결과: `7 passed`.
+기대 결과: `6 passed`.
 
 - [ ] **Step 5: render.worker.ts 작성**
 
