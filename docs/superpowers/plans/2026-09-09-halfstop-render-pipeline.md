@@ -1728,7 +1728,10 @@ describe('paint', () => {
     paint(SCENE, a.ctx, 1, sources);
     paint(SCENE, b.ctx, 0.25, sources);
 
-    const strip = (calls: string[]) => calls.filter((c) => !c.startsWith('scale('));
+    // 맨 앞 scale 한 줄만 빼고 나머지는 전부 비교합니다. scale로 시작하는 명령을
+    // 통째로 걸러내면 logo 분기 안의 scale까지 사라져, 거기에 pxPerUnit이 섞여
+    // 들어가는 회귀를 놓칩니다. 인덱스 1은 save 다음의 최상위 scale입니다.
+    const strip = (calls: string[]) => calls.filter((_, index) => index !== 1);
     expect(strip(a.calls)).toEqual(strip(b.calls));
     expect(a.calls).toContain('scale(1,1)');
     expect(b.calls).toContain('scale(0.25,0.25)');
@@ -2183,7 +2186,7 @@ export function formatTakenAt(raw: string | undefined): string | undefined {
 npm test -- src/core/exif/format.test.ts
 ```
 
-기대 결과: `16 passed`.
+기대 결과: `14 passed`.
 
 - [ ] **Step 5: read.ts와 map.ts 작성**
 
