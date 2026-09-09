@@ -31,13 +31,18 @@ export async function decodeRaster(request: RasterRequest): Promise<DecodedImage
   }
 
   const oriented = orientationTransform(request.orientation, bitmap.width, bitmap.height);
-  const canvas = new OffscreenCanvas(oriented.width, oriented.height);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('회전용 2D 컨텍스트를 만들지 못했습니다');
-  ctx.setTransform(...oriented.matrix);
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
+  try {
+    const canvas = new OffscreenCanvas(oriented.width, oriented.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('회전용 2D 컨텍스트를 만들지 못했습니다');
+    ctx.setTransform(...oriented.matrix);
+    ctx.drawImage(bitmap, 0, 0);
 
-  const rotated = canvas.transferToImageBitmap();
-  return { bitmap: rotated, width: rotated.width, height: rotated.height };
+    const rotated = canvas.transferToImageBitmap();
+    return { bitmap: rotated, width: rotated.width, height: rotated.height };
+  } finally {
+    // 중간에 예외가 나도 원본 비트맵은 반납해야 합니다. 큰 사진에서는
+    // 이 한 장이 수백 메가바이트입니다.
+    bitmap.close();
+  }
 }
