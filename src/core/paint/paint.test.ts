@@ -82,7 +82,7 @@ describe('paint', () => {
   it('배경을 먼저 칠합니다', () => {
     const { ctx, calls } = recorder();
     paint(SCENE, ctx, 1, sources);
-    expect(calls[0]).toBe('save');
+    expect(calls[0]).toBe('save()');
     expect(calls[1]).toBe('scale(1,1)');
     expect(calls[2]).toBe('set fillStyle(#ffffff)');
     expect(calls[3]).toBe('fillRect(0,0,1500,1120)');
@@ -91,7 +91,7 @@ describe('paint', () => {
   it('마지막에 상태를 되돌립니다', () => {
     const { ctx, calls } = recorder();
     paint(SCENE, ctx, 1, sources);
-    expect(calls.at(-1)).toBe('restore');
+    expect(calls.at(-1)).toBe('restore()');
   });
 
   it('글꼴 크기를 디자인 단위 그대로 넘깁니다', () => {
