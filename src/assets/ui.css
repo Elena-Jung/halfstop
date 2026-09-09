@@ -1,0 +1,10 @@
+/* 동적 서브셋이라 브라우저가 화면에 실제로 쓰인 글자 범위만 내려받습니다. */
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+
+:root {
+  font-family: 'Pretendard Variable', system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
