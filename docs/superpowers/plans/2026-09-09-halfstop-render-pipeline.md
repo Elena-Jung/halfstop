@@ -3473,9 +3473,16 @@ async function makeProbeJpeg(): Promise<Uint8Array> {
 /** 세션당 한 번이면 충분합니다. 결과 프라미스를 재사용합니다. */
 let autoOrientedOnce: Promise<boolean> | null = null;
 function autoOrientedFlag(): Promise<boolean> {
-  autoOrientedOnce ??= makeProbeJpeg().then((base) =>
-    detectAutoOrientation(async (blob) => createImageBitmap(blob), base),
-  );
+  if (!autoOrientedOnce) {
+    autoOrientedOnce = makeProbeJpeg().then((base) =>
+      detectAutoOrientation(async (blob) => createImageBitmap(blob), base),
+    );
+    // 거부된 프라미스를 남겨 두면 한 번의 오류가 세션 내내 사진 열기를 막습니다.
+    // 지워서 다음 시도가 다시 재도록 합니다.
+    void autoOrientedOnce.catch(() => {
+      autoOrientedOnce = null;
+    });
+  }
   return autoOrientedOnce;
 }
 
@@ -3487,7 +3494,7 @@ interface Loaded {
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const [status, setStatus] = useState('준비하는 중입니다');
+  const [status, setStatus] = useState('준비하는 중이에요');
   const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
     defaultValues(INFO_BAR_OPTIONS),
   );
@@ -3511,7 +3518,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     clientRef.current ??= createRenderClient();
     limitRef.current ??= cachedCanvasLimit();
     servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
-    void autoOrientedFlag();
+    void autoOrientedFlag().catch(() => undefined);
     return () => {
       clientRef.current?.dispose();
       clientRef.current = null;
@@ -3577,7 +3584,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [repaint]);
 
   const load = useCallback(async (file: File) => {
-    setStatus('읽는 중입니다');
+    setStatus('읽는 중이에요');
     setLoaded((previous) => {
       previous?.preview.bitmap.close();
       return null;
@@ -3623,7 +3630,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     if (!loaded || !services || !limit || !client || !fontReady) return;
 
     setBusy(true);
-    setStatus('전체 해상도로 그리는 중입니다');
+    setStatus('전체 해상도로 그리는 중이에요');
     try {
       const scene = buildScene({
         photoPx: { width: loaded.preview.width, height: loaded.preview.height },
@@ -3651,7 +3658,9 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       anchor.href = url;
       anchor.download = `${loaded.file.name.replace(/\.[^.]+$/, '')}-halfstop.jpg`;
       anchor.click();
-      URL.revokeObjectURL(url);
+      // 클릭 직후에 회수하면 브라우저가 blob을 다 읽기 전에 주소가 사라져 파일이
+      // 잘릴 수 있습니다. 이 앱이 내보내는 것은 수십 메가바이트짜리 사진입니다.
+      window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 
       setStatus(
         result.clamped
