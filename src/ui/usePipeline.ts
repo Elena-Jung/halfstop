@@ -186,11 +186,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
       setLoaded({ file, meta, fields: toFields(meta), preview });
       // 여러 장 처리는 아직 없습니다. 조용히 버리면 사용자는 왜 한 장만 나오는지
-      // 알 수 없으므로 넘긴 개수를 밝힙니다.
-      const skipped = files.length - 1;
+      // 알 수 없으므로 무엇을 불러왔고 무엇을 안 불러왔는지 밝힙니다.
       setStatus(
-        skipped > 0
-          ? `${file.name} 파일을 불러왔습니다. 여러 장 처리는 아직 준비 중이라 나머지 ${skipped}장은 넘겼습니다`
+        files.length > 1
+          ? `${file.name} 파일 하나만 불러왔습니다. 여러 장을 한 번에 처리하는 기능은 아직 없습니다`
           : `${file.name} 파일을 불러왔습니다`,
       );
     } catch (error) {
