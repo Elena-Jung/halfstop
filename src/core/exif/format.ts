@@ -5,7 +5,15 @@ function ok(value: number | undefined): value is number {
 export function formatShutter(seconds: number | undefined): string | undefined {
   if (!ok(seconds)) return undefined;
   if (seconds >= 1) return `${Number(seconds.toFixed(1))}s`;
-  return `1/${Math.round(1 / seconds)}s`;
+
+  // 분수로 쓰는 것은 실제로 1/N 에 가까울 때만입니다. 0.8초를 반올림하면
+  // 분모가 1이 되어 1/1s 라는 뜻 없는 표기가 나오고, 0.6초를 1/2s 로 쓰면
+  // 값이 달라집니다. 둘 다 카메라가 실제로 내는 노출값입니다.
+  const denominator = Math.round(1 / seconds);
+  if (denominator >= 2 && Math.abs(1 / denominator - seconds) < seconds * 0.05) {
+    return `1/${denominator}s`;
+  }
+  return `${Number(seconds.toFixed(1))}s`;
 }
 
 export function formatAperture(fNumber: number | undefined): string | undefined {

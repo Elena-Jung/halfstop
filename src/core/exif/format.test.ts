@@ -24,6 +24,18 @@ describe('formatShutter', () => {
     expect(formatShutter(0)).toBeUndefined();
     expect(formatShutter(Number.NaN)).toBeUndefined();
   });
+
+  it('1/N에 가깝지 않은 1초 미만 값은 소수로 씁니다', () => {
+    expect(formatShutter(0.8)).toBe('0.8s');
+    expect(formatShutter(0.6)).toBe('0.6s');
+    expect(formatShutter(0.7)).toBe('0.7s');
+  });
+
+  it('1/N에 실제로 가까운 값은 여전히 분수로 씁니다', () => {
+    expect(formatShutter(0.5)).toBe('1/2s');
+    expect(formatShutter(1 / 3)).toBe('1/3s');
+    expect(formatShutter(1 / 8000)).toBe('1/8000s');
+  });
 });
 
 describe('formatAperture', () => {

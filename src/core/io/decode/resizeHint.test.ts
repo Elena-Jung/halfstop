@@ -41,4 +41,29 @@ describe('resizeHint', () => {
       resizeQuality: 'high',
     });
   });
+
+  it('가로가 NaN이면 모르는 것으로 봅니다', () => {
+    expect(resizeHint(1600, { width: Number.NaN, height: 4000 })).toEqual({
+      resizeWidth: 1600,
+      resizeQuality: 'high',
+    });
+  });
+
+  it('세로가 NaN이면 모르는 것으로 봅니다', () => {
+    expect(resizeHint(1600, { width: 6000, height: Number.NaN })).toEqual({
+      resizeWidth: 1600,
+      resizeQuality: 'high',
+    });
+  });
+
+  it('가로가 무한대이면 모르는 것으로 봅니다', () => {
+    expect(resizeHint(1600, { width: Number.POSITIVE_INFINITY, height: 4000 })).toEqual({
+      resizeWidth: 1600,
+      resizeQuality: 'high',
+    });
+  });
+
+  it('긴 변이 상한과 정확히 같으면 축소하지 않습니다', () => {
+    expect(resizeHint(1600, { width: 1600, height: 1200 })).toEqual({});
+  });
 });

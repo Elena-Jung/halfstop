@@ -14,7 +14,17 @@ export function resizeHint(
 ): ResizeHint {
   if (maxLongEdge === undefined) return {};
 
-  if (!source || source.width <= 0 || source.height <= 0) {
+  // NaN 은 어떤 비교에도 거짓이라 `<= 0` 만으로는 걸러지지 않습니다. 그대로
+  // 통과시키면 아래 삼항이 NaN 비교의 결과로 엉뚱한 축을 고르고, 정작 긴 변은
+  // 제한하지 않은 채 원본 크기로 디코딩하게 됩니다.
+  const known =
+    source !== undefined &&
+    Number.isFinite(source.width) &&
+    Number.isFinite(source.height) &&
+    source.width > 0 &&
+    source.height > 0;
+
+  if (!known) {
     return { resizeWidth: maxLongEdge, resizeQuality: 'high' };
   }
 
