@@ -45,4 +45,29 @@ describe('clampExportSize', () => {
     const size = clampExportSize(1200, 1500, 6000, tight);
     expect(size.width * size.height).toBeLessThanOrEqual(16_777_216);
   });
+
+  it('면적 한계에 딱 맞는 경우는 거짓 양성이 없습니다', () => {
+    // requested = 9/11, areaScale = sqrt(81/121) = 9/11 로 수학적으로 같지만
+    // 반올림 경로가 달라 scale < requested가 참이 되는 문제를 재현합니다.
+    const size = clampExportSize(11, 11, 9, { maxSide: 1e9, maxArea: 81 });
+    expect(size.width).toBe(9);
+    expect(size.height).toBe(9);
+    expect(size.clamped).toBe(false);
+  });
+
+  it('실제로 면적 한계에 걸려 줄어드는 경우는 clamped가 true입니다', () => {
+    // requested = 1, areaScale = sqrt(1_000_000 / 16_000_000) = 0.25
+    // scale = 0.25 < 1 = true 이므로 clamped가 true여야 합니다.
+    const size = clampExportSize(4000, 4000, 4000, { maxSide: 1e9, maxArea: 1_000_000 });
+    expect(size.width).toBe(1000);
+    expect(size.height).toBe(1000);
+    expect(size.clamped).toBe(true);
+  });
+
+  it('최대 변 길이에 딱 맞는 경우는 거짓 양성이 없습니다', () => {
+    // sideScale과 requested가 둘 다 나눗셈이므로 반올림 차이가 무시할 수 있는 수준입니다.
+    const size = clampExportSize(2000, 1000, 4096, { maxSide: 4096, maxArea: 1e9 });
+    expect(size.width).toBe(4096);
+    expect(size.clamped).toBe(false);
+  });
 });

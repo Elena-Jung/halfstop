@@ -21,13 +21,18 @@ export function clampExportSize(
   const sceneLongEdge = Math.max(sceneWidth, sceneHeight);
   const requested = targetLongEdge / sceneLongEdge;
 
-  let scale = requested;
-  scale = Math.min(scale, limit.maxSide / sceneLongEdge);
+  const sideScale = limit.maxSide / sceneLongEdge;
   const areaScale = Math.sqrt(limit.maxArea / (sceneWidth * sceneHeight));
-  scale = Math.min(scale, areaScale);
+  const scale = Math.min(requested, sideScale, areaScale);
 
   const width = Math.max(1, Math.floor(sceneWidth * scale));
   const height = Math.max(1, Math.floor(sceneHeight * scale));
 
-  return { width, height, clamped: scale < requested };
+  // areaScale은 제곱근으로, requested는 나눗셈으로 구해서 반올림 경로가 다릅니다.
+  // 수학적으로 같은 값이어도 몇 비트 차이가 나므로 그대로 비교하면, 한계에 딱 맞는
+  // 경우에 줄어들지 않았는데도 줄었다고 알리게 됩니다. 픽셀 단위로 무의미한 차이는
+  // 무시합니다.
+  const clamped = scale < requested * (1 - 1e-9);
+
+  return { width, height, clamped };
 }
