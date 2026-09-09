@@ -11,9 +11,17 @@ export interface UnitSize {
 }
 
 export function toUnits(pixelWidth: number, pixelHeight: number): UnitSize {
-  if (pixelWidth <= 0 || pixelHeight <= 0) {
+  if (
+    !Number.isFinite(pixelWidth) ||
+    !Number.isFinite(pixelHeight) ||
+    pixelWidth <= 0 ||
+    pixelHeight <= 0
+  ) {
     throw new Error(`사진 크기가 올바르지 않습니다: ${pixelWidth}x${pixelHeight}`);
   }
-  const scale = UNITS_PER_SHORT_EDGE / Math.min(pixelWidth, pixelHeight);
-  return { width: pixelWidth * scale, height: pixelHeight * scale };
+  const short = Math.min(pixelWidth, pixelHeight);
+  return {
+    width: (pixelWidth * UNITS_PER_SHORT_EDGE) / short,
+    height: (pixelHeight * UNITS_PER_SHORT_EDGE) / short,
+  };
 }
