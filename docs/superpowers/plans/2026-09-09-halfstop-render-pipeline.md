@@ -4,7 +4,7 @@
 
 **Goal:** JPEG 한 장을 브라우저에 넣으면 촬영 정보가 담긴 하단 바 프레임을 붙여 파일로 내려받는 경로를 끝까지 완성합니다.
 
-**Architecture:** 프리셋은 캔버스를 만지지 않고 순수 함수 `layout()`으로 `Scene` 트리만 만듭니다. `Scene`의 좌표 단위는 픽셀이 아니라 디자인 단위이고 `1u = 사진 짧은 변 / 1000`입니다. 공용 `paint()`가 `ctx.scale(pxPerUnit, pxPerUnit)`을 한 번 걸고 그 트리를 그립니다. 미리보기와 내보내기는 `pxPerUnit`만 다른 같은 호출이므로 두 결과가 어긋날 수 없습니다.
+**Architecture:** 프리셋은 캔버스를 만지지 않고 순수 함수 `layout()`으로 `Scene` 트리만 만듭니다. 미리보기는 긴 변 1600px로 축소 디코딩한 비트맵에 그리고, 전체 해상도 디코딩과 인코딩은 내보낼 때만 합니다. `Scene`의 좌표 단위는 픽셀이 아니라 디자인 단위이고 `1u = 사진 짧은 변 / 1000`입니다. 공용 `paint()`가 `ctx.scale(pxPerUnit, pxPerUnit)`을 한 번 걸고 그 트리를 그립니다. 미리보기와 내보내기는 `pxPerUnit`만 다른 같은 호출이므로 두 결과가 어긋날 수 없습니다.
 
 **Tech Stack:** Vite 8, React 19, TypeScript 7, Vitest 4, exifreader 4
 
@@ -29,13 +29,15 @@ tsconfig.json                         엄격 모드 TypeScript 설정
 vite.config.ts                        Vite와 Vitest 설정
 index.html                            SPA 진입점
 src/main.tsx                          React 마운트
-src/ui/App.tsx                        드롭존, 미리보기, 내려받기 버튼
+src/ui/App.tsx                        드롭존, 미리보기 캔버스, 옵션 패널
+src/ui/usePipeline.ts                 읽기, 미리보기 갱신, 내보내기 상태
 
 src/core/io/sniff.ts                  매직 바이트로 파일 종류 판별
 src/core/io/orientation.ts            EXIF Orientation 변환 수학
 src/core/io/autoOrientProbe.ts        브라우저 자동 회전 여부 탐지
 src/core/io/decode/index.ts           파일 종류별 디코더 선택
-src/core/io/decode/jpeg.ts            JPEG, PNG, WebP 디코딩
+src/core/io/decode/raster.ts          JPEG, PNG, WebP 디코딩과 회전 정규화
+src/core/io/decode/resizeHint.ts      미리보기 축소 축 결정
 
 src/core/exif/read.ts                 exifreader 호출
 src/core/exif/map.ts                  태그를 PhotoMeta로
@@ -54,11 +56,13 @@ src/core/paint/measure.ts             브라우저 measureText 구현
 src/core/limits/clampExportSize.ts    내보내기 크기 계산과 한계 적용
 src/core/limits/probeCanvasLimit.ts   실제 캔버스 한계 측정
 
-src/core/export/resolution.ts         원본, 4K, 2K, SNS 목표 크기
+src/core/export/resolution.ts         원본, 4K, 2K, SNS 목표 크기와 미리보기 상한
 src/core/export/webpSupport.ts        캔버스 WebP 지원 탐지
 src/core/export/encode.ts             캔버스를 Blob으로
 
-src/core/render/renderOne.ts          단일 이미지 오케스트레이션
+src/core/render/buildScene.ts         사진 크기와 옵션을 Scene으로
+src/core/render/paintToCanvas.ts      Scene을 캔버스에 그리고 크기를 확정
+src/core/render/exportToBlob.ts       전체 해상도 렌더와 인코딩
 ```
 
 순수 함수는 파일 옆에 `*.test.ts`를 둡니다. 브라우저 API가 필요한 파일은 그 API를 인자로 주입받는 형태로 만들어 테스트 가능한 부분을 분리합니다.
@@ -1876,6 +1880,12 @@ export const EXPORT_LONG_EDGE: Record<Exclude<ExportPreset, 'original'>, number>
 };
 
 /**
+ * 미리보기 캔버스의 긴 변입니다. 옵션을 만질 때마다 다시 그리는 경로이므로
+ * 화면에서 판단이 가능한 선에서 가장 작게 잡습니다.
+ */
+export const PREVIEW_LONG_EDGE = 1600;
+
+/**
  * 'original'은 사진의 원래 픽셀 크기를 기준으로 삼습니다. 프레임이 붙으면
  * 캔버스는 그보다 커지므로, 최종 크기는 clampExportSize가 다시 정합니다.
  */
@@ -2125,6 +2135,9 @@ export interface PhotoMeta {
   exposureTime: number | undefined;
   orientation: number;
   takenAtRaw: string | undefined;
+  /** 원본 픽셀 크기입니다. 미리보기를 어느 축으로 줄일지 정하는 데 씁니다. */
+  pixelWidth: number | undefined;
+  pixelHeight: number | undefined;
 }
 
 function text(tag: { description?: unknown } | undefined): string | undefined {
@@ -2163,6 +2176,8 @@ export async function readExif(buffer: ArrayBuffer): Promise<PhotoMeta> {
     exposureTime: number(tags.ExposureTime),
     orientation: number(tags.Orientation) ?? 1,
     takenAtRaw: text(tags.DateTimeOriginal),
+    pixelWidth: number(tags.PixelXDimension) ?? number(tags.ImageWidth),
+    pixelHeight: number(tags.PixelYDimension) ?? number(tags.ImageLength),
   };
 }
 ```
@@ -2219,16 +2234,139 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 14: 브라우저 어댑터
+### Task 14: 미리보기 축소 힌트
 
-`src/core/` 규칙상 DOM을 직접 만지는 코드는 주입받는 형태여야 합니다. 실제 브라우저 구현을 여기 모읍니다. 이 파일들은 브라우저에서만 돌아가므로 단위 테스트 대신 Task 16의 수동 확인으로 검증합니다.
+미리보기를 위해 원본을 통째로 디코딩하면 4500만 화소 사진에서 첫 화면이 몇 초씩 늦습니다. `createImageBitmap`에 축소를 맡기면 디코딩 자체가 작은 크기로 끝납니다. 어느 축을 지정할지는 EXIF에 적힌 원본 크기로 정합니다.
 
 **Files:**
-- Create: `src/core/paint/measure.ts`, `src/core/limits/probeCanvasLimit.ts`, `src/core/export/webpSupport.ts`, `src/core/export/encode.ts`, `src/core/io/decode/jpeg.ts`, `src/core/io/decode/index.ts`
+- Create: `src/core/io/decode/resizeHint.ts`
+- Test: `src/core/io/decode/resizeHint.test.ts`
 
 **Interfaces:**
-- Consumes: `sniff.ts`, `orientation.ts`, `clampExportSize.ts`의 `CanvasLimit`, `layout/types.ts`의 `LayoutServices`
-- Produces: `function createMeasurer(): LayoutServices['measureText']`, `function probeCanvasLimit(): CanvasLimit`, `function canvasSupportsWebp(): Promise<boolean>`, `function encodeCanvas(canvas, format, quality): Promise<Blob>`, `interface DecodedImage { bitmap: ImageBitmap; width: number; height: number }`, `function decodeImage(file: File, autoOriented: boolean, orientation: number): Promise<DecodedImage>`
+- Consumes: 없음
+- Produces: `interface ResizeHint { resizeWidth?: number; resizeHeight?: number; resizeQuality?: 'high' }`, `function resizeHint(maxLongEdge: number | undefined, source: { width: number; height: number } | undefined): ResizeHint`
+
+- [ ] **Step 1: 실패하는 테스트 작성**
+
+`src/core/io/decode/resizeHint.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { resizeHint } from './resizeHint';
+
+describe('resizeHint', () => {
+  it('상한이 없으면 축소하지 않습니다', () => {
+    expect(resizeHint(undefined, { width: 6000, height: 4000 })).toEqual({});
+  });
+
+  it('가로 사진은 가로를 상한에 맞춥니다', () => {
+    expect(resizeHint(1600, { width: 6000, height: 4000 })).toEqual({
+      resizeWidth: 1600,
+      resizeQuality: 'high',
+    });
+  });
+
+  it('세로 사진은 세로를 상한에 맞춥니다', () => {
+    expect(resizeHint(1600, { width: 4000, height: 6000 })).toEqual({
+      resizeHeight: 1600,
+      resizeQuality: 'high',
+    });
+  });
+
+  it('이미 상한보다 작으면 축소하지 않습니다', () => {
+    expect(resizeHint(1600, { width: 1200, height: 800 })).toEqual({});
+  });
+
+  it('정사각형은 가로를 기준으로 잡습니다', () => {
+    expect(resizeHint(1600, { width: 3000, height: 3000 })).toEqual({
+      resizeWidth: 1600,
+      resizeQuality: 'high',
+    });
+  });
+
+  it('원본 크기를 모르면 가로를 기준으로 잡습니다', () => {
+    expect(resizeHint(1600, undefined)).toEqual({ resizeWidth: 1600, resizeQuality: 'high' });
+  });
+
+  it('원본 크기가 0이면 모르는 것으로 봅니다', () => {
+    expect(resizeHint(1600, { width: 0, height: 0 })).toEqual({
+      resizeWidth: 1600,
+      resizeQuality: 'high',
+    });
+  });
+});
+```
+
+- [ ] **Step 2: 테스트가 실패하는지 확인**
+
+```bash
+npm test -- src/core/io/decode/resizeHint.test.ts
+```
+
+기대 결과: `Failed to resolve import "./resizeHint"`.
+
+- [ ] **Step 3: 구현 작성**
+
+`src/core/io/decode/resizeHint.ts`:
+
+```ts
+export interface ResizeHint {
+  resizeWidth?: number;
+  resizeHeight?: number;
+  resizeQuality?: 'high';
+}
+
+/**
+ * 원본 크기를 모르면 가로를 기준으로 잡습니다. 세로 사진이면 미리보기가 상한보다
+ * 조금 커지지만, 원본을 통째로 디코딩하는 것보다는 훨씬 쌉니다.
+ */
+export function resizeHint(
+  maxLongEdge: number | undefined,
+  source: { width: number; height: number } | undefined,
+): ResizeHint {
+  if (maxLongEdge === undefined) return {};
+
+  if (!source || source.width <= 0 || source.height <= 0) {
+    return { resizeWidth: maxLongEdge, resizeQuality: 'high' };
+  }
+
+  if (Math.max(source.width, source.height) <= maxLongEdge) return {};
+
+  return source.width >= source.height
+    ? { resizeWidth: maxLongEdge, resizeQuality: 'high' }
+    : { resizeHeight: maxLongEdge, resizeQuality: 'high' };
+}
+```
+
+- [ ] **Step 4: 테스트 통과 확인**
+
+```bash
+npm test -- src/core/io/decode/resizeHint.test.ts
+```
+
+기대 결과: `7 passed`.
+
+- [ ] **Step 5: 커밋**
+
+```bash
+git add src/core/io/decode/resizeHint.ts src/core/io/decode/resizeHint.test.ts
+git commit -m "미리보기 축소 힌트 계산 추가
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 15: 브라우저 어댑터
+
+`src/core/` 규칙상 DOM을 직접 만지는 코드는 주입받는 형태여야 합니다. 실제 브라우저 구현을 여기 모읍니다. 이 파일들은 브라우저에서만 돌아가므로 Task 17의 수동 확인으로 검증합니다.
+
+**Files:**
+- Create: `src/core/paint/measure.ts`, `src/core/limits/probeCanvasLimit.ts`, `src/core/export/webpSupport.ts`, `src/core/export/encode.ts`, `src/core/io/decode/raster.ts`, `src/core/io/decode/index.ts`
+
+**Interfaces:**
+- Consumes: `sniff.ts`, `orientation.ts`, `resizeHint.ts`, `clampExportSize.ts`의 `CanvasLimit`, `layout/types.ts`의 `TextStyle`
+- Produces: `function createMeasurer(): (text: string, style: TextStyle) => number`, `function probeCanvasLimit(): CanvasLimit`, `function canvasSupportsWebp(): Promise<boolean>`, `type ExportFormat`, `function encodeCanvas(canvas, format, quality): Promise<Blob>`, `interface DecodedImage { bitmap: ImageBitmap; width: number; height: number }`, `interface DecodeRequest`, `function decodeImage(request: DecodeRequest): Promise<DecodedImage>`, `function detectKind(file: Blob): Promise<FileKind>`
 
 - [ ] **Step 1: measure.ts 작성**
 
@@ -2329,10 +2467,12 @@ function writeCache(limit: CanvasLimit): void {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(limit));
   } catch {
-    // 사생활 보호 모드에서는 저장이 막힙니다. 측정은 그대로 쓰면 됩니다.
+    // 사생활 보호 모드에서는 저장이 막힙니다. 측정값은 그대로 쓰면 됩니다.
   }
 }
 ```
+
+이 측정은 큰 캔버스를 여러 번 할당하므로 시간이 걸립니다. 첫 파일을 받을 때가 아니라 앱을 띄울 때 미리 돌려 두고, 결과를 캐시해 다음 방문에서는 건너뜁니다.
 
 - [ ] **Step 3: webpSupport.ts와 encode.ts 작성**
 
@@ -2378,10 +2518,11 @@ export async function encodeCanvas(
 
 - [ ] **Step 4: 디코딩 경로 작성**
 
-`src/core/io/decode/jpeg.ts`:
+`src/core/io/decode/raster.ts`:
 
 ```ts
 import { orientationTransform } from '../orientation';
+import { resizeHint } from './resizeHint';
 
 export interface DecodedImage {
   /** 이 시점에서 이미 똑바로 서 있습니다. 호출자는 회전을 다시 적용하지 않습니다. */
@@ -2390,21 +2531,29 @@ export interface DecodedImage {
   height: number;
 }
 
+export interface RasterRequest {
+  file: Blob;
+  autoOriented: boolean;
+  orientation: number;
+  /** 지정하면 긴 변이 이 값이 되도록 축소해 디코딩합니다. 미리보기용입니다. */
+  maxLongEdge?: number;
+  /** EXIF에 적힌 원본 크기입니다. 축소 축을 정하는 데만 씁니다. */
+  sourceSize?: { width: number; height: number };
+}
+
 /**
  * 브라우저가 이미 회전을 적용했다면 그대로 씁니다. 아니라면 직접 돌립니다.
  * 회전을 두 번 적용하는 것이 이 경로에서 가장 흔한 실수입니다.
  */
-export async function decodeRaster(
-  file: Blob,
-  autoOriented: boolean,
-  orientation: number,
-): Promise<DecodedImage> {
-  const bitmap = await createImageBitmap(file);
-  if (autoOriented || orientation === 1) {
+export async function decodeRaster(request: RasterRequest): Promise<DecodedImage> {
+  const hint = resizeHint(request.maxLongEdge, request.sourceSize);
+  const bitmap = await createImageBitmap(request.file, hint);
+
+  if (request.autoOriented || request.orientation === 1) {
     return { bitmap, width: bitmap.width, height: bitmap.height };
   }
 
-  const oriented = orientationTransform(orientation, bitmap.width, bitmap.height);
+  const oriented = orientationTransform(request.orientation, bitmap.width, bitmap.height);
   const canvas = new OffscreenCanvas(oriented.width, oriented.height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('회전용 2D 컨텍스트를 만들지 못했습니다');
@@ -2421,26 +2570,23 @@ export async function decodeRaster(
 
 ```ts
 import { sniff, SNIFF_BYTES, type FileKind } from '../sniff';
-import { decodeRaster, type DecodedImage } from './jpeg';
+import { decodeRaster, type DecodedImage, type RasterRequest } from './raster';
 
 export type { DecodedImage };
+export type DecodeRequest = RasterRequest;
 
 export async function detectKind(file: Blob): Promise<FileKind> {
   const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
   return sniff(head);
 }
 
-export async function decodeImage(
-  file: Blob,
-  autoOriented: boolean,
-  orientation: number,
-): Promise<DecodedImage> {
-  const kind = await detectKind(file);
+export async function decodeImage(request: DecodeRequest): Promise<DecodedImage> {
+  const kind = await detectKind(request.file);
   switch (kind) {
     case 'jpeg':
     case 'png':
     case 'webp':
-      return decodeRaster(file, autoOriented, orientation);
+      return decodeRaster(request);
     case 'heic':
       throw new Error('HEIC는 다음 단계에서 지원합니다');
     case 'tiff':
@@ -2471,82 +2617,126 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 15: 단일 이미지 렌더 오케스트레이션
+### Task 16: 미리보기와 내보내기 분리
+
+미리보기는 자주 돌고 내보내기는 가끔 돕니다. 두 경로가 같은 `Scene`과 같은 `paint()`를 쓰되 비용만 다르게 갑니다. 미리보기 경로에는 인코딩도 objectURL 발급도 없습니다.
 
 **Files:**
-- Create: `src/core/render/renderOne.ts`
+- Create: `src/core/render/buildScene.ts`, `src/core/render/paintToCanvas.ts`, `src/core/render/exportToBlob.ts`
 
 **Interfaces:**
-- Consumes: Task 5부터 14까지의 모든 모듈
-- Produces: `interface RenderRequest`, `interface RenderResult { blob: Blob; width: number; height: number; clamped: boolean }`, `function renderOne(request: RenderRequest): Promise<RenderResult>`
+- Consumes: Task 5부터 15까지의 모든 모듈
+- Produces: `interface SceneRequest`, `function buildScene(request: SceneRequest): Scene`, `interface PaintToCanvasRequest`, `function paintToCanvas(request: PaintToCanvasRequest): { width: number; height: number; clamped: boolean }`, `interface ExportRequest`, `interface ExportResult { blob: Blob; width: number; height: number; clamped: boolean }`, `function exportToBlob(request: ExportRequest): Promise<ExportResult>`
 
-- [ ] **Step 1: 구현 작성**
-
-`src/core/render/renderOne.ts`:
+- [ ] **Step 1: buildScene.ts 작성**
 
 ```ts
-import type { ExportFormat } from '../export/encode';
-import { encodeCanvas } from '../export/encode';
-import { targetLongEdge, type ExportPreset } from '../export/resolution';
-import { clampExportSize, type CanvasLimit } from '../limits/clampExportSize';
+import type { OptionValue } from '../layout/types';
+import type { LayoutServices, PresetLayout, Scene, TemplateToken } from '../layout/types';
 import { toUnits } from '../layout/units';
-import type { LayoutServices, PresetLayout, TemplateToken } from '../layout/types';
-import type { OptionValue } from '../layout/options';
-import { paint } from '../paint/paint';
-import type { DecodedImage } from '../io/decode';
 
-export interface RenderRequest {
-  image: DecodedImage;
+export interface SceneRequest {
+  /** 미리보기 비트맵을 넘겨도 됩니다. 디자인 단위는 비율만 보므로 결과가 같습니다. */
+  photoPx: { width: number; height: number };
   fields: Partial<Record<TemplateToken, string>>;
   logoId: string | undefined;
   layout: PresetLayout;
   options: ReadonlyMap<string, OptionValue>;
   services: LayoutServices;
+}
+
+export function buildScene(request: SceneRequest): Scene {
+  const photo = toUnits(request.photoPx.width, request.photoPx.height);
+  return request.layout(
+    { photo, fields: request.fields, logoId: request.logoId, options: request.options },
+    request.services,
+  );
+}
+```
+
+- [ ] **Step 2: paintToCanvas.ts 작성**
+
+```ts
+import { clampExportSize, type CanvasLimit } from '../limits/clampExportSize';
+import type { Scene } from '../layout/types';
+import { paint } from '../paint/paint';
+
+export interface PaintToCanvasRequest {
+  scene: Scene;
+  canvas: HTMLCanvasElement;
+  photo: CanvasImageSource;
+  logo: (logoId: string) => Path2D | null;
+  targetLongEdge: number;
+  limit: CanvasLimit;
+}
+
+/**
+ * 캔버스 크기를 정하고 Scene을 그립니다. 미리보기와 내보내기가 함께 씁니다.
+ * 두 경로의 차이는 targetLongEdge와 넘기는 비트맵뿐입니다.
+ */
+export function paintToCanvas(request: PaintToCanvasRequest): {
+  width: number;
+  height: number;
+  clamped: boolean;
+} {
+  const { scene, canvas } = request;
+  const size = clampExportSize(scene.width, scene.height, request.targetLongEdge, request.limit);
+
+  canvas.width = size.width;
+  canvas.height = size.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D 컨텍스트를 만들지 못했습니다');
+
+  ctx.imageSmoothingQuality = 'high';
+  // Scene 전체의 긴 변을 기준으로 배율을 정해야 프레임까지 목표 크기 안에 들어옵니다.
+  paint(scene, ctx, size.width / scene.width, { photo: request.photo, logo: request.logo });
+
+  return size;
+}
+```
+
+- [ ] **Step 3: exportToBlob.ts 작성**
+
+```ts
+import { encodeCanvas, type ExportFormat } from '../export/encode';
+import { targetLongEdge, type ExportPreset } from '../export/resolution';
+import type { CanvasLimit } from '../limits/clampExportSize';
+import type { Scene } from '../layout/types';
+import { paintToCanvas } from './paintToCanvas';
+
+export interface ExportRequest {
+  scene: Scene;
+  /** 전체 해상도 비트맵입니다. 이 함수를 부르기 직전에 디코딩합니다. */
+  photo: CanvasImageSource;
+  photoLongEdgePx: number;
+  logo: (logoId: string) => Path2D | null;
   limit: CanvasLimit;
   preset: ExportPreset;
   format: ExportFormat;
   quality: number;
 }
 
-export interface RenderResult {
+export interface ExportResult {
   blob: Blob;
   width: number;
   height: number;
-  /** 기기 한계로 요청보다 작아졌으면 true입니다. */
+  /** 기기 한계로 요청보다 작아졌으면 true입니다. 화면에 알려야 합니다. */
   clamped: boolean;
 }
 
-export async function renderOne(request: RenderRequest): Promise<RenderResult> {
-  const { image } = request;
-  const photo = toUnits(image.width, image.height);
-
-  const scene = request.layout(
-    { photo, fields: request.fields, logoId: request.logoId, options: request.options },
-    request.services,
-  );
-
-  const photoLongEdgePx = Math.max(image.width, image.height);
-  const size = clampExportSize(
-    scene.width,
-    scene.height,
-    targetLongEdge(request.preset, photoLongEdgePx),
-    request.limit,
-  );
-
+export async function exportToBlob(request: ExportRequest): Promise<ExportResult> {
   const canvas = document.createElement('canvas');
-  canvas.width = size.width;
-  canvas.height = size.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('출력용 2D 컨텍스트를 만들지 못했습니다');
-
-  // 사진이 아니라 Scene 전체의 긴 변을 기준으로 배율을 정해야 프레임까지 목표 크기에 들어옵니다.
-  const pxPerUnit = size.width / scene.width;
-  ctx.imageSmoothingQuality = 'high';
-  paint(scene, ctx, pxPerUnit, { photo: image.bitmap, logo: () => null });
-
   try {
+    const size = paintToCanvas({
+      scene: request.scene,
+      canvas,
+      photo: request.photo,
+      logo: request.logo,
+      targetLongEdge: targetLongEdge(request.preset, request.photoLongEdgePx),
+      limit: request.limit,
+    });
     const blob = await encodeCanvas(canvas, request.format, request.quality);
-    return { blob, width: size.width, height: size.height, clamped: size.clamped };
+    return { blob, ...size };
   } finally {
     // 백킹 스토어를 즉시 반납합니다. 참조만 버리면 해제가 늦습니다.
     canvas.width = 0;
@@ -2555,7 +2745,7 @@ export async function renderOne(request: RenderRequest): Promise<RenderResult> {
 }
 ```
 
-- [ ] **Step 2: 타입 검사와 전체 테스트**
+- [ ] **Step 4: 타입 검사와 전체 테스트**
 
 ```bash
 npx tsc -b && npm test
@@ -2563,27 +2753,27 @@ npx tsc -b && npm test
 
 기대 결과: 타입 오류 없음, 모든 테스트 통과.
 
-- [ ] **Step 3: 커밋**
+- [ ] **Step 5: 커밋**
 
 ```bash
-git add src/core/render/renderOne.ts
-git commit -m "단일 이미지 렌더 오케스트레이션 추가
+git add src/core/render
+git commit -m "미리보기와 내보내기 렌더 경로 분리
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 16: 최소 UI와 엔드투엔드 확인
+### Task 17: 미리보기 UI와 엔드투엔드 확인
 
-이 계획의 마지막 작업입니다. 여기까지 끝나면 JPEG을 넣어 프레임이 붙은 파일을 받을 수 있습니다. UI 문구는 한국어로 직접 적습니다. 영어 사전은 다음 계획에서 붙입니다.
+이 계획의 마지막 작업입니다. UI 문구는 한국어로 직접 적습니다. 영어 사전은 다음 계획에서 붙입니다.
 
 **Files:**
 - Modify: `src/ui/App.tsx`
 - Create: `src/ui/usePipeline.ts`
 
 **Interfaces:**
-- Consumes: Task 15까지의 모든 모듈
+- Consumes: Task 16까지의 모든 모듈
 - Produces: 동작하는 페이지
 
 - [ ] **Step 1: 파이프라인 훅 작성**
@@ -2591,21 +2781,28 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 `src/ui/usePipeline.ts`:
 
 ```ts
-import { useCallback, useRef, useState } from 'react';
-import { detectKind, decodeImage } from '../core/io/decode';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { detectAutoOrientation } from '../core/io/autoOrientProbe';
-import { readExif } from '../core/exif/read';
+import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { toFields } from '../core/exif/map';
-import { defaultValues } from '../core/layout/options';
+import { readExif, type PhotoMeta } from '../core/exif/read';
+import { PREVIEW_LONG_EDGE } from '../core/export/resolution';
+import { defaultValues, type OptionValue } from '../core/layout/options';
 import { INFO_BAR_OPTIONS, infoBarLayout } from '../core/layout/presets/infoBar';
-import { createMeasurer } from '../core/paint/measure';
+import { swapsAxes } from '../core/io/orientation';
+import type { CanvasLimit } from '../core/limits/clampExportSize';
 import { probeCanvasLimit } from '../core/limits/probeCanvasLimit';
-import { renderOne, type RenderResult } from '../core/render/renderOne';
-import type { LayoutServices } from '../core/layout/types';
+import { createMeasurer } from '../core/paint/measure';
+import { buildScene } from '../core/render/buildScene';
+import { exportToBlob } from '../core/render/exportToBlob';
+import { paintToCanvas } from '../core/render/paintToCanvas';
+import type { LayoutServices, TemplateToken } from '../core/layout/types';
+
+const NO_LOGO = () => null;
 
 /**
  * 탐지용 원본은 반드시 정사각형이 아니어야 합니다. 가로세로가 같으면 회전이
- * 일어났는지 관측할 방법이 없어 탐지가 항상 거짓을 돌려줍니다.
+ * 일어났는지 관측할 방법이 없어 탐지가 늘 거짓을 돌려줍니다.
  * 바이트를 하드코딩하는 대신 캔버스로 만들어 실제로 유효한 JPEG임을 보장합니다.
  */
 async function makeProbeJpeg(): Promise<Uint8Array> {
@@ -2625,9 +2822,8 @@ async function makeProbeJpeg(): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-/** 탐지는 세션당 한 번이면 충분합니다. 결과 프라미스를 재사용합니다. */
+/** 세션당 한 번이면 충분합니다. 결과 프라미스를 재사용합니다. */
 let autoOrientedOnce: Promise<boolean> | null = null;
-
 function autoOrientedFlag(): Promise<boolean> {
   autoOrientedOnce ??= makeProbeJpeg().then((base) =>
     detectAutoOrientation(async (blob) => createImageBitmap(blob), base),
@@ -2635,115 +2831,280 @@ function autoOrientedFlag(): Promise<boolean> {
   return autoOrientedOnce;
 }
 
-export function usePipeline() {
-  const [status, setStatus] = useState<string>('사진을 끌어다 놓거나 골라 주세요');
-  const [result, setResult] = useState<RenderResult | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const servicesRef = useRef<LayoutServices | null>(null);
+interface Loaded {
+  file: File;
+  meta: PhotoMeta;
+  fields: Partial<Record<TemplateToken, string>>;
+  preview: DecodedImage;
+}
 
-  const run = useCallback(async (file: File) => {
+export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
+  const [status, setStatus] = useState('사진을 끌어다 놓거나 골라 주세요');
+  const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
+    defaultValues(INFO_BAR_OPTIONS),
+  );
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const servicesRef = useRef<LayoutServices | null>(null);
+  const limitRef = useRef<CanvasLimit | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  // 캔버스 한계 측정은 큰 할당을 여러 번 합니다. 첫 파일을 기다리게 하지 않도록 미리 돌립니다.
+  useEffect(() => {
+    limitRef.current ??= probeCanvasLimit();
+    servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
+    void autoOrientedFlag();
+  }, []);
+
+  const repaint = useCallback(() => {
+    const canvas = canvasRef.current;
+    const services = servicesRef.current;
+    const limit = limitRef.current;
+    if (!canvas || !loaded || !services || !limit) return;
+
+    const scene = buildScene({
+      photoPx: { width: loaded.preview.width, height: loaded.preview.height },
+      fields: loaded.fields,
+      logoId: undefined,
+      layout: infoBarLayout,
+      options,
+      services,
+    });
+
+    paintToCanvas({
+      scene,
+      canvas,
+      photo: loaded.preview.bitmap,
+      logo: NO_LOGO,
+      targetLongEdge: PREVIEW_LONG_EDGE,
+      limit,
+    });
+  }, [canvasRef, loaded, options]);
+
+  // 옵션이 연달아 바뀌어도 프레임마다 한 번만 그립니다.
+  useEffect(() => {
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      repaint();
+    });
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    };
+  }, [repaint]);
+
+  const load = useCallback(async (file: File) => {
     setStatus('읽는 중입니다');
-    setResult(null);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
+    setLoaded((previous) => {
+      previous?.preview.bitmap.close();
+      return null;
+    });
 
     try {
-      const kind = await detectKind(file);
-      if (kind !== 'jpeg' && kind !== 'png' && kind !== 'webp') {
-        setStatus(`아직 지원하지 않는 형식입니다: ${kind}`);
-        return;
-      }
-
-      const buffer = await file.arrayBuffer();
-      const meta = await readExif(buffer);
+      const meta = await readExif(await file.arrayBuffer());
       const autoOriented = await autoOrientedFlag();
 
-      setStatus('그리는 중입니다');
-      const image = await decodeImage(file, autoOriented, meta.orientation);
+      // EXIF 크기는 회전 전 기준입니다. 축이 바뀌는 방향이면 뒤집어서 넘겨야
+      // 미리보기 축소 축을 제대로 고릅니다.
+      const swap = !autoOriented && swapsAxes(meta.orientation);
+      const sourceSize =
+        meta.pixelWidth !== undefined && meta.pixelHeight !== undefined
+          ? swap
+            ? { width: meta.pixelHeight, height: meta.pixelWidth }
+            : { width: meta.pixelWidth, height: meta.pixelHeight }
+          : undefined;
 
-      servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
+      const preview = await decodeImage({
+        file,
+        autoOriented,
+        orientation: meta.orientation,
+        maxLongEdge: PREVIEW_LONG_EDGE,
+        ...(sourceSize ? { sourceSize } : {}),
+      });
 
-      const rendered = await renderOne({
-        image,
-        fields: toFields(meta),
+      setLoaded({ file, meta, fields: toFields(meta), preview });
+      setStatus(`${file.name} 을 불러왔어요`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '알 수 없는 오류가 났습니다');
+    }
+  }, []);
+
+  const setOption = useCallback((id: string, value: OptionValue) => {
+    setOptions((previous) => new Map(previous).set(id, value));
+  }, []);
+
+  const download = useCallback(async () => {
+    const services = servicesRef.current;
+    const limit = limitRef.current;
+    if (!loaded || !services || !limit) return;
+
+    setBusy(true);
+    setStatus('전체 해상도로 그리는 중입니다');
+    let full: DecodedImage | null = null;
+    try {
+      const autoOriented = await autoOrientedFlag();
+      full = await decodeImage({ file: loaded.file, autoOriented, orientation: loaded.meta.orientation });
+
+      const scene = buildScene({
+        photoPx: { width: full.width, height: full.height },
+        fields: loaded.fields,
         logoId: undefined,
         layout: infoBarLayout,
-        options: defaultValues(INFO_BAR_OPTIONS),
-        services: servicesRef.current,
-        limit: probeCanvasLimit(),
+        options,
+        services,
+      });
+
+      const result = await exportToBlob({
+        scene,
+        photo: full.bitmap,
+        photoLongEdgePx: Math.max(full.width, full.height),
+        logo: NO_LOGO,
+        limit,
         preset: 'original',
         format: 'image/jpeg',
         quality: 0.92,
       });
 
-      image.bitmap.close();
-      setResult(rendered);
-      setPreviewUrl(URL.createObjectURL(rendered.blob));
+      const url = URL.createObjectURL(result.blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = loaded.file.name.replace(/\.[^.]+$/, '') + '-halfstop.jpg';
+      anchor.click();
+      URL.revokeObjectURL(url);
+
       setStatus(
-        rendered.clamped
-          ? `완성했어요. 기기 한계 때문에 ${rendered.width}x${rendered.height}로 줄였어요`
-          : `완성했어요. ${rendered.width}x${rendered.height}`,
+        result.clamped
+          ? `내려받았어요. 기기 한계 때문에 ${result.width}x${result.height}로 줄였어요`
+          : `내려받았어요. ${result.width}x${result.height}`,
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '알 수 없는 오류가 났습니다');
+      setStatus(error instanceof Error ? error.message : '내보내기에 실패했어요');
+    } finally {
+      full?.bitmap.close();
+      setBusy(false);
     }
-  }, [previewUrl]);
+  }, [loaded, options]);
 
-  return { status, result, previewUrl, run };
+  return { status, options, setOption, load, download, busy, ready: loaded !== null };
 }
 ```
 
 - [ ] **Step 2: App.tsx 작성**
 
+옵션 패널은 선언 배열을 돌면서 만듭니다. 프리셋을 추가해도 이 코드는 그대로입니다.
+
 ```tsx
-import type { ChangeEvent, DragEvent } from 'react';
+import { useRef, type ChangeEvent, type DragEvent } from 'react';
+import { INFO_BAR_OPTIONS } from '../core/layout/presets/infoBar';
+import type { PresetOption } from '../core/layout/options';
 import { usePipeline } from './usePipeline';
 
 export function App() {
-  const { status, result, previewUrl, run } = usePipeline();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { status, options, setOption, load, download, busy, ready } = usePipeline(canvasRef);
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
-    if (file) void run(file);
+    if (file) void load(file);
   };
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) void run(file);
+    if (file) void load(file);
+  };
+
+  const field = (option: PresetOption) => {
+    const value = options.get(option.id);
+    switch (option.type) {
+      case 'color':
+        return (
+          <input
+            type="color"
+            value={String(value)}
+            onChange={(e) => setOption(option.id, e.target.value)}
+          />
+        );
+      case 'boolean':
+        return (
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(e) => setOption(option.id, e.target.checked)}
+          />
+        );
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={Number(value)}
+            onChange={(e) => setOption(option.id, Number(e.target.value))}
+          />
+        );
+      case 'range':
+        return (
+          <input
+            type="range"
+            min={option.min}
+            max={option.max}
+            step={option.step}
+            value={Number(value)}
+            onChange={(e) => setOption(option.id, Number(e.target.value))}
+          />
+        );
+      case 'select':
+        return (
+          <select value={String(value)} onChange={(e) => setOption(option.id, e.target.value)}>
+            {option.options.map((choice) => (
+              <option key={choice} value={choice}>
+                {choice}
+              </option>
+            ))}
+          </select>
+        );
+      case 'text':
+        return (
+          <input
+            type="text"
+            value={String(value)}
+            onChange={(e) => setOption(option.id, e.target.value)}
+          />
+        );
+    }
   };
 
   return (
-    <main style={{ fontFamily: 'system-ui', padding: 24, maxWidth: 900, margin: '0 auto' }}>
+    <main style={{ fontFamily: 'system-ui', padding: 24, maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>halfstop</h1>
 
       <div
         onDrop={onDrop}
         onDragOver={(event) => event.preventDefault()}
-        style={{
-          border: '2px dashed #bbb',
-          borderRadius: 12,
-          padding: 40,
-          textAlign: 'center',
-          marginBottom: 16,
-        }}
+        style={{ border: '2px dashed #bbb', borderRadius: 12, padding: 24, marginBottom: 16 }}
       >
         <p style={{ margin: '0 0 12px' }}>{status}</p>
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} />
       </div>
 
-      {previewUrl && result && (
-        <>
-          <img
-            src={previewUrl}
-            alt="프레임을 붙인 결과"
-            style={{ maxWidth: '100%', display: 'block', marginBottom: 12 }}
-          />
-          <a href={previewUrl} download="halfstop.jpg">
-            내려받기
-          </a>
-        </>
-      )}
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+        <canvas
+          ref={canvasRef}
+          style={{ maxWidth: '100%', flex: 1, background: '#f4f4f4', minHeight: 200 }}
+        />
+
+        <aside style={{ width: 260, display: 'grid', gap: 8 }}>
+          {INFO_BAR_OPTIONS.map((option) => (
+            <label key={option.id} style={{ display: 'grid', gap: 4, fontSize: 13 }}>
+              <span>{option.id}</span>
+              {field(option)}
+            </label>
+          ))}
+          <button type="button" onClick={() => void download()} disabled={!ready || busy}>
+            {busy ? '만드는 중' : '내려받기'}
+          </button>
+        </aside>
+      </div>
     </main>
   );
 }
@@ -2763,21 +3124,29 @@ npx tsc -b && npm test
 npm run dev
 ```
 
-브라우저에서 다음을 확인하고, 각 항목의 결과를 기록합니다.
+브라우저에서 다음을 확인하고 각 항목의 결과를 기록합니다.
 
 1. Sony, Canon, Nikon 중 하나로 찍은 JPEG을 넣습니다. 하단 바에 제조사와 모델, 초점거리, 조리개, 셔터, ISO가 나오는지 봅니다.
-2. 세로 사진을 넣습니다. 눕지 않고 똑바로 서는지 봅니다. 이것이 이 계획에서 가장 중요한 확인입니다.
+2. **세로 사진을 넣습니다. 눕지 않고 똑바로 서는지 봅니다.** 이 계획에서 가장 중요한 확인입니다.
 3. Orientation 태그가 붙은 사진과 붙지 않은 사진을 각각 넣어 둘 다 똑바로 서는지 봅니다.
 4. EXIF가 없는 이미지를 넣습니다. 오류 없이 바가 비거나 일부만 나오는지 봅니다.
-5. 5천만 화소급 대형 JPEG을 넣습니다. 완성되는지, 줄었다면 안내 문구가 나오는지 봅니다.
+5. 5천만 화소급 대형 JPEG을 넣습니다. 내려받기가 끝나는지, 줄었다면 안내 문구가 나오는지 봅니다.
 6. 내려받은 파일을 사진 앱에서 열어 실제로 열리는지 봅니다.
 7. 개발자 도구 네트워크 탭을 열어 두고 위 과정을 반복합니다. 이미지가 나가는 요청이 하나도 없어야 합니다.
 
-- [ ] **Step 5: 커밋**
+- [ ] **Step 5: 반응 속도 확인**
+
+이 계획에 반응 속도 요구가 있으므로 눈대중이 아니라 숫자로 확인합니다. 개발자 도구 Performance 패널을 켜고 5천만 화소 JPEG으로 다음을 재고, 결과를 기록합니다.
+
+1. 파일을 놓은 시점부터 미리보기가 뜰 때까지의 시간입니다. 축소 디코딩이 걸렸다면 1초 안쪽이어야 합니다. 몇 초가 걸린다면 `resizeHint`가 `{}`를 돌려주고 있다는 뜻이므로, EXIF에 원본 크기가 있는지부터 확인합니다.
+2. 바 높이 슬라이더를 끝까지 끌 때의 프레임 흐름입니다. 디코딩이 다시 일어나면 안 됩니다. Performance 기록에 `createImageBitmap`이 보이면 미리보기 경로에 디코딩이 섞인 것입니다.
+3. 색상과 템플릿 문자열을 바꿀 때도 같은지 봅니다.
+
+- [ ] **Step 6: 커밋**
 
 ```bash
 git add src/ui
-git commit -m "드롭존과 미리보기를 갖춘 최소 UI 추가
+git commit -m "미리보기 캔버스와 옵션 패널을 갖춘 UI 추가
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
@@ -2787,10 +3156,11 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## 이 계획을 마치면 확보되는 것
 
 - JPEG, PNG, WebP를 넣어 하단 정보 바가 붙은 이미지를 내려받을 수 있습니다.
+- 옵션을 만지면 미리보기가 곧바로 따라옵니다. 디코딩은 파일당 한 번이고, 전체 해상도 작업은 내려받을 때만 일어납니다.
 - 미리보기와 내보내기가 어긋나지 않는다는 보장이 테스트로 붙어 있습니다.
 - 캔버스 한계와 방향 회전이라는 두 가지 조용한 실패 원인이 잡혀 있습니다.
-- 프리셋을 늘릴 자리와 브랜드 로고를 끼울 자리가 타입으로 열려 있습니다.
+- 옵션 패널이 선언에서 자동으로 만들어지므로, 프리셋을 늘릴 때 UI 코드를 새로 쓰지 않습니다.
 
 ## 다음 계획에서 다루는 것
 
-브랜드 정규화와 로고 `Path2D` 빌드 스텝, 폰트 로딩, EXIF 수동 편집 패널, 선언 기반 옵션 패널 UI, 한국어와 영어 사전입니다. 그 뒤가 나머지 프리셋 두 개, HEIC, RAW, 배치와 ZIP입니다.
+브랜드 정규화와 로고 `Path2D` 빌드 스텝, 폰트 로딩, EXIF 수동 편집 패널, 한국어와 영어 사전입니다. 그 뒤가 나머지 프리셋 두 개, HEIC, RAW, 배치와 ZIP입니다.
