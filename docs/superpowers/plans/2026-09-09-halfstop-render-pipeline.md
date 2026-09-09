@@ -1085,7 +1085,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ### Task 8: 템플릿 토큰 치환
 
-**규칙:** 템플릿을 `}` 기준으로 자릅니다. 각 조각은 `앞 리터럴 + {토큰}` 형태입니다. 토큰에 값이 없으면 그 조각을 리터럴까지 통째로 버립니다. 살아남은 조각은 앞뒤 공백을 떼고 구분자로 잇습니다. 마지막 `}` 뒤에 남은 리터럴도 하나의 조각으로 봅니다.
+**규칙:** `{대문자와 밑줄}` 형태만 토큰으로 봅니다. 토큰 하나와 그 앞의 리터럴이 한 조각입니다. 토큰에 값이 없으면 그 조각을 리터럴까지 통째로 버립니다. 살아남은 조각은 앞뒤 공백을 떼고 구분자로 잇습니다. 마지막 토큰 뒤에 남은 리터럴도 하나의 조각으로 봅니다.
+
+토큰 형태가 아닌 중괄호는 손대지 않고 원문 그대로 둡니다. 소문자로 쓴 `{maker}` 는 값으로 바뀌지 않고 `{maker}` 그대로 남습니다. 닫는 중괄호가 사라지거나 여는 중괄호만 남는 일이 없어야 합니다.
 
 **Files:**
 - Create: `src/core/layout/template.ts`
@@ -1171,7 +1173,7 @@ npm test -- src/core/layout/template.test.ts
 ```ts
 import type { TemplateToken } from './types';
 
-const SEGMENT = /^(.*?)\{([A-Z_]+)\}$/s;
+const TOKEN = /\{([A-Z_]+)\}/g;
 
 /**
  * 표시 항목과 순서를 사용자가 문자열 하나로 정하게 합니다. 체크박스 여러 개보다
@@ -1183,32 +1185,24 @@ export function renderTemplate(
   divider: string,
 ): string {
   const pieces: string[] = [];
-  const chunks = template.split('}');
+  let cursor = 0;
 
-  for (let i = 0; i < chunks.length; i += 1) {
-    const chunk = chunks[i]!;
-    const isLast = i === chunks.length - 1;
+  // 템플릿을 `}` 로 쪼개면 토큰이 아닌 중괄호가 소실됩니다. 소문자 토큰
+  // `{maker}` 가 `{maker` 로 나오는 식입니다. 토큰만 찾아 훑고 나머지는
+  // 원문 그대로 두면 그런 일이 없습니다.
+  for (const match of template.matchAll(TOKEN)) {
+    const literal = template.slice(cursor, match.index);
+    cursor = match.index + match[0].length;
 
-    if (isLast) {
-      const tail = chunk.trim();
-      if (tail) pieces.push(tail);
-      continue;
-    }
-
-    const match = SEGMENT.exec(`${chunk}}`);
-    if (!match) {
-      // 여는 중괄호가 없는 조각입니다. 리터럴로 취급합니다.
-      const literal = chunk.trim();
-      if (literal) pieces.push(literal);
-      continue;
-    }
-
-    const [, literal = '', token = ''] = match;
-    const value = fields[token as TemplateToken];
+    const value = fields[(match[1] ?? '') as TemplateToken];
     if (value === undefined || value.trim() === '') continue;
 
-    pieces.push(`${literal}${value}`.trim());
+    const piece = `${literal}${value}`.trim();
+    if (piece) pieces.push(piece);
   }
+
+  const tail = template.slice(cursor).trim();
+  if (tail) pieces.push(tail);
 
   const joiner = divider.trim() === '' ? ' ' : ` ${divider.trim()} `;
   return pieces.join(joiner);
@@ -1337,7 +1331,10 @@ export function ellipsize(
     kept = candidate;
   }
 
-  return kept === '' ? '' : kept + ELLIPSIS;
+  // 말줄임표가 들어가는지는 위에서 이미 판단했습니다. 여기서 kept가 비었다고
+  // 다시 빈 문자열로 떨어뜨리면, 폭은 되는데 글자만 안 들어가는 경우에
+  // 잘렸다는 표시조차 사라집니다.
+  return kept + ELLIPSIS;
 }
 ```
 
@@ -1622,7 +1619,7 @@ export const infoBarLayout: PresetLayout = (input, services) => {
 npm test -- src/core/layout/presets/infoBar.test.ts
 ```
 
-기대 결과: `9 passed`.
+기대 결과: `11 passed`.
 
 - [ ] **Step 5: 커밋**
 
