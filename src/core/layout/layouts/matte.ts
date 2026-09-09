@@ -1,0 +1,105 @@
+import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
+import { num, str, type PresetOption } from '../options';
+import { ellipsize } from '../primitives';
+import { resolveSlot } from '../slots';
+import type { PresetLayout, SceneNode, TextStyle } from '../types';
+
+export const MATTE_OPTIONS: PresetOption[] = [
+  { id: 'MODE', type: 'select', options: ['split', 'single', 'poster'], default: 'split' },
+  { id: 'ALIGN', type: 'select', options: ['left', 'center', 'right'], default: 'center' },
+  { id: 'BACKGROUND', type: 'color', default: '#ffffff' },
+  { id: 'TEXT_COLOR', type: 'color', default: '#111111' },
+  { id: 'PAD_TOP', type: 'number', default: 60, unit: 'u' },
+  { id: 'PAD_RIGHT', type: 'number', default: 60, unit: 'u' },
+  { id: 'PAD_BOTTOM', type: 'number', default: 200, unit: 'u' },
+  { id: 'PAD_LEFT', type: 'number', default: 60, unit: 'u' },
+  { id: 'FONT_SIZE', type: 'number', default: 30, unit: 'u' },
+  // poster 에서는 가운데 줄이 커야 하므로 1보다 큰 값도 받습니다.
+  { id: 'SUB_SCALE', type: 'range', min: 0.4, max: 3, step: 0.05, default: 0.7 },
+  { id: 'FONT_WEIGHT', type: 'range', min: 100, max: 900, step: 100, default: 400 },
+  { id: 'FONT_FAMILY', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
+  { id: 'DIVIDER', type: 'text', default: '·' },
+  { id: 'PRIMARY_MAIN', type: 'text', default: '{MAKER}{BODY}' },
+  { id: 'PRIMARY_SUB', type: 'text', default: '' },
+  { id: 'SECONDARY_MAIN', type: 'text', default: '{MM}{F}{SEC}{ISO}' },
+  { id: 'SECONDARY_SUB', type: 'text', default: '' },
+];
+
+export const matteLayout: PresetLayout = (input, services) => {
+  const options = input.options;
+  const padTop = num(options, 'PAD_TOP');
+  const padRight = num(options, 'PAD_RIGHT');
+  const padBottom = num(options, 'PAD_BOTTOM');
+  const padLeft = num(options, 'PAD_LEFT');
+  const fontSize = num(options, 'FONT_SIZE');
+  const subSize = fontSize * num(options, 'SUB_SCALE');
+  const textColor = str(options, 'TEXT_COLOR');
+  const divider = str(options, 'DIVIDER');
+  const mode = str(options, 'MODE');
+
+  const family = fontStack(fontById(str(options, 'FONT_FAMILY')));
+  const weight = num(options, 'FONT_WEIGHT');
+  const style = (size: number, align: TextStyle['align']): TextStyle => ({
+    family,
+    size,
+    weight,
+    style: 'normal',
+    color: textColor,
+    align,
+    baseline: 'middle',
+    alpha: 1,
+  });
+
+  const photoWidth = input.photo.width;
+  const photoHeight = input.photo.height;
+  const width = photoWidth + padLeft + padRight;
+  const height = photoHeight + padTop + padBottom;
+
+  const nodes: SceneNode[] = [
+    { kind: 'image', x: padLeft, y: padTop, w: photoWidth, h: photoHeight },
+  ];
+
+  // 글은 아래 여백 안에만 놓습니다.
+  const areaTop = padTop + photoHeight;
+  const areaCenterY = areaTop + padBottom / 2;
+  const textWidth = width - padLeft - padRight;
+
+  const primary = resolveSlot(options, 'PRIMARY', input.fields, divider);
+  const secondary = resolveSlot(options, 'SECONDARY', input.fields, divider);
+
+  const put = (text: string, size: number, align: TextStyle['align'], x: number, y: number, max: number) => {
+    if (!text) return;
+    const textStyle = style(size, align);
+    const clipped = ellipsize(text, max, textStyle, services);
+    if (clipped) nodes.push({ kind: 'text', x, y, text: clipped, style: textStyle });
+  };
+
+  if (mode === 'poster') {
+    // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.
+    const step = padBottom / 4;
+    const align = str(options, 'ALIGN') as TextStyle['align'];
+    const x = align === 'left' ? padLeft : align === 'right' ? width - padRight : width / 2;
+    put(primary.main, fontSize, align, x, areaTop + step, textWidth);
+    put(primary.sub, subSize, align, x, areaTop + step * 2, textWidth);
+    put(secondary.main, fontSize, align, x, areaTop + step * 3, textWidth);
+  } else if (mode === 'single') {
+    const align = str(options, 'ALIGN') as TextStyle['align'];
+    const x = align === 'left' ? padLeft : align === 'right' ? width - padRight : width / 2;
+    const gap = fontSize * 1.25;
+    const twoLines = primary.main !== '' && primary.sub !== '';
+    put(primary.main, fontSize, align, x, twoLines ? areaCenterY - gap / 2 : areaCenterY, textWidth);
+    put(primary.sub, subSize, align, x, twoLines ? areaCenterY + gap / 2 : areaCenterY, textWidth);
+  } else {
+    const half = textWidth / 2 - fontSize;
+    const gap = fontSize * 1.25;
+    const leftTwo = primary.main !== '' && primary.sub !== '';
+    put(primary.main, fontSize, 'left', padLeft, leftTwo ? areaCenterY - gap / 2 : areaCenterY, half);
+    put(primary.sub, subSize, 'left', padLeft, leftTwo ? areaCenterY + gap / 2 : areaCenterY, half);
+    const rightTwo = secondary.main !== '' && secondary.sub !== '';
+    const rx = width - padRight;
+    put(secondary.main, fontSize, 'right', rx, rightTwo ? areaCenterY - gap / 2 : areaCenterY, half);
+    put(secondary.sub, subSize, 'right', rx, rightTwo ? areaCenterY + gap / 2 : areaCenterY, half);
+  }
+
+  return { width, height, background: str(options, 'BACKGROUND'), nodes };
+};
