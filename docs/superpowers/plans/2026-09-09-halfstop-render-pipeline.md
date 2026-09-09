@@ -1070,7 +1070,7 @@ export function bool(values: ReadonlyMap<string, OptionValue>, id: string): bool
 npm test -- src/core/layout/options.test.ts
 ```
 
-기대 결과: `10 passed`.
+기대 결과: `9 passed`.
 
 - [ ] **Step 5: 커밋**
 
