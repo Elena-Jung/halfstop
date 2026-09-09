@@ -937,24 +937,26 @@ export function mergeValues(
 
 `src/core/layout/options.test.ts` 에 이 성질을 고정하는 테스트를 더합니다.
 
-```ts
-  it('시작값을 주면 그 위에 덮습니다', () => {
-    const base = defaultValues(SCHEMA);
-    base.set('BAR_HEIGHT_LIKE', 0);
-    const withBase = mergeValues(SCHEMA, { BACKGROUND: '#000000' }, defaultValues(SCHEMA));
-    expect(withBase.get('BACKGROUND')).toBe('#000000');
-  });
+기존 `SCHEMA` 에 `BAR_HEIGHT` 가 `default: 120` 인 숫자 옵션으로 이미 있습니다. 그것을
+그대로 씁니다.
 
-  it('시작값이 있으면 이상한 저장값이 선언 기본값이 아니라 시작값으로 떨어집니다', () => {
+```ts
+describe('mergeValues 의 시작값', () => {
+  it('시작값 위에 저장된 값을 덮습니다', () => {
     const base = mergeValues(SCHEMA, { BAR_HEIGHT: 80 });
-    const merged = mergeValues(SCHEMA, { BAR_HEIGHT: '높게' }, base);
+    const merged = mergeValues(SCHEMA, { BACKGROUND: '#000000' }, base);
+    expect(merged.get('BACKGROUND')).toBe('#000000');
     expect(merged.get('BAR_HEIGHT')).toBe(80);
   });
-```
 
-**`SCHEMA` 에 `BAR_HEIGHT` 가 없으면 그 이름을 기존 스키마에 있는 숫자 옵션으로 바꾸세요.**
-기존 테스트 파일의 `SCHEMA` 정의를 먼저 읽고 맞추십시오. 첫 번째 테스트의 `base.set` 줄은
-쓰지 않는 값이므로 지우고 씁니다.
+  it('이상한 저장값은 선언 기본값이 아니라 시작값으로 떨어집니다', () => {
+    const base = mergeValues(SCHEMA, { BAR_HEIGHT: 80 });
+    const merged = mergeValues(SCHEMA, { BAR_HEIGHT: '높게' }, base);
+    // 선언 기본값 120 으로 돌아가면 안 됩니다.
+    expect(merged.get('BAR_HEIGHT')).toBe(80);
+  });
+});
+```
 
 Run: `npm test -- src/core/layout/options.test.ts`
 Expected: 기존 테스트와 새 테스트가 모두 통과합니다.
