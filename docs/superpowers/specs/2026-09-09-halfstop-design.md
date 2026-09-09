@@ -131,8 +131,37 @@ Vite와 React 19, TypeScript로 만든 단일 정적 SPA입니다. 서버 코드
 i18n은 라이브러리 없이 타입이 붙은 사전 모듈로 처리합니다. 문자열이 수십 개 수준이라
 `react-i18next`를 넣을 이유가 없습니다.
 
-배포는 Cloudflare Pages와 Vercel 중 아무 쪽이나 괜찮습니다. `SharedArrayBuffer`를 쓰지 않는
-설계라 COOP와 COEP 헤더가 필요 없고, 따라서 GitHub Pages도 후보에 남습니다.
+## 배포
+
+Cloudflare Pages에 올리고 GitHub Actions로 자동 배포합니다. `SharedArrayBuffer`를 쓰지 않는
+설계라 COOP와 COEP 헤더가 필요 없습니다.
+
+배포 전에 컨테이너로 프로덕션 빌드를 확인합니다. 개발 서버에서는 드러나지 않는 실패가 셋
+있기 때문입니다.
+
+- 워커는 프로덕션 빌드에서 별도 청크로 떨어지고 URL이 재작성됩니다. 정적 서버가 그 청크를
+  `text/plain`으로 내보내면 모듈 워커가 로드를 거부하고 내보내기만 조용히 실패합니다.
+  미리보기는 멀쩡해서 알아채기 어렵습니다.
+- `?url`로 가져온 폰트는 해시가 붙은 자산 경로가 됩니다. 서버가 `font/woff2`를 모르면
+  `FontFace` 등록이 실패하고 내보낸 파일만 대체 서체로 나옵니다.
+- 하위 경로에서 서비스하면 `import.meta.url` 기반 워커 해석과 자산 URL이 깨집니다.
+
+컨테이너는 2단계로 만듭니다. `node:22-alpine`에서 `npm ci`와 빌드를 하고, `nginx:alpine`에
+`dist/`만 복사합니다. 여기 쓰는 `nginx.conf`가 실제 호스트가 갖춰야 할 조건의 명세 역할을
+하며, Cloudflare Pages에서는 같은 내용을 `_headers` 파일로 옮깁니다.
+
+| 헤더 | 값 | 이유 |
+|---|---|---|
+| `X-Content-Type-Options` | `nosniff` | 워커 청크의 MIME이 틀렸을 때 조용히 넘어가지 않고 실패하게 합니다 |
+| `Content-Security-Policy` | `default-src 'self'; img-src 'self' blob: data:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'` | 이미지가 브라우저 밖으로 나가지 않는다는 약속을 구조로 강제합니다 |
+| `Cache-Control` (해시 자산) | `public, max-age=31536000, immutable` | 파일명에 해시가 붙어 있어 안전합니다 |
+| `Cache-Control` (`index.html`) | `no-cache` | 새 배포가 즉시 반영되어야 합니다 |
+
+CSP의 `connect-src 'self'`가 특히 중요합니다. 나중에 누가 실수로 업로드 코드를 넣어도
+브라우저가 막습니다. 사생활 보호가 문서상의 약속이 아니라 실행 환경의 제약이 됩니다.
+
+GitHub Actions는 push마다 타입 검사와 테스트를 돌리고 통과하면 배포합니다. 테스트가 매번
+도는 것이 자동화의 실질적인 이득이고 배포는 덤입니다.
 
 ## 렌더링 구조
 
