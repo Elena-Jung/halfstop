@@ -13,6 +13,42 @@ Node 22와 npm 10 환경입니다.
 "서버에 저장하지 않는다"가 약속이 아니라 구조로 보장됩니다. 모든 디코딩, 합성, 인코딩은
 브라우저 안에서 끝납니다.
 
+## 선행 사례: exif-frame
+
+같은 문제를 푸는 오픈소스 프로젝트가 이미 있습니다.
+[jeonghyeon-net/exif-frame](https://github.com/yurucam/exif-frame)이고 스타 119개,
+TypeScript, GPL-3.0이며 2026년 5월까지 갱신되고 있습니다. Capacitor로 iOS와 Android 앱도
+배포합니다. 테마가 16종입니다.
+
+**GPL-3.0이므로 코드와 로고 이미지를 가져다 쓸 수 없습니다.** 같은 라이선스로 공개할 것이
+아니라면 설계 아이디어만 참고합니다.
+
+### 받아들이는 것
+
+- **선언적 옵션 스키마.** 각 테마가 `{ id, type, default, min, max, options, description }`
+  형태로 옵션을 데이터로 선언하고, 설정 UI를 그 선언에서 자동으로 만듭니다. 프리셋마다 설정
+  패널을 따로 만들 필요가 없어집니다.
+- **템플릿 토큰.** 표시 항목을 체크박스로 켜고 끄는 대신
+  `{MAKER}{BODY}{LENS}{ISO}{MM}{F}{SEC}{TAKEN_AT}` 토큰이 담긴 문자열 한 줄과 구분자
+  설정으로 다룹니다. 항목뿐 아니라 순서까지 사용자가 정할 수 있고 UI는 입력란 하나로 끝납니다.
+- **출력 비율 강제.** 4:5 같은 목표 비율을 정하면 사진을 그 비율 안에 레터박스로 넣습니다.
+  SNS 업로드에서 실제로 필요한 기능입니다.
+- **필름과 중형 브랜드.** 로고 목록에 Contax, Mamiya, Phase One, Epson, Ricoh를 넣습니다.
+  필름 스캔 사용자에게는 현행 디지털 브랜드보다 이쪽이 중요합니다.
+
+### 다르게 가는 것
+
+- 이 프로젝트의 테마 시그니처는 `(photo, input, store) => HTMLCanvasElement`입니다. 테마가
+  캔버스를 직접 만들고 컨텍스트를 직접 호출합니다. 그 결과 `render.ts`가 전체 해상도로 그린
+  캔버스를 나중에 축소하므로 텍스트가 큰 크기로 래스터화된 뒤 리샘플링됩니다. 워커로 옮길 수
+  없고 DOM 없이 테스트할 수도 없습니다. 레이아웃과 페인팅을 분리하는 우리 설계가 이 세 가지를
+  모두 피합니다.
+- 옵션값이 절대 픽셀입니다. 같은 설정이 1200만 화소 사진과 4500만 화소 사진에서 전혀 다르게
+  보입니다. 우리는 디자인 단위를 써서 사진 크기와 무관하게 같은 결과를 냅니다.
+- 웹에서 HEIC와 RAW를 지원하지 않습니다. 의존성에 디코더가 없고, 모바일 앱은 네이티브 피커가
+  JPEG를 넘겨주는 방식으로 우회합니다. 우리는 브라우저에서 직접 처리합니다.
+- 출력 이미지에 `exif-restorer`로 원본 EXIF를 다시 넣습니다. 우리는 제거합니다.
+
 ## 확정된 요구사항
 
 브레인스토밍에서 사용자가 직접 정한 내용입니다.
@@ -35,8 +71,9 @@ Node 22와 npm 10 환경입니다.
 
 ## 프레임에 표시하는 항목
 
-프리셋 세 개가 공통으로 다루는 정보입니다. 각 항목은 켜고 끌 수 있고, 선택 상태는 브라우저에
-저장해 다음 방문에도 유지합니다.
+프리셋 세 개가 공통으로 다루는 정보입니다. 표시 여부와 순서는 체크박스가 아니라 템플릿
+문자열로 정합니다. 예를 들어 `{MAKER} {BODY} | {LENS}` 처럼 쓰면 그대로 그려집니다. 설정은
+브라우저에 저장해 다음 방문에도 유지합니다.
 
 | 항목 | 출처 | 비고 |
 |---|---|---|
@@ -48,9 +85,29 @@ Node 22와 npm 10 환경입니다.
 | 조리개 | `FNumber` | `f/1.8` 형식 |
 | 셔터 속도 | `ExposureTime` | 1초 미만은 분수, 이상은 초 |
 | ISO | `ISOSpeedRatings` | |
-| 촬영일시 | `DateTimeOriginal` | 표기 형식 선택 |
+| 촬영일시 | `DateTimeOriginal` | `{TAKEN_AT}`, 표기 형식 선택 |
 
-프리셋별 옵션으로 배경색(흰색과 검은색), 여백 비율, 정보 바 높이를 둡니다.
+각 항목에는 템플릿 토큰이 붙습니다. `{MAKER}`, `{BODY}`, `{LENS}`, `{MM}`, `{F}`, `{SEC}`,
+`{ISO}`, `{TAKEN_AT}`입니다. 값이 없는 토큰은 구분자와 함께 통째로 사라집니다.
+
+프리셋 옵션은 코드가 아니라 선언으로 둡니다.
+
+```ts
+type PresetOption =
+  | { id: string; type: 'color';   default: string }
+  | { id: string; type: 'number';  default: number; unit: 'u' }
+  | { id: string; type: 'boolean'; default: boolean }
+  | { id: string; type: 'select';  options: string[]; default: string }
+  | { id: string; type: 'range';   min: number; max: number; step: number; default: number }
+  | { id: string; type: 'text';    default: string };
+```
+
+설정 패널은 이 선언에서 자동으로 만듭니다. 프리셋을 추가할 때 UI 코드를 새로 쓰지 않습니다.
+크기를 뜻하는 옵션의 단위는 픽셀이 아니라 디자인 단위입니다. 사진 화소수가 달라져도 같은
+설정이 같은 결과를 냅니다.
+
+출력 비율 옵션을 따로 둡니다. 원본 비율을 그대로 쓰거나, 1:1과 4:5, 16:9 같은 목표 비율에
+사진을 레터박스로 넣습니다.
 
 ## 기술 스택
 
@@ -133,6 +190,15 @@ paint(scene: Scene, ctx: Ctx2D, pxPerUnit: number)              // 프리셋 공
 4면 여백 프리셋은 원본보다 캔버스를 키우므로 이 문제가 더 일찍 나타납니다. "원본" 옵션은
 "측정된 한계까지 유지"를 뜻하며, 축소가 일어나면 결과 화면에 실제 크기를 표시합니다.
 
+### WebP 인코딩
+
+선행 사례가 캔버스 대신 `@jsquash/webp`와 `webp-wasm`으로 WebP를 인코딩합니다. WASM
+인코더를 따로 실을 만큼 캔버스의 WebP 출력을 신뢰하지 못했다는 뜻으로 읽힙니다.
+
+시작 시 1x1 캔버스를 `convertToBlob({ type: 'image/webp' })`로 인코딩해 결과 MIME 타입이
+실제로 `image/webp`인지 확인합니다. 브라우저가 요청한 타입을 무시하고 PNG를 돌려주는 경우가
+있으므로 반환 타입까지 봐야 합니다. 지원하지 않으면 WASM 인코더를 지연 로드합니다.
+
 ### 메모리
 
 디코딩된 RGBA는 `가로 * 세로 * 4` 바이트입니다. 5천만 화소 사진 한 장이 약 200MB이고,
@@ -163,9 +229,15 @@ EXIF는 항상 원본 파일에서 읽습니다. HEIC 변환 결과물에서 읽
 EXIF 문자열은 지저분합니다. `NIKON CORPORATION` + `NIKON Z 6_2`, `ILCE-7M4`,
 `SIGMA 35mm F1.4 DG HSM | A`, 어댑터를 물린 수동 렌즈의 빈 `LensModel` 같은 것들입니다.
 
-초기 번들 대상 브랜드는 다음과 같습니다. Canon, Nikon, Sony, Fujifilm, Leica, Panasonic,
-OM System과 Olympus, Pentax와 Ricoh, Hasselblad, Sigma, Tamron, Zeiss, Voigtlander, Samyang,
-Viltrox, Apple, Samsung, DJI, GoPro.
+초기 번들 대상 브랜드는 다음과 같습니다.
+
+- 디지털 바디: Canon, Nikon, Sony, Fujifilm, Leica, Panasonic과 Lumix, OM System과 Olympus,
+  Pentax, Ricoh, Hasselblad, Sigma, Phase One, Apple, Samsung, DJI, GoPro
+- 필름과 중형: Contax, Mamiya, Epson
+- 렌즈 전용: Tamron, Zeiss, Voigtlander, Samyang, Viltrox
+
+로고는 밝은 배경용과 어두운 배경용을 따로 만들지 않습니다. `Path2D` 경로에 채움색만 바꾸면
+되므로 파일 하나로 두 경우를 모두 처리합니다.
 
 규칙을 코드가 아니라 데이터로 둡니다.
 
@@ -205,9 +277,13 @@ src/
     layout/types.ts          Scene, Node, LayoutInput, LayoutServices
     layout/presets/{infoBar,matte,overlay}.ts    순수 layout()
     layout/{registry,primitives}.ts      줄바꿈, 말줄임, 행 배치, 구분선
+    layout/options.ts        PresetOption 선언 타입과 기본값 병합
+    layout/template.ts       템플릿 토큰 치환, 빈 토큰과 구분자 정리
+    layout/ratio.ts          목표 비율에 맞춘 레터박스 계산
     paint/{paint,fonts}.ts   Scene x ctx x pxPerUnit -> 픽셀
     limits/canvasLimits.ts   한계 측정과 clampExportSize()
-    export/{resolution,encode}.ts        원본/4K/2K/SNS, convertToBlob, WebP 지원 확인
+    export/{resolution,encode}.ts        원본/4K/2K/SNS, convertToBlob
+    export/webpSupport.ts    캔버스 WebP 지원 탐지와 WASM 폴백
     render/renderOne.ts      단일 이미지 오케스트레이션
   worker/{render.worker,client}.ts       타입이 붙은 RPC, transferable 전달
   batch/{queue,zip}.ts       순차 큐, 취소, 항목별 오류 격리, client-zip
@@ -227,6 +303,8 @@ src/
    아이폰에서 확인합니다. 이 둘은 실패해도 조용히 빈 이미지나 누운 이미지를 내놓기 때문에 가장
    먼저 잡아야 합니다.
 2. `layout` 과 `paint` 분리, 프리셋 한 개, 배율 동등성 테스트.
+   선언적 옵션 스키마와 자동 생성 설정 패널, 템플릿 토큰 치환을 여기서 함께 만듭니다.
+   프리셋을 늘리기 전에 이 뼈대가 서 있어야 합니다.
 3. 로고 SVG를 `Path2D`로 바꾸는 빌드 스텝, 폰트 로딩 전략.
 4. 브랜드 정규화와 픽스처 테스트.
 5. EXIF 수동 편집 패널.
@@ -261,5 +339,7 @@ src/
   있습니다. RAW에서는 "원본" 선택지가 사실과 다르므로 실제 프리뷰 크기를 화면에 표시합니다.
 - **PNG 대용량 출력.** 5천만 화소 PNG는 다루기 어려운 크기가 됩니다. 큰 해상도에서는 JPEG나
   WebP를 권합니다.
+- **이름 충돌.** `exif-frame`은 이미 쓰이고 있고 App Store와 Play Store에도 올라가 있습니다.
+  공개 배포라면 다른 이름이 필요합니다.
 - **배치 다운로드.** `showSaveFilePicker`는 크로미움 계열에만 있습니다. 그 외 브라우저에서는
   Blob을 통째로 만들어야 하므로 배치 장수 상한을 두고 미리 안내합니다.
