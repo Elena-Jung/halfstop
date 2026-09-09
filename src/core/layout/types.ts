@@ -35,7 +35,7 @@ export interface Scene {
 export interface LayoutServices {
   /** 반환값의 단위는 디자인 단위입니다. */
   measureText(text: string, style: TextStyle): number;
-  /** 로고가 없으면 null을 돌려줍니다. 프리셋은 그때 워드마크로 대체합니다. */
+  /** 로고가 없으면 false를 돌려줍니다. 프리셋은 그때 워드마크로 대체합니다. */
   hasLogo(logoId: string): boolean;
 }
 
