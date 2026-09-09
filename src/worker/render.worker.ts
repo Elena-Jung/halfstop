@@ -43,7 +43,10 @@ async function run(job: RenderJob): Promise<RenderReply> {
       canvas,
       photo: image.bitmap,
       logo: NO_LOGO,
-      targetLongEdge: targetLongEdge(job.preset, Math.max(image.width, image.height)),
+      targetLongEdge: targetLongEdge(job.preset, job.scene, {
+        width: image.width,
+        height: image.height,
+      }),
       limit: job.limit,
     });
 
