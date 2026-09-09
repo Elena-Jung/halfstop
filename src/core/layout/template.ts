@@ -1,6 +1,6 @@
 import type { TemplateToken } from './types';
 
-const SEGMENT = /^(.*?)\{([A-Z_]+)\}$/s;
+const TOKEN = /\{([A-Z_]+)\}/g;
 
 /**
  * 표시 항목과 순서를 사용자가 문자열 하나로 정하게 합니다. 체크박스 여러 개보다
@@ -12,32 +12,24 @@ export function renderTemplate(
   divider: string,
 ): string {
   const pieces: string[] = [];
-  const chunks = template.split('}');
+  let cursor = 0;
 
-  for (let i = 0; i < chunks.length; i += 1) {
-    const chunk = chunks[i]!;
-    const isLast = i === chunks.length - 1;
+  // 템플릿을 `}` 로 쪼개면 토큰이 아닌 중괄호가 소실됩니다. 소문자 토큰
+  // `{maker}` 가 `{maker` 로 나오는 식입니다. 토큰만 찾아 훑고 나머지는
+  // 원문 그대로 두면 그런 일이 없습니다.
+  for (const match of template.matchAll(TOKEN)) {
+    const literal = template.slice(cursor, match.index);
+    cursor = match.index + match[0].length;
 
-    if (isLast) {
-      const tail = chunk.trim();
-      if (tail) pieces.push(tail);
-      continue;
-    }
-
-    const match = SEGMENT.exec(`${chunk}}`);
-    if (!match) {
-      // 여는 중괄호가 없는 조각입니다. 리터럴로 취급합니다.
-      const literal = chunk.trim();
-      if (literal) pieces.push(literal);
-      continue;
-    }
-
-    const [, literal = '', token = ''] = match;
-    const value = fields[token as TemplateToken];
+    const value = fields[(match[1] ?? '') as TemplateToken];
     if (value === undefined || value.trim() === '') continue;
 
-    pieces.push(`${literal}${value}`.trim());
+    const piece = `${literal}${value}`.trim();
+    if (piece) pieces.push(piece);
   }
+
+  const tail = template.slice(cursor).trim();
+  if (tail) pieces.push(tail);
 
   const joiner = divider.trim() === '' ? ' ' : ` ${divider.trim()} `;
   return pieces.join(joiner);

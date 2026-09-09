@@ -37,6 +37,16 @@ describe('ellipsize', () => {
     expect(ellipsize('abcdef', 5, STYLE, services)).toBe('');
   });
 
+  it('말줄임표 하나 크기의 폭이면 말줄임표만 남습니다', () => {
+    // 말줄임표 폭이 정확히 10이라 예산은 0입니다. 원본 글자는 하나도
+    // 못 들어가지만 폭 자체는 말줄임표를 담기에 충분합니다.
+    expect(ellipsize('abcdef', 10, STYLE, services)).toBe('…');
+  });
+
+  it('말줄임표는 들어가지만 원본 글자는 아직 못 들어가는 폭이면 말줄임표만 남습니다', () => {
+    expect(ellipsize('abcdef', 15, STYLE, services)).toBe('…');
+  });
+
   it('빈 문자열은 빈 문자열입니다', () => {
     expect(ellipsize('', 100, STYLE, services)).toBe('');
   });
