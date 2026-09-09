@@ -1657,6 +1657,8 @@ import type { Scene } from '../layout/types';
 
 /** 캔버스에 내려가는 명령을 순서대로 기록합니다. */
 function recorder(): { ctx: PaintTarget; calls: string[] } {
+  // 인자가 없는 호출도 빈 괄호까지 붙여 기록합니다. 형식이 한결같아야
+  // 두 배율의 기록을 그대로 비교할 수 있습니다.
   const calls: string[] = [];
   const log = (name: string, ...args: unknown[]) => calls.push(`${name}(${args.join(',')})`);
   const ctx = {
@@ -1735,7 +1737,7 @@ describe('paint', () => {
   it('배경을 먼저 칠합니다', () => {
     const { ctx, calls } = recorder();
     paint(SCENE, ctx, 1, sources);
-    expect(calls[0]).toBe('save');
+    expect(calls[0]).toBe('save()');
     expect(calls[1]).toBe('scale(1,1)');
     expect(calls[2]).toBe('set fillStyle(#ffffff)');
     expect(calls[3]).toBe('fillRect(0,0,1500,1120)');
@@ -1744,7 +1746,7 @@ describe('paint', () => {
   it('마지막에 상태를 되돌립니다', () => {
     const { ctx, calls } = recorder();
     paint(SCENE, ctx, 1, sources);
-    expect(calls.at(-1)).toBe('restore');
+    expect(calls.at(-1)).toBe('restore()');
   });
 
   it('글꼴 크기를 디자인 단위 그대로 넘깁니다', () => {
