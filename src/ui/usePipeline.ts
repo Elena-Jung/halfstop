@@ -66,7 +66,7 @@ interface Loaded {
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const [status, setStatus] = useState('준비하는 중이에요');
+  const [status, setStatus] = useState('준비하는 중입니다');
   const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
     defaultValues(INFO_BAR_OPTIONS),
   );
@@ -105,7 +105,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         setLoadedFonts((previous) => new Set(previous).add(fontId));
       })
       .catch(() => {
-        if (alive) setStatus(`${fontById(fontId).label} 서체를 불러오지 못했어요`);
+        if (alive) setStatus(`${fontById(fontId).label} 서체를 불러오지 못했습니다`);
       });
     return () => {
       alive = false;
@@ -113,7 +113,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [fontId, loadedFonts]);
 
   useEffect(() => {
-    if (fontReady && !loaded) setStatus('사진을 끌어다 놓거나 골라 주세요');
+    if (fontReady && !loaded) setStatus('사진을 끌어다 놓거나 아래에서 선택하십시오');
   }, [fontReady, loaded]);
 
   const repaint = useCallback(() => {
@@ -153,7 +153,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [repaint]);
 
   const load = useCallback(async (file: File) => {
-    setStatus('읽는 중이에요');
+    setStatus('읽는 중입니다');
     setLoaded((previous) => {
       previous?.preview.bitmap.close();
       return null;
@@ -182,10 +182,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       });
 
       setLoaded({ file, meta, fields: toFields(meta), preview });
-      setStatus(`${file.name} 을 불러왔어요`);
+      setStatus(`${file.name} 파일을 불러왔습니다`);
     } catch (error) {
       console.error(error);
-      setStatus(toUserMessage(error, '사진을 여는 데 실패했어요'));
+      setStatus(toUserMessage(error, '사진을 여는 데 실패했습니다'));
     }
   }, []);
 
@@ -204,7 +204,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     const limit = limitRef.current;
 
     setBusy(true);
-    setStatus('전체 해상도로 그리는 중이에요');
+    setStatus('전체 해상도로 그리는 중입니다');
     try {
       const scene = buildScene({
         photoPx: { width: loaded.preview.width, height: loaded.preview.height },
@@ -238,12 +238,12 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
       setStatus(
         result.clamped
-          ? `내려받았어요. 기기 한계 때문에 ${result.width}x${result.height}로 줄였어요`
-          : `내려받았어요. ${result.width}x${result.height}`,
+          ? `내려받았습니다. 기기 한계 때문에 ${result.width}x${result.height}로 줄였습니다`
+          : `내려받았습니다. ${result.width}x${result.height}`,
       );
     } catch (error) {
       console.error(error);
-      setStatus(toUserMessage(error, '내보내기에 실패했어요'));
+      setStatus(toUserMessage(error, '내보내기에 실패했습니다'));
     } finally {
       setBusy(false);
     }
