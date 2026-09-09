@@ -1980,6 +1980,12 @@ export interface ExportSize {
   height: number;
   /** 기기 한계 때문에 요청보다 작아졌으면 true입니다. 화면에 알려야 합니다. */
   clamped: boolean;
+  /**
+   * width와 height를 만든 배율입니다. 두 변을 각각 내림하므로
+   * `width / sceneWidth` 로 되계산하면 값이 어긋납니다. 세로가 긴 장면에서는
+   * 그 차이가 캔버스 아래쪽의 안 칠해진 띠로 나타납니다.
+   */
+  scale: number;
 }
 
 export function clampExportSize(
@@ -2004,7 +2010,7 @@ export function clampExportSize(
   // 무시합니다.
   const clamped = scale < requested * (1 - 1e-9);
 
-  return { width, height, clamped };
+  return { width, height, clamped, scale };
 }
 ```
 
@@ -3085,8 +3091,9 @@ export function paintToCanvas(request: PaintToCanvasRequest): {
   if (!ctx) throw new Error('2D 컨텍스트를 만들지 못했습니다');
 
   ctx.imageSmoothingQuality = 'high';
-  // Scene 전체의 긴 변을 기준으로 배율을 정해야 프레임까지 목표 크기 안에 들어옵니다.
-  paint(scene, ctx, size.width / scene.width, { photo: request.photo, logo: request.logo });
+  // clampExportSize가 실제로 쓴 배율을 그대로 받아 씁니다. size.width로 되계산하면
+  // 두 변을 각각 내림한 탓에 세로가 긴 장면에서 배율이 어긋납니다.
+  paint(scene, ctx, size.scale, { photo: request.photo, logo: request.logo });
 
   return size;
 }
@@ -3244,6 +3251,9 @@ function ensureFont(id: string): Promise<void> {
   let pending = fontReady.get(id);
   if (!pending) {
     pending = ensureCanvasFont(self.fonts as unknown as FontFaceSetLike, fontById(id), fontUrl(id));
+    // 실패한 프라미스를 그대로 두면 한 번의 네트워크 오류가 그 서체를 세션 내내
+    // 못 쓰게 만듭니다. 실패하면 지워서 다음 시도가 다시 받게 합니다.
+    void pending.catch(() => fontReady.delete(id));
     fontReady.set(id, pending);
   }
   return pending;
@@ -3251,6 +3261,7 @@ function ensureFont(id: string): Promise<void> {
 
 async function run(job: RenderJob): Promise<RenderReply> {
   let bitmap: ImageBitmap | null = null;
+  let canvas: OffscreenCanvas | null = null;
   try {
     await ensureFont(job.fontId);
 
@@ -3261,7 +3272,7 @@ async function run(job: RenderJob): Promise<RenderReply> {
     });
     bitmap = image.bitmap;
 
-    const canvas = new OffscreenCanvas(1, 1);
+    canvas = new OffscreenCanvas(1, 1);
     const size = paintToCanvas({
       scene: job.scene,
       canvas,
@@ -3281,6 +3292,12 @@ async function run(job: RenderJob): Promise<RenderReply> {
     };
   } finally {
     bitmap?.close();
+    // 전체 해상도 캔버스는 수백 메가바이트일 수 있습니다. 연달아 내보낼 때
+    // 이전 것이 수거를 기다리며 남지 않도록 즉시 반납합니다.
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
   }
 }
 
@@ -3349,6 +3366,11 @@ export function createRenderClient(): RenderClient {
     },
     dispose() {
       worker.terminate();
+      // 그냥 비우면 기다리던 프라미스가 영원히 미결로 남습니다. 화면을 떠나면서
+      // 정리할 때 흔히 밟는 경로입니다.
+      for (const [id, settle] of pending) {
+        settle({ id, ok: false, message: '워커를 정리했습니다' });
+      }
       pending.clear();
     },
   };
