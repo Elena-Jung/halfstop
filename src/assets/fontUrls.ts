@@ -6,6 +6,8 @@ import literataUrl from '@fontsource-variable/literata/files/literata-latin-wght
 import monoUrl from '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url';
 import pretendardUrl from 'pretendard/dist/web/variable/woff2/PretendardVariable.woff2?url';
 
+import { DEFAULT_FONT_ID } from '../core/paint/fontFamilies';
+
 const URLS: Record<string, string> = {
   inter: interUrl,
   literata: literataUrl,
@@ -15,6 +17,11 @@ const URLS: Record<string, string> = {
 
 export function fontUrl(id: string): string {
   const url = URLS[id];
-  if (!url) throw new Error(`${id} 서체의 파일 주소를 찾지 못했습니다`);
-  return url;
+  if (url) return url;
+
+  // fontById 는 모르는 id 에서 기본 서체로 떨어집니다. 여기서만 던지면 두 함수의
+  // 동작이 엇갈려, 저장된 설정에 낡은 id 가 남아 있을 때 화면이 비게 됩니다.
+  const fallback = URLS[DEFAULT_FONT_ID];
+  if (!fallback) throw new Error('기본 서체의 파일 주소를 찾지 못했습니다');
+  return fallback;
 }
