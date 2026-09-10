@@ -115,6 +115,7 @@ src/ui/        React 화면
 |---|---|
 | `README.md` | 사람이 읽는 소개. 개발, 테스트, 빌드, 컨테이너 확인, 배포 방법 |
 | `AGENTS.md` | 이 파일 |
+| `docs/css-style.md` | CSS 규약. 색과 치수 토큰, 어느 단계를 어디에, 감추기와 초점, 눈으로 확인할 것 |
 | `docs/superpowers/specs/2026-09-09-halfstop-design.md` | 1단계 설계. 렌더링 구조, 브라우저 한계 대응, 브랜드 정규화, 모듈 구조 |
 | `docs/superpowers/specs/2026-09-09-halfstop-ui-design.md` | 2단계 설계. 프리셋 아홉 개, 레일과 패널, 접근성, i18n, 테마 |
 | `docs/superpowers/plans/2026-09-09-halfstop-render-pipeline.md` | 1단계 구현 계획, 19개 작업 |
@@ -190,6 +191,11 @@ em-dash(U+2014)와 en-dash(U+2013)를 쓰지 않습니다. 공백 하이픈, 쉼
 
 특히 DOM 테스트용(`jsdom`, `happy-dom`, `@testing-library/*`)을 추가하지 마십시오. 화면
 테스트는 순수 로직 단위 테스트와 사람이 보는 확인 두 층으로 나눕니다.
+
+## CSS
+
+`docs/css-style.md` 를 읽으십시오. 색과 치수는 `src/assets/ui.css` 의 토큰이 유일한
+출처이고 `src/ui/theme.test.ts` 와 `src/ui/scale.test.ts` 가 그것을 검사합니다.
 
 </conventions>
 
