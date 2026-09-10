@@ -266,7 +266,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [repaint]);
 
   const load = useCallback(async (files: readonly File[]) => {
-    const { kept, overflow } = capItems(files);
+    // 이미 불러온 사진에 더합니다. 갈아치우지 않습니다. 상한은 전체 장수 기준이므로 남은
+    // 자리만큼만 받습니다.
+    const room = Math.max(0, MAX_PHOTOS - photosRef.current.length);
+    if (room === 0) {
+      setStatus({ key: 'status.full', vars: { max: MAX_PHOTOS } });
+      return;
+    }
+    const { kept, overflow } = capItems(files, room);
     if (kept.length === 0) return;
 
     // 이전 사진을 미리 지우지 않습니다. 이 시도가 실패해도 열어 둔 사진은 그대로
@@ -340,13 +347,16 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       return;
     }
 
-    setPhotos((previous) => {
-      for (const photo of previous) closePhoto(photo);
-      return decoded;
-    });
-    // 방금 불러온 첫 번째 사진만 고른 채로 시작합니다. 사진마다 다른 스타일을 주려면
-    // 한 장씩 고르며 다듬는 편이 자연스럽고, 미리보기 대상 규칙(가장 앞선 인덱스)과도 맞습니다.
-    setSelected(new Set([0]));
+    // 이전 사진을 닫지 않고 뒤에 붙입니다. 이미 골라 스타일을 준 사진이 사라지면 안 됩니다.
+    //
+    // 붙는 자리를 ref 로 읽어도 되는 이유는 위의 세대 검사 때문입니다. 다음 요청이 시작되면
+    // 세대가 올라가 먼저 시작한 쪽이 여기 닿지 못하므로, 한 세대에 한 배치만 목록에
+    // 반영됩니다. 그래서 이 시점의 ref 가 곧 반영 직전의 목록입니다.
+    const addedFrom = photosRef.current.length;
+    setPhotos((previous) => [...previous, ...decoded]);
+    // 방금 더한 사진들만 고른 채로 둡니다. 이어서 그 사진들을 다듬는 것이 자연스러운 흐름이고,
+    // 미리보기 대상 규칙(고른 것 중 가장 앞선 인덱스)과도 맞습니다.
+    setSelected(new Set(decoded.map((_, offset) => addedFrom + offset)));
 
     setStatus(
       overflow > 0
