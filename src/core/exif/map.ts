@@ -6,6 +6,7 @@ import {
   formatShutter,
   formatTakenAt,
 } from './format';
+import { resolveLensMaker } from './lensMaker';
 import type { PhotoMeta } from './read';
 
 /** 값이 없는 항목은 키 자체를 넣지 않습니다. 템플릿이 그 조각을 통째로 버립니다. */
@@ -18,6 +19,7 @@ export function toFields(meta: PhotoMeta): Partial<Record<TemplateToken, string>
   put('MAKER', meta.make);
   put('BODY', meta.model);
   put('LENS', meta.lensModel);
+  put('LENS_MAKER', resolveLensMaker(meta.lensModel, meta.lensMake));
   put('MM', formatFocalLength(meta.focalLength, meta.focalLengthIn35mm));
   put('F', formatAperture(meta.fNumber));
   put('SEC', formatShutter(meta.exposureTime));

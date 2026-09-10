@@ -39,7 +39,16 @@ export interface LayoutServices {
   hasLogo(logoId: string): boolean;
 }
 
-export type TemplateToken = 'MAKER' | 'BODY' | 'LENS' | 'MM' | 'F' | 'SEC' | 'ISO' | 'TAKEN_AT';
+export type TemplateToken =
+  | 'MAKER'
+  | 'BODY'
+  | 'LENS'
+  | 'LENS_MAKER'
+  | 'MM'
+  | 'F'
+  | 'SEC'
+  | 'ISO'
+  | 'TAKEN_AT';
 
 export interface LayoutInput {
   /** 디자인 단위로 표현한 사진 크기입니다. */

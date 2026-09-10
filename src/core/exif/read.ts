@@ -4,6 +4,12 @@ export interface PhotoMeta {
   make: string | undefined;
   model: string | undefined;
   lensModel: string | undefined;
+  /**
+   * 바디가 렌즈 제조사로 기록한 값입니다. 서드파티 렌즈를 물리면 비어 있거나
+   * 바디 자신의 이름이 적히기도 합니다. 그대로 믿지 말고 lensMaker.ts의 모델
+   * 문자열 추론을 먼저 적용하십시오.
+   */
+  lensMake: string | undefined;
   focalLength: number | undefined;
   focalLengthIn35mm: number | undefined;
   fNumber: number | undefined;
@@ -66,6 +72,7 @@ export async function readExif(buffer: ArrayBuffer): Promise<PhotoMeta> {
     make: text(tags.Make),
     model: text(tags.Model),
     lensModel: text(tags.LensModel),
+    lensMake: text(tags.LensMake),
     focalLength: rational(tags.FocalLength),
     focalLengthIn35mm: integer(tags.FocalLengthIn35mmFilm),
     fNumber: rational(tags.FNumber),

@@ -9,6 +9,7 @@ import {
 } from './presets';
 import { BAR_OPTIONS, barLayout } from './layouts/bar';
 import { MATTE_OPTIONS, matteLayout } from './layouts/matte';
+import type { LayoutInput, LayoutServices } from './types';
 
 describe('PRESETS', () => {
   it('아홉 개입니다', () => {
@@ -127,5 +128,49 @@ describe('프리셋 이름표 키', () => {
     for (const preset of PRESETS) {
       expect(/[가-힣]/.test(preset.labelKey), preset.id).toBe(false);
     }
+  });
+});
+
+describe('body-lens 프리셋의 좌우 대칭', () => {
+  const services: LayoutServices = {
+    measureText: (text, style) => text.length * style.size * 0.5,
+    hasLogo: () => false,
+  };
+
+  function sceneTexts(fields: LayoutInput['fields']): string[] {
+    const preset = presetById('body-lens');
+    const input: LayoutInput = {
+      photo: { width: 1500, height: 1000 },
+      fields,
+      logoId: undefined,
+      options: valuesFor(preset, {}),
+    };
+    const scene = layoutFor(preset)(input, services);
+    return scene.nodes.filter((node) => node.kind === 'text').map((node) => node.text);
+  }
+
+  it('사용자의 실제 사진처럼 렌즈 제조사를 알아내면 왼쪽처럼 오른쪽도 제조사와 모델 두 줄입니다', () => {
+    // SONY ILCE-7M3 바디에 탐론 E 28-75mm F2.8 A063 렌즈. resolveLensMaker 가 LENS_MAKER 를
+    // TAMRON 으로 채워 왔다고 가정합니다(map.test.ts 가 그 채움 자체를 검증합니다).
+    expect(
+      sceneTexts({
+        MAKER: 'SONY',
+        BODY: 'ILCE-7M3',
+        LENS: 'E 28-75mm F2.8 A063',
+        LENS_MAKER: 'TAMRON',
+      }),
+    ).toEqual(['SONY', 'ILCE-7M3', 'TAMRON', 'E 28-75mm F2.8 A063']);
+  });
+
+  it('렌즈 제조사를 못 알아내면 오른쪽이 렌즈 모델 한 줄로 접힙니다', () => {
+    // LENS_MAKER 가 없는 경우입니다. 지금까지의 모습(오른쪽 한 줄)이 그대로 유지되어야
+    // 합니다. resolveLensMaker 가 undefined 를 돌려주면 map.ts 가 이 키 자체를 넣지 않습니다.
+    expect(
+      sceneTexts({
+        MAKER: 'SONY',
+        BODY: 'ILCE-7M3',
+        LENS: 'E 28-75mm F2.8 A063',
+      }),
+    ).toEqual(['SONY', 'ILCE-7M3', 'E 28-75mm F2.8 A063']);
   });
 });
