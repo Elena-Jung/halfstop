@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MATTE_OPTIONS, matteLayout } from './matte';
 import { defaultValues } from '../options';
-import { halfHeight, twoLineGap } from '../primitives';
+import { halfHeight } from '../primitives';
 import type { LayoutInput, LayoutServices, SceneNode } from '../types';
 
 const services: LayoutServices = {
@@ -215,12 +215,26 @@ describe('matteLayout', () => {
     const nodes = textNodes(scene.nodes);
     expect(nodes).toHaveLength(2);
     const areaCenterY = 60 + 1000 + 200 / 2; // padTop + photoHeight + padBottom/2
-    const fontSize = 30;
-    const subSize = fontSize * 0.7; // 기본 SUB_SCALE
-    const gap = twoLineGap(200, fontSize, subSize); // padBottom 기본값 200
+    // 남는 두 줄은 둘 다 FONT_SIZE 30 입니다. 그리지 않는 부 줄의 크기는 간격에 끼어들지
+    // 않아야 합니다. wanted = max(30*1.25, 18.6+18.6) = 37.5 이고 room = 200-37.2 = 162.8
+    // 이므로 wanted 가 이깁니다. 구현과 같은 식을 다시 쓰지 않고 숫자로 못박습니다.
     const [first, second] = nodes;
     expect((first!.y + second!.y) / 2).toBeCloseTo(areaCenterY);
-    expect(second!.y - first!.y).toBeCloseTo(gap);
+    expect(second!.y - first!.y).toBeCloseTo(37.5);
+  });
+
+  it('SUB_SCALE 가 커도 빈 줄을 접은 poster 의 간격은 부 줄 크기에 끌려가지 않습니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'poster');
+    options.set('PAD_BOTTOM', 420);
+    options.set('FONT_SIZE', 26);
+    options.set('SUB_SCALE', 2.6);
+    const nodes = textNodes(matteLayout(input({ options }), services).nodes);
+    expect(nodes).toHaveLength(2);
+    // poster 프리셋이 쓰는 값입니다. 두 줄 모두 26 이므로 간격은
+    // max(26*1.25, 16.12+16.12) = 32.5 입니다. 부 줄 크기 67.6 이 끼어들면 58.032 가 되어
+    // 그리지도 않는 줄이 배치를 넓혀 버립니다.
+    expect(nodes[1]!.y - nodes[0]!.y).toBeCloseTo(32.5);
   });
 
   it('PRIMARY_SUB 와 SECONDARY_MAIN 이 모두 빈 poster 에서 남은 한 줄이 정확히 areaCenterY 에 놓입니다', () => {

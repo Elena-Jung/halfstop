@@ -86,11 +86,15 @@ export const matteLayout: PresetLayout = (input, services) => {
     const x = align === 'left' ? leftInset : align === 'right' ? width - rightInset : width / 2;
     if (primary.sub === '') {
       // 가운데 줄이 비면 세 줄 자리를 그대로 두지 않고 남은 두 줄을 모읍니다. single 과
-      // split 이 빈 줄을 다루는 것과 같습니다. 남은 두 줄은 모두 fontSize 크기이므로 위에서
-      // 이미 계산해 둔 gap 을 그대로 씁니다.
+      // split 이 빈 줄을 다루는 것과 같습니다.
+      //
+      // 남는 두 줄은 둘 다 fontSize 입니다. 위에서 구한 gap 은 subSize 를 보고 계산한
+      // 것이라 그대로 쓰면 그리지도 않을 줄의 크기가 배치를 정합니다. 실제로 그릴 두 크기로
+      // 다시 구합니다.
+      const pairGap = twoLineGap(padBottom, fontSize, fontSize);
       const twoLines = primary.main !== '' && secondary.main !== '';
-      put(primary.main, fontSize, align, x, twoLines ? areaCenterY - gap / 2 : areaCenterY, textWidth);
-      put(secondary.main, fontSize, align, x, twoLines ? areaCenterY + gap / 2 : areaCenterY, textWidth);
+      put(primary.main, fontSize, align, x, twoLines ? areaCenterY - pairGap / 2 : areaCenterY, textWidth);
+      put(secondary.main, fontSize, align, x, twoLines ? areaCenterY + pairGap / 2 : areaCenterY, textWidth);
     } else {
       // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.
       // 가운데 줄이 커지면 간격도 함께 벌리되, 아래 여백을 넘지 않게 묶어 둡니다.
