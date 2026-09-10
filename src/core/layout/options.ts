@@ -2,8 +2,11 @@ import type { OptionValue } from './types';
 
 export type { OptionValue };
 
-/** 레일의 어느 칸에 들어갈지 정합니다. 프리셋 칸과 내보내기 칸은 옵션이 아니라 따로 있습니다. */
-export type OptionGroup = 'frame' | 'text';
+/**
+ * 레일의 어느 칸에 들어갈지 정합니다. 프리셋 칸과 내보내기 칸은 옵션이 아니라 따로 있습니다.
+ * `frame` 은 사진을 감싸는 모양과 색, `arrangement` 는 어떤 정보가 어디 들어가는지입니다.
+ */
+export type OptionGroup = 'frame' | 'arrangement';
 
 interface OptionBase {
   id: string;

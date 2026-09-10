@@ -7,9 +7,22 @@ import {
   presetById,
   valuesFor,
 } from './presets';
+import { arrangementById } from './arrangements';
 import { BAR_OPTIONS, barLayout } from './layouts/bar';
 import { MATTE_OPTIONS, matteLayout } from './layouts/matte';
 import type { LayoutInput, LayoutServices } from './types';
+
+/** 배치가 통째로 정하는 여덟 값입니다. presets.ts 의 values 는 이 키를 담지 않습니다. */
+const ARRANGEMENT_VALUE_KEYS = [
+  'MODE',
+  'ALIGN',
+  'DIVIDER',
+  'PRIMARY_MAIN',
+  'PRIMARY_SUB',
+  'SECONDARY_MAIN',
+  'SECONDARY_SUB',
+  'FOOTER',
+];
 
 describe('PRESETS', () => {
   it('아홉 개입니다', () => {
@@ -37,6 +50,24 @@ describe('PRESETS', () => {
       for (const key of Object.keys(preset.values)) {
         expect(declared.has(key), `${preset.id} 의 ${key}`).toBe(true);
       }
+    }
+  });
+
+  it('배치가 정하는 여덟 값을 values 에 두지 않습니다', () => {
+    // 두 곳이 같은 값을 정하면 어느 쪽이 이기는지가 모호해집니다. 배치가 통째로
+    // 정하도록 프리셋의 values 는 이 여덟 키를 아예 담지 않아야 합니다.
+    for (const preset of PRESETS) {
+      for (const key of ARRANGEMENT_VALUE_KEYS) {
+        expect(Object.hasOwn(preset.values, key), `${preset.id} 의 ${key}`).toBe(false);
+      }
+    }
+  });
+
+  it('모든 프리셋의 arrangementId 가 그 프리셋의 레이아웃에서 쓸 수 있는 배치를 가리킵니다', () => {
+    for (const preset of PRESETS) {
+      const arrangement = arrangementById(preset.arrangementId);
+      expect(arrangement.id, `${preset.id} 의 arrangementId`).toBe(preset.arrangementId);
+      expect(arrangement.layouts, `${preset.id}: ${arrangement.id}`).toContain(preset.layout);
     }
   });
 });
@@ -173,4 +204,68 @@ describe('body-lens 프리셋의 좌우 대칭', () => {
       }),
     ).toEqual(['SONY', 'ILCE-7M3', 'E 28-75mm F2.8 A063']);
   });
+});
+
+describe('아홉 프리셋의 장면 문구, 배치와 프레임을 나누기 전후로 같습니다', () => {
+  // 프레임(감싸는 모양과 색)과 배치(어떤 정보가 어디 들어가는지)의 축을 나누는 것은 구조
+  // 변경이지 겉모습 변경이 아닙니다. 배치를 아홉 프리셋에서 1:1 로 뽑은 이유가 이 보장이고,
+  // 그것을 기계로 붙잡는 유일한 방법이 이 테스트입니다.
+  //
+  // 아래 문자열은 변경 전 코드(배치가 갈라지기 전, presets.ts 가 MODE/PRIMARY_MAIN 같은
+  // 여덟 값을 직접 담던 시점)에서 같은 fields 로 실제로 뽑아낸 값입니다. 구현과 같은 식으로
+  // 다시 계산하지 않고 값을 그대로 못박습니다.
+  //
+  // 예외 하나. poster 프리셋은 PRIMARY_SUB 가 비어 있어 matte 의 세 줄 경로를 타지
+  // 않습니다(SUB_SCALE: 2.6 이 지금 아무 효과가 없습니다). 이 작업은 배치 축을 나누는
+  // 구조 변경이므로 poster 의 PRIMARY_SUB 에 값을 넣지 않고 지금 모습을 그대로 유지하기로
+  // 정했습니다. 세 줄로 채우는 것은 poster 프리셋의 모습을 바꾸는 별도 결정이 필요합니다.
+  const services: LayoutServices = {
+    measureText: (text, style) => text.length * style.size * 0.5,
+    hasLogo: () => false,
+  };
+
+  const fields: LayoutInput['fields'] = {
+    MAKER: 'SONY',
+    BODY: 'ILCE-7M3',
+    LENS: 'FE 24-70mm F2.8 GM',
+    LENS_MAKER: 'SONY',
+    MM: '35mm',
+    F: 'f/2.8',
+    SEC: '1/500s',
+    ISO: 'ISO 200',
+    TAKEN_AT: '2026-09-10 12:00',
+  };
+
+  const BEFORE: Record<string, string[]> = {
+    'body-lens': ['SONY', 'ILCE-7M3', 'SONY', 'FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
+    'gear-exposure': ['SONY · ILCE-7M3', 'FE 24-70mm F2.8 GM', '35mm · f/2.8', '1/500s · ISO 200'],
+    'one-line': ['SONY · ILCE-7M3 · 35mm · f/2.8 · 1/500s · ISO 200'],
+    'shot-on': ['Shot on SONY · ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
+    minimal: ['SONY ILCE-7M3'],
+    film: ['2026-09-10 12:00', '35mm f/2.8 1/500s ISO 200'],
+    polaroid: ['SONY · ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
+    letterbox: ['SONY · ILCE-7M3 · 35mm · f/2.8'],
+    poster: ['2026-09-10 12:00', 'SONY · ILCE-7M3 · 35mm'],
+  };
+
+  function sceneTextsFor(preset: (typeof PRESETS)[number]): string[] {
+    const input: LayoutInput = {
+      photo: { width: 1500, height: 1000 },
+      fields,
+      logoId: undefined,
+      options: valuesFor(preset, {}),
+    };
+    const scene = layoutFor(preset)(input, services);
+    return scene.nodes.filter((node) => node.kind === 'text').map((node) => node.text);
+  }
+
+  it('BEFORE 표가 아홉 프리셋을 모두 담습니다', () => {
+    expect(Object.keys(BEFORE).sort()).toEqual(PRESETS.map((p) => p.id).sort());
+  });
+
+  for (const preset of PRESETS) {
+    it(`${preset.id} 의 장면 문구가 그대로입니다`, () => {
+      expect(sceneTextsFor(preset)).toEqual(BEFORE[preset.id]);
+    });
+  }
 });

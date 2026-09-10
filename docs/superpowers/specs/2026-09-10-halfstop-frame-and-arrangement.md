@@ -104,20 +104,34 @@ interface Arrangement {
 
 ## 배치 목록
 
-지금 아홉 프리셋이 쓰는 내용 패턴에서 뽑았습니다. 프리셋은 그중 하나를 가리키게 됩니다.
+**아홉 프리셋에서 1:1 로 뽑았습니다.** 처음에는 비슷해 보이는 프리셋을 묶어 일곱 개로
+적었으나, 조사 결과 그 묶음이 실제와 어긋났습니다. 예를 들어 `gear-exposure`(바)와
+`polaroid`(여백 액자)는 얼핏 같은 배치로 보였지만 네 슬롯 템플릿 값이 실제로 다르고,
+`letterbox` 는 대응할 배치가 아예 없었습니다. 배치를 뽑을 때 프리셋 하나라도 모습이
+바뀌면 안 되므로, 지금은 프리셋마다 자신의 배치를 따로 둡니다. 비슷한 배치를 묶는 것은
+범위 밖으로 미룹니다. 프리셋의 `arrangementId` 가 지금은 프리셋과 같은 이름의 배치 하나만
+가리킵니다.
 
 | id | 뜻 | MODE | 쓸 수 있는 레이아웃 |
 |---|---|---|---|
-| `maker-lens` | 왼쪽에 바디, 오른쪽에 렌즈, 꼬리에 노출값 | split | bar |
-| `gear-exposure` | 왼쪽에 장비, 오른쪽에 노출값 | split | bar, matte |
-| `one-line` | 한 줄에 전부 | single | bar, matte |
-| `shot-on` | Shot on 문구와 노출값 | single | bar, matte |
-| `gear-only` | 장비명만 | single | bar, matte |
-| `date-exposure` | 왼쪽에 날짜, 오른쪽에 노출값 | split | bar, matte |
-| `poster` | 날짜, 제목, 장비를 세로로 | poster | matte |
+| `body-lens` | 왼쪽에 제조사와 바디, 오른쪽에 렌즈 제조사와 모델, 꼬리에 노출값 | split | bar |
+| `gear-exposure` | 왼쪽에 장비와 렌즈, 오른쪽에 노출값 | split | bar |
+| `one-line` | 한 줄에 장비와 노출값 전부 | single | bar |
+| `shot-on` | Shot on 문구와 노출값 | single | bar |
+| `minimal` | 장비명만 | single | bar |
+| `film` | 왼쪽에 촬영 일시, 오른쪽에 노출값 | split | bar |
+| `polaroid` | 왼쪽에 장비, 오른쪽에 노출값 | split | matte |
+| `letterbox` | 장비와 초점 거리, 조리개를 한 줄로 | single | matte |
+| `poster` | 촬영 일시와 장비를 위아래로 | poster | matte |
 
-`maker-lens` 가 `bar` 전용인 것은 `FOOTER` 를 쓰기 때문입니다. 여백 액자에는 꼬리 줄 자리가
-없습니다.
+`body-lens` 가 `bar` 전용인 것은 `FOOTER` 를 쓰기 때문입니다. 여백 액자에는 꼬리 줄 자리가
+없습니다. 나머지 여덟 배치도 지금은 뽑혀 나온 프리셋의 레이아웃 하나에만 묶여 있습니다.
+다른 레이아웃에서도 뜻이 통하는지는 검증하지 않았으므로, 넓히는 것은 나중에 따로 판단합니다.
+
+`poster` 가 `matte` 전용인 것은 안전의 문제이기도 합니다. `MODE='poster'` 를 배치가 통째로
+밀어 넣으면 `BAR_OPTIONS` 의 `select` 목록이 `poster` 를 막아 주던 관문을 우회합니다. `bar`
+레이아웃 함수에는 `poster` 분기가 아예 없어 `else` 로 떨어져 `split` 처럼 그려지므로,
+`Arrangement.layouts` 가 이를 막는 유일한 방어선입니다.
 
 ## 한 덩이로 바꿔도 정보가 사라지지 않는 이유
 

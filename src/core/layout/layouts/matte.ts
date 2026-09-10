@@ -5,24 +5,24 @@ import { resolveSlot } from '../slots';
 import type { PresetLayout, SceneNode, TextStyle } from '../types';
 
 export const MATTE_OPTIONS: PresetOption[] = [
-  { id: 'MODE', labelKey: 'option.MODE', groupKey: 'frame', type: 'select', options: ['split', 'single', 'poster'], default: 'split' },
-  { id: 'ALIGN', labelKey: 'option.ALIGN', groupKey: 'text', type: 'select', options: ['left', 'center', 'right'], default: 'center' },
+  { id: 'MODE', labelKey: 'option.MODE', groupKey: 'arrangement', type: 'select', options: ['split', 'single', 'poster'], default: 'split' },
+  { id: 'ALIGN', labelKey: 'option.ALIGN', groupKey: 'arrangement', type: 'select', options: ['left', 'center', 'right'], default: 'center' },
   { id: 'BACKGROUND', labelKey: 'option.BACKGROUND', groupKey: 'frame', type: 'color', default: '#ffffff' },
-  { id: 'TEXT_COLOR', labelKey: 'option.TEXT_COLOR', groupKey: 'text', type: 'color', default: '#111111' },
+  { id: 'TEXT_COLOR', labelKey: 'option.TEXT_COLOR', groupKey: 'frame', type: 'color', default: '#111111' },
   { id: 'PAD_TOP', labelKey: 'option.PAD_TOP', groupKey: 'frame', type: 'number', default: 60, unit: 'u', min: 0, max: 600 },
   { id: 'PAD_RIGHT', labelKey: 'option.PAD_RIGHT', groupKey: 'frame', type: 'number', default: 60, unit: 'u', min: 0, max: 600 },
   { id: 'PAD_BOTTOM', labelKey: 'option.PAD_BOTTOM', groupKey: 'frame', type: 'number', default: 200, unit: 'u', min: 0, max: 600 },
   { id: 'PAD_LEFT', labelKey: 'option.PAD_LEFT', groupKey: 'frame', type: 'number', default: 60, unit: 'u', min: 0, max: 600 },
-  { id: 'FONT_SIZE', labelKey: 'option.FONT_SIZE', groupKey: 'text', type: 'number', default: 30, unit: 'u', min: 8, max: 120 },
+  { id: 'FONT_SIZE', labelKey: 'option.FONT_SIZE', groupKey: 'frame', type: 'number', default: 30, unit: 'u', min: 8, max: 120 },
   // poster 에서는 가운데 줄이 커야 하므로 1보다 큰 값도 받습니다.
-  { id: 'SUB_SCALE', labelKey: 'option.SUB_SCALE', groupKey: 'text', type: 'range', min: 0.4, max: 3, step: 0.05, default: 0.7 },
-  { id: 'FONT_WEIGHT', labelKey: 'option.FONT_WEIGHT', groupKey: 'text', type: 'range', min: 100, max: 900, step: 100, default: 400 },
-  { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'text', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
-  { id: 'DIVIDER', labelKey: 'option.DIVIDER', groupKey: 'text', type: 'text', default: '·' },
-  { id: 'PRIMARY_MAIN', labelKey: 'option.PRIMARY_MAIN', groupKey: 'text', type: 'text', default: '{MAKER}{BODY}' },
-  { id: 'PRIMARY_SUB', labelKey: 'option.PRIMARY_SUB', groupKey: 'text', type: 'text', default: '' },
-  { id: 'SECONDARY_MAIN', labelKey: 'option.SECONDARY_MAIN', groupKey: 'text', type: 'text', default: '{MM}{F}{SEC}{ISO}' },
-  { id: 'SECONDARY_SUB', labelKey: 'option.SECONDARY_SUB', groupKey: 'text', type: 'text', default: '' },
+  { id: 'SUB_SCALE', labelKey: 'option.SUB_SCALE', groupKey: 'frame', type: 'range', min: 0.4, max: 3, step: 0.05, default: 0.7 },
+  { id: 'FONT_WEIGHT', labelKey: 'option.FONT_WEIGHT', groupKey: 'frame', type: 'range', min: 100, max: 900, step: 100, default: 400 },
+  { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'frame', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
+  { id: 'DIVIDER', labelKey: 'option.DIVIDER', groupKey: 'arrangement', type: 'text', default: '·' },
+  { id: 'PRIMARY_MAIN', labelKey: 'option.PRIMARY_MAIN', groupKey: 'arrangement', type: 'text', default: '{MAKER}{BODY}' },
+  { id: 'PRIMARY_SUB', labelKey: 'option.PRIMARY_SUB', groupKey: 'arrangement', type: 'text', default: '' },
+  { id: 'SECONDARY_MAIN', labelKey: 'option.SECONDARY_MAIN', groupKey: 'arrangement', type: 'text', default: '{MM}{F}{SEC}{ISO}' },
+  { id: 'SECONDARY_SUB', labelKey: 'option.SECONDARY_SUB', groupKey: 'arrangement', type: 'text', default: '' },
 ];
 
 export const matteLayout: PresetLayout = (input, services) => {

@@ -8,9 +8,9 @@ const SCHEMA: PresetOption[] = [
   { id: 'BACKGROUND', labelKey: 'option.BACKGROUND', groupKey: 'frame', type: 'color', default: '#ffffff' },
   { id: 'BAR_HEIGHT', labelKey: 'option.BAR_HEIGHT', groupKey: 'frame', type: 'number', default: 120, unit: 'u', min: 40, max: 500 },
   { id: 'SHOW_LOGO', labelKey: 'option.SHOW_LOGO', groupKey: 'frame', type: 'boolean', default: true },
-  { id: 'ALIGN', labelKey: 'option.ALIGN', groupKey: 'text', type: 'select', options: ['left', 'center'], default: 'left' },
-  { id: 'WEIGHT', labelKey: 'option.WEIGHT', groupKey: 'text', type: 'range', min: 100, max: 900, step: 100, default: 400 },
-  { id: 'LABEL', labelKey: 'option.LABEL', groupKey: 'text', type: 'text', default: '' },
+  { id: 'ALIGN', labelKey: 'option.ALIGN', groupKey: 'arrangement', type: 'select', options: ['left', 'center'], default: 'left' },
+  { id: 'WEIGHT', labelKey: 'option.WEIGHT', groupKey: 'arrangement', type: 'range', min: 100, max: 900, step: 100, default: 400 },
+  { id: 'LABEL', labelKey: 'option.LABEL', groupKey: 'arrangement', type: 'text', default: '' },
 ];
 
 describe('defaultValues', () => {
@@ -145,7 +145,7 @@ describe('이름표 키와 묶음 키', () => {
   it('모든 옵션이 labelKey 와 groupKey 를 갖습니다', () => {
     for (const option of ALL) {
       expect(option.labelKey, option.id).toBeTruthy();
-      expect(['frame', 'text']).toContain(option.groupKey);
+      expect(['frame', 'arrangement']).toContain(option.groupKey);
     }
   });
 
