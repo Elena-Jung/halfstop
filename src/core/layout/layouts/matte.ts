@@ -77,16 +77,20 @@ export const matteLayout: PresetLayout = (input, services) => {
     if (clipped) nodes.push({ kind: 'text', x, y, text: clipped, style: textStyle });
   };
 
-  // 부 줄이 주 줄보다 커질 수 있으므로 두 크기를 모두 보고 간격을 정합니다.
+  // 부 줄이 주 줄보다 커질 수 있으므로 두 크기를 모두 보고 간격을 정합니다. 글자는 중심선
+  // 위아래로 size * 0.62 만큼 뻗으니, 두 줄을 담는 데 드는 높이는 큰 쪽 반높이 두 개입니다.
   const wanted = Math.max(fontSize * 1.25, (fontSize + subSize) * 0.62);
-  const room = padBottom - Math.max(fontSize, subSize);
+  const room = padBottom - Math.max(fontSize, subSize) * 1.24;
   const gap = Math.max(0, Math.min(wanted, room));
 
   if (mode === 'poster') {
     // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.
     // 가운데 줄이 커지면 간격도 함께 벌리되, 아래 여백을 넘지 않게 묶어 둡니다.
+    // step 을 제한하는 것은 바깥 두 줄입니다. 그 둘은 fontSize 크기이므로 여기에 subSize 가
+    // 들어가면 가운데 줄이 커질 때 step 을 필요 이상으로 좁혀 줄끼리 겹칩니다. 가운데 줄은
+    // areaCenterY 에 그대로 놓이므로 step 과 무관하게 여백 절반 안에서 따로 판단됩니다.
     const posterWanted = Math.max(padBottom / 4, (fontSize + subSize) * 0.62);
-    const posterRoom = padBottom / 2 - Math.max(fontSize, subSize) * 0.62;
+    const posterRoom = padBottom / 2 - fontSize * 0.62;
     const step = Math.max(0, Math.min(posterWanted, posterRoom));
     const align = str(options, 'ALIGN') as TextStyle['align'];
     const x = align === 'left' ? leftInset : align === 'right' ? width - rightInset : width / 2;

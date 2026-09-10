@@ -77,9 +77,11 @@ export const barLayout: PresetLayout = (input, services) => {
   /** 주 줄과 부 줄을 세로 가운데를 기준으로 벌려 놓습니다. */
   const push = (slot: 'PRIMARY' | 'SECONDARY', x: number, align: TextStyle['align'], width: number) => {
     const resolved = resolveSlot(options, slot, input.fields, divider);
-    // 두 줄이 서로 겹치지도, 슬롯 밖으로 나가지도 않도록 간격을 좁힙니다.
+    // 두 줄이 서로 겹치지도, 슬롯 밖으로 나가지도 않도록 간격을 좁힙니다. 글자는 중심선을
+    // 기준으로 위아래로 size * 0.62 만큼 뻗으므로, 두 줄이 차지하는 높이는 큰 쪽 글자의
+    // 반높이 두 개입니다. 그래서 계수가 1.24 입니다.
     const wanted = Math.max(fontSize * 1.25, (fontSize + subSize) * 0.62);
-    const room = slotHeight - Math.max(fontSize, subSize);
+    const room = slotHeight - Math.max(fontSize, subSize) * 1.24;
     const gap = Math.max(0, Math.min(wanted, room));
     const twoLines = resolved.main !== '' && resolved.sub !== '';
 

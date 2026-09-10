@@ -105,18 +105,23 @@ describe('barLayout 두 줄 y 좌표', () => {
     expect(main).toBeDefined();
     expect(sub).toBeDefined();
     expect(footer).toBeDefined();
-    // BAR_HEIGHT 120 기본값: slotHeight 81.6, gap 42.5. slotCenterY = 1040.8.
-    expect(main?.y).toBeCloseTo(1019.55);
-    expect(sub?.y).toBeCloseTo(1062.05);
+    // BAR_HEIGHT 120 기본값: slotHeight 81.6, slotCenterY 1040.8. 남은 높이가 81.6 이고
+    // 큰 쪽 글자의 반높이 두 개가 34*1.24=42.16 이므로 gap 은 원하는 42.5 가 아니라 39.44
+    // 로 좁혀집니다. 그 결과 주 줄의 글자 상단이 정확히 1000, 즉 사진 경계에 맞닿습니다.
+    expect(main?.y).toBeCloseTo(1021.08);
+    expect(sub?.y).toBeCloseTo(1060.52);
     expect(footer?.y).toBeCloseTo(1100.8);
-    expect(main?.y ?? 0).toBeGreaterThanOrEqual(1000);
-    expect(sub?.y ?? 0).toBeGreaterThanOrEqual(1000);
+    // 앵커가 아니라 글자 상단으로 확인합니다. 앵커만 보면 글자가 사진을 덮어도 통과합니다.
+    // 주 줄은 경계에 정확히 맞닿으므로 이진 부동소수점에서 1000 을 머리카락만큼 밑돕니다.
+    const EPSILON = 1e-9;
+    expect((main?.y ?? 0) - 34 * 0.62).toBeGreaterThanOrEqual(1000 - EPSILON);
+    expect((sub?.y ?? 0) - 23.8 * 0.62).toBeGreaterThanOrEqual(1000 - EPSILON);
     // 부 줄과 꼬리 줄은 둘 다 글자 크기가 23.8이므로, 반높이의 합(23.8*0.62*2)
     // 이상 떨어져 있어야 겹치지 않습니다.
     expect((footer?.y ?? 0) - (sub?.y ?? 0)).toBeGreaterThanOrEqual(23.8 * 1.24);
   });
 
-  it('BAR_HEIGHT를 60으로 낮추고 FOOTER와 PRIMARY_SUB를 함께 두어도 모든 텍스트가 사진 아래에 있습니다', () => {
+  it('슬롯이 한 줄보다 좁아지면 두 줄 간격을 0으로 좁힙니다', () => {
     const options = defaultValues(BAR_OPTIONS);
     options.set('BAR_HEIGHT', 60);
     options.set('PRIMARY_SUB', '{LENS}');
@@ -124,6 +129,14 @@ describe('barLayout 두 줄 y 좌표', () => {
     const scene = barLayout(input({ options }), services);
     const nodes = textNodes(scene.nodes);
     expect(nodes.length).toBe(4);
+    const main = nodes.find((n) => n.text === 'Canon · EOS R6');
+    const sub = nodes.find((n) => n.text === 'RF 50mm');
+    // slotHeight 가 40.8 인데 34 크기 글자 한 줄이 차지하는 높이가 42.16 입니다. 두 줄을
+    // 넣을 자리가 애초에 없으므로 간격을 0 까지 좁혀 둘을 겹쳐 놓는 것이 최선입니다.
+    // 이 조합에서는 글자 상단이 999.32 로 사진을 0.68 만큼 덮습니다. 간격으로는 더 줄일 수
+    // 없고 글자 크기나 바 높이를 손대야 합니다. 설정 화면에서 막을 몫으로 남겨 둡니다.
+    expect(main?.y).toBeCloseTo(1020.4);
+    expect(sub?.y).toBeCloseTo(1020.4);
     for (const node of nodes) {
       expect(node.y).toBeGreaterThanOrEqual(1000);
     }

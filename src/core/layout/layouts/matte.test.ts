@@ -111,6 +111,45 @@ describe('matteLayout', () => {
     expect(sub?.y).toBeCloseTo(1197.2);
   });
 
+  it('SUB_SCALE를 3으로 올린 poster에서 세 줄이 서로 겹치지 않습니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'poster');
+    options.set('PRIMARY_SUB', '여름의 끝');
+    options.set('SUB_SCALE', 3);
+    const nodes = textNodes(matteLayout(input({ options }), services).nodes);
+    expect(nodes.length).toBe(3);
+    // 여백 안에 들어오는 것만으로는 부족합니다. 가운데 줄이 위아래 줄을 덮을 수 있습니다.
+    // step 을 제한하는 것은 바깥 두 줄뿐이므로 여기서는 세 줄이 정확히 맞닿습니다.
+    const EPSILON = 1e-9;
+    for (let i = 0; i + 1 < nodes.length; i += 1) {
+      const upper = nodes[i]!;
+      const lower = nodes[i + 1]!;
+      const upperBottom = upper.y + upper.style.size * 0.62;
+      const lowerTop = lower.y - lower.style.size * 0.62;
+      expect(lowerTop).toBeGreaterThanOrEqual(upperBottom - EPSILON);
+    }
+  });
+
+  it('아래 여백이 두 줄을 담기에 좁으면 간격을 좁혀 여백 안에 붙잡아 둡니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'single');
+    options.set('PAD_BOTTOM', 150);
+    options.set('PRIMARY_SUB', '여름의 끝');
+    options.set('SUB_SCALE', 3);
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    expect(nodes.length).toBe(2);
+    // 원하는 간격은 74.4 지만 큰 쪽 반높이 두 개가 111.6 이라 남는 자리가 38.4 뿐입니다.
+    // 이때는 겹침을 받아들이고 여백 밖으로 나가지 않는 쪽을 지킵니다. 밖으로 나가면 글이
+    // 캔버스에서 잘려 아예 사라지기 때문입니다.
+    const areaTop = 60 + 1000;
+    const EPSILON = 1e-9;
+    for (const node of nodes) {
+      expect(node.y - node.style.size * 0.62).toBeGreaterThanOrEqual(areaTop - EPSILON);
+      expect(node.y + node.style.size * 0.62).toBeLessThanOrEqual(scene.height + EPSILON);
+    }
+  });
+
   it('SUB_SCALE를 3으로 올린 poster에서 세 줄이 모두 아래 여백 안에 있습니다', () => {
     const options = defaultValues(MATTE_OPTIONS);
     options.set('MODE', 'poster');
