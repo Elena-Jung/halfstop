@@ -25,6 +25,7 @@ export function SettingsPanel(props: {
   setExportSize: (size: ExportPreset) => void;
   onDownload: () => void;
   hasPhoto: boolean;
+  exportTargetName: string | null;
   busy: boolean;
 }) {
   const {
@@ -38,11 +39,15 @@ export function SettingsPanel(props: {
     setExportSize,
     onDownload,
     hasPhoto,
+    exportTargetName,
     busy,
   } = props;
 
   const grouped = groupOptions(presetOptions);
   const mode = options.get('MODE');
+  // 고른 사진이 없으면 미리보기에 그릴 것도, 값을 적용할 대상도 없습니다. busy 와
+  // 마찬가지로 패널 전체를 잠급니다.
+  const locked = busy || !hasPhoto;
 
   const renderOptions = (group: readonly PresetOption[]) =>
     group
@@ -53,7 +58,7 @@ export function SettingsPanel(props: {
           key={option.id}
           option={option}
           value={options.get(option.id) ?? option.default}
-          disabled={busy}
+          disabled={locked}
           onChange={(value) => setOption(option.id, value)}
         />
       ));
@@ -62,7 +67,7 @@ export function SettingsPanel(props: {
     switch (tabValue) {
       case 'preset':
         return (
-          <fieldset className="preset-list" disabled={busy}>
+          <fieldset className="preset-list" disabled={locked}>
             <legend>{t('rail.preset')}</legend>
             {PRESETS.map((preset) => {
               const isSelected = presetId === preset.id;
@@ -74,7 +79,7 @@ export function SettingsPanel(props: {
                     value={preset.id}
                     checked={isSelected}
                     onChange={() => setPreset(preset.id)}
-                    disabled={busy}
+                    disabled={locked}
                     className="hs-radio-input"
                   />
                   <span className="hs-radio-box" aria-hidden="true" />
@@ -96,7 +101,7 @@ export function SettingsPanel(props: {
               <select
                 value={exportSize}
                 onChange={(e) => setExportSize(e.target.value as ExportPreset)}
-                disabled={busy}
+                disabled={locked}
               >
                 {EXPORT_SIZES.map((size) => (
                   <option key={size} value={size}>
@@ -108,6 +113,7 @@ export function SettingsPanel(props: {
             <button type="button" onClick={onDownload} disabled={!hasPhoto || busy}>
               {busy ? t('action.downloading') : t('action.download')}
             </button>
+            {exportTargetName && <p className="hint">{t('export.target', { name: exportTargetName })}</p>}
           </div>
         );
     }

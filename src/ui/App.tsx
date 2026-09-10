@@ -2,6 +2,7 @@ import { useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react'
 import { t } from '../i18n';
 import { DropZone } from './DropZone';
 import type { RailTab } from './groups';
+import { PhotoStrip } from './PhotoStrip';
 import { Rail } from './Rail';
 import { SettingsPanel } from './SettingsPanel';
 import { usePipeline } from './usePipeline';
@@ -37,7 +38,12 @@ export function App() {
     download,
     busy,
     ready,
-    hasPhoto,
+    photos,
+    selected,
+    toggleSelected,
+    toggleAll,
+    hasPreview,
+    exportTargetName,
     frameText,
     presetId,
     setPreset,
@@ -66,17 +72,32 @@ export function App() {
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
+            multiple
             onChange={onPick}
             disabled={!ready || busy}
           />
         </div>
+
+        <PhotoStrip
+          photos={photos}
+          selected={selected}
+          onToggle={toggleSelected}
+          onToggleAll={toggleAll}
+          disabled={busy}
+        />
 
         <div className="layout">
           <section className="preview-pane">
             <canvas
               ref={canvasRef}
               role="img"
-              aria-label={hasPhoto ? t('canvas.withFrame', { text: frameText }) : t('canvas.empty')}
+              aria-label={
+                hasPreview
+                  ? t('canvas.withFrame', { text: frameText })
+                  : photos.length === 0
+                    ? t('canvas.empty')
+                    : t('canvas.noSelection')
+              }
               className="preview-canvas"
             />
           </section>
@@ -91,7 +112,8 @@ export function App() {
             exportSize={exportSize}
             setExportSize={setExportSize}
             onDownload={() => void download()}
-            hasPhoto={hasPhoto}
+            hasPhoto={hasPreview}
+            exportTargetName={exportTargetName}
             busy={busy}
           />
 

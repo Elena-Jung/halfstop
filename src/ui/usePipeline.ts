@@ -22,9 +22,10 @@ import { buildScene } from '../core/render/buildScene';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import type { MessageKey } from '../i18n';
 import { cachedCanvasLimit } from '../platform/canvasLimitCache';
-import { readSettings, writeSettings } from '../platform/settingsStore';
+import { readSettings, writeSettings, type StoredSettings } from '../platform/settingsStore';
 import { createRenderClient, type RenderClient } from '../worker/client';
 import { toUserMessage } from './errorMessage';
+import { applyToSelected, capItems, MAX_PHOTOS, previewIndex, toggleSelectAll } from './photos';
 
 const NO_LOGO = () => null;
 
@@ -71,30 +72,48 @@ function autoOrientedFlag(): Promise<boolean> {
   return autoOrientedOnce;
 }
 
-interface Loaded {
+export interface Loaded {
   file: File;
   meta: PhotoMeta;
   fields: Partial<Record<TemplateToken, string>>;
   preview: DecodedImage;
   /** 이 사진을 디코딩한 조건입니다. 사진에 딸린 사실이므로 내보낼 때 다시 재지 않고 들고 있습니다. */
   autoOriented: boolean;
+  /** 썸네일에 쓸 주소입니다. 목록에서 빠질 때 반드시 회수합니다. */
+  thumbUrl: string;
+  /** 설정이 사진마다 따로 붙습니다. 이것이 여러 장 지원의 핵심입니다. */
+  presetId: string;
+  values: Map<string, OptionValue>;
+}
+
+function closePhoto(photo: Loaded): void {
+  photo.preview.bitmap.close();
+  URL.revokeObjectURL(photo.thumbUrl);
+}
+
+/** 새로 불러온 사진의 시작 설정입니다. 저장된 마지막 설정이 없으면 기본 프리셋입니다. */
+function initialPhotoSettings(stored: StoredSettings | null): {
+  presetId: string;
+  values: Map<string, OptionValue>;
+} {
+  const preset = presetById(stored?.presetId ?? DEFAULT_PRESET_ID);
+  return { presetId: preset.id, values: valuesFor(preset, stored?.values ?? {}) };
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const [status, setStatus] = useState<StatusMessage>({ key: 'status.preparing' });
-  const stored = useMemo(() => readSettings(), []);
-  const [presetId, setPresetId] = useState(
-    () => presetById(stored?.presetId ?? DEFAULT_PRESET_ID).id,
+  // 사진이 하나도 없을 때 잠긴 설정 패널에 보일 값입니다. 사진이 생기면 그 사진 자신의
+  // 설정으로 넘어갑니다.
+  const emptyStored = useMemo(() => readSettings(), []);
+  const emptyPreset = useMemo(() => presetById(emptyStored?.presetId ?? DEFAULT_PRESET_ID), [emptyStored]);
+  const emptyOptions = useMemo(
+    () => valuesFor(emptyPreset, emptyStored?.values ?? {}),
+    [emptyPreset, emptyStored],
   );
-  const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
-    valuesFor(presetById(stored?.presetId ?? DEFAULT_PRESET_ID), stored?.values ?? {}),
-  );
-
-  const preset = useMemo(() => presetById(presetId), [presetId]);
-  const presetOptions = useMemo(() => optionsFor(preset), [preset]);
 
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [photos, setPhotos] = useState<readonly Loaded[]>([]);
+  const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
   const [busy, setBusy] = useState(false);
   // 저장 설정에는 담지 않습니다. 내보내기 크기는 그때그때 고르는 값이지 사진 프레임에
   // 딸린 값이 아닙니다.
@@ -104,14 +123,24 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 문장에 끼워 넣습니다.
   const [frameText, setFrameText] = useState('');
 
+  const previewIdx = useMemo(() => previewIndex(selected), [selected]);
+  const previewPhoto = previewIdx !== null ? (photos[previewIdx] ?? null) : null;
+
+  const preset = useMemo(
+    () => presetById(previewPhoto?.presetId ?? emptyPreset.id),
+    [previewPhoto, emptyPreset],
+  );
+  const options = previewPhoto?.values ?? emptyOptions;
+  const presetOptions = useMemo(() => optionsFor(preset), [preset]);
+
   const servicesRef = useRef<LayoutServices | null>(null);
   const limitRef = useRef<CanvasLimit | null>(null);
   const clientRef = useRef<RenderClient | null>(null);
   const frameRef = useRef<number | null>(null);
   // load() 를 연달아 부르면 늦게 시작한 쪽이 먼저 끝날 수 있습니다. 이 값으로 진 쪽을 가려냅니다.
   const loadGenerationRef = useRef(0);
-  // 마운트 해제 때 마지막으로 성공한 미리보기 비트맵을 닫는 데 씁니다.
-  const loadedRef = useRef<Loaded | null>(null);
+  // 마운트 해제 때 마지막으로 성공한 사진 목록의 비트맵과 썸네일 주소를 회수하는 데 씁니다.
+  const photosRef = useRef<readonly Loaded[]>([]);
 
   const fontId = useMemo(() => {
     const value = options.get('FONT_FAMILY');
@@ -126,13 +155,13 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     return () => {
       clientRef.current?.dispose();
       clientRef.current = null;
-      loadedRef.current?.preview.bitmap.close();
+      for (const photo of photosRef.current) closePhoto(photo);
     };
   }, []);
 
   useEffect(() => {
-    loadedRef.current = loaded;
-  }, [loaded]);
+    photosRef.current = photos;
+  }, [photos]);
 
   // 고른 서체가 준비되기 전에 measureText를 부르면 대체 서체 폭으로 배치가 계산됩니다.
   useEffect(() => {
@@ -152,20 +181,28 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [fontId, loadedFonts]);
 
   useEffect(() => {
-    if (fontReady && !loaded) setStatus({ key: 'status.readyToDrop' });
-  }, [fontReady, loaded]);
+    if (fontReady && photos.length === 0) setStatus({ key: 'status.readyToDrop' });
+  }, [fontReady, photos.length]);
 
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
     const services = servicesRef.current;
-    if (!canvas || !loaded || !services || !fontReady) return;
+    if (!canvas || !services || !fontReady) return;
+
+    if (!previewPhoto) {
+      // 아무것도 안 골랐거나 사진이 없습니다. 이전에 그려 둔 것이 남아 있지 않도록 비웁니다.
+      const ctx = canvas.getContext('2d');
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      setFrameText('');
+      return;
+    }
 
     // requestAnimationFrame 콜백 안이라 여기서 던지면 아무도 잡지 않습니다. 값을
     // 바꿀 때마다 같은 예외가 조용히 반복되지 않도록 상태 문구로만 알립니다.
     try {
       const scene = buildScene({
-        photoPx: { width: loaded.preview.width, height: loaded.preview.height },
-        fields: loaded.fields,
+        photoPx: { width: previewPhoto.preview.width, height: previewPhoto.preview.height },
+        fields: previewPhoto.fields,
         logoId: undefined,
         layout: layoutFor(preset),
         options,
@@ -175,7 +212,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       paintToCanvas({
         scene,
         canvas,
-        photo: loaded.preview.bitmap,
+        photo: previewPhoto.preview.bitmap,
         logo: NO_LOGO,
         targetLongEdge: PREVIEW_LONG_EDGE,
         limit: PREVIEW_LIMIT,
@@ -191,7 +228,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       console.error(error);
       setStatus({ key: toUserMessage(error) });
     }
-  }, [canvasRef, loaded, options, fontReady, preset]);
+  }, [canvasRef, previewPhoto, options, fontReady, preset]);
 
   // 옵션이 연달아 바뀌어도 프레임마다 한 번만 그립니다.
   useEffect(() => {
@@ -206,8 +243,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [repaint]);
 
   const load = useCallback(async (files: readonly File[]) => {
-    const file = files[0];
-    if (!file) return;
+    const { kept, overflow } = capItems(files);
+    if (kept.length === 0) return;
 
     // 이전 사진을 미리 지우지 않습니다. 이 시도가 실패해도 열어 둔 사진은 그대로
     // 남아야 합니다. 세대 번호로 늦게 끝난 요청이 먼저 끝난 요청을 덮어쓰는 것도
@@ -215,73 +252,132 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     const generation = (loadGenerationRef.current += 1);
     setStatus({ key: 'status.reading' });
 
-    try {
-      const meta = await readExif(await file.arrayBuffer());
-      const autoOriented = await autoOrientedFlag();
+    const initial = initialPhotoSettings(readSettings());
+    const decoded: Loaded[] = [];
+    let lastError: unknown = null;
 
-      // resizeWidth 와 resizeHeight 는 회전이 적용된 뒤의 축에 걸립니다. EXIF 에 적힌
-      // 크기는 회전 전 기준이므로, 브라우저가 이미 회전을 적용했을 때 뒤집어야 합니다.
-      const swap = autoOriented && swapsAxes(meta.orientation);
-      const sourceSize =
-        meta.pixelWidth !== undefined && meta.pixelHeight !== undefined
-          ? swap
-            ? { width: meta.pixelHeight, height: meta.pixelWidth }
-            : { width: meta.pixelWidth, height: meta.pixelHeight }
-          : undefined;
+    // 한꺼번에 디코딩하면 메모리가 한 번에 치솟으므로 한 장씩 순서대로 처리합니다.
+    for (const file of kept) {
+      if (loadGenerationRef.current !== generation) break;
 
-      const preview = await decodeImage({
-        file,
-        autoOriented,
-        orientation: meta.orientation,
-        maxLongEdge: PREVIEW_LONG_EDGE,
-        ...(sourceSize ? { sourceSize } : {}),
-      });
+      try {
+        const meta = await readExif(await file.arrayBuffer());
+        const autoOriented = await autoOrientedFlag();
 
-      if (loadGenerationRef.current !== generation) {
-        // 기다리는 동안 다음 요청이 이미 시작됐습니다. 이 결과는 버립니다.
-        preview.bitmap.close();
-        return;
+        // resizeWidth 와 resizeHeight 는 회전이 적용된 뒤의 축에 걸립니다. EXIF 에 적힌
+        // 크기는 회전 전 기준이므로, 브라우저가 이미 회전을 적용했을 때 뒤집어야 합니다.
+        const swap = autoOriented && swapsAxes(meta.orientation);
+        const sourceSize =
+          meta.pixelWidth !== undefined && meta.pixelHeight !== undefined
+            ? swap
+              ? { width: meta.pixelHeight, height: meta.pixelWidth }
+              : { width: meta.pixelWidth, height: meta.pixelHeight }
+            : undefined;
+
+        const preview = await decodeImage({
+          file,
+          autoOriented,
+          orientation: meta.orientation,
+          maxLongEdge: PREVIEW_LONG_EDGE,
+          ...(sourceSize ? { sourceSize } : {}),
+        });
+
+        if (loadGenerationRef.current !== generation) {
+          // 기다리는 동안 다음 요청이 이미 시작됐습니다. 이 결과는 버립니다.
+          preview.bitmap.close();
+          break;
+        }
+
+        decoded.push({
+          file,
+          meta,
+          fields: toFields(meta),
+          preview,
+          autoOriented,
+          thumbUrl: URL.createObjectURL(file),
+          presetId: initial.presetId,
+          values: new Map(initial.values),
+        });
+      } catch (error) {
+        console.error(error);
+        lastError = error;
+        // 한 장이 실패해도 나머지는 계속 시도합니다.
       }
-
-      setLoaded((previous) => {
-        previous?.preview.bitmap.close();
-        return { file, meta, fields: toFields(meta), preview, autoOriented };
-      });
-      // 여러 장 처리는 아직 없습니다. 조용히 버리면 사용자는 왜 한 장만 나오는지
-      // 알 수 없으므로 무엇을 불러왔고 무엇을 안 불러왔는지 밝힙니다.
-      setStatus(
-        files.length > 1
-          ? { key: 'status.onlyFirst', vars: { name: file.name } }
-          : { key: 'status.loaded', vars: { name: file.name } },
-      );
-    } catch (error) {
-      console.error(error);
-      // 이미 다음 요청이 시작됐으면 그 요청의 상태 문구를 덮어쓰지 않습니다.
-      if (loadGenerationRef.current !== generation) return;
-      setStatus({ key: toUserMessage(error) });
     }
+
+    if (loadGenerationRef.current !== generation) {
+      // 이 배치 전체가 늦었습니다. 지금까지 만든 것을 전부 반납합니다.
+      for (const photo of decoded) closePhoto(photo);
+      return;
+    }
+
+    if (decoded.length === 0) {
+      setStatus({ key: lastError ? toUserMessage(lastError) : 'error.decode' });
+      return;
+    }
+
+    setPhotos((previous) => {
+      for (const photo of previous) closePhoto(photo);
+      return decoded;
+    });
+    // 방금 불러온 첫 번째 사진만 고른 채로 시작합니다. 사진마다 다른 스타일을 주려면
+    // 한 장씩 고르며 다듬는 편이 자연스럽고, 미리보기 대상 규칙(가장 앞선 인덱스)과도 맞습니다.
+    setSelected(new Set([0]));
+
+    setStatus(
+      overflow > 0
+        ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } }
+        : { key: 'status.readyToDrop' },
+    );
+  }, []);
+
+  const toggleSelected = useCallback((index: number) => {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelected((previous) => toggleSelectAll(photosRef.current.length, previous));
   }, []);
 
   const setOption = useCallback((id: string, value: OptionValue) => {
-    setOptions((previous) => new Map(previous).set(id, value));
-  }, []);
+    setPhotos((previous) =>
+      applyToSelected(previous, selected, (photo) => ({
+        ...photo,
+        values: new Map(photo.values).set(id, value),
+      })),
+    );
+  }, [selected]);
 
   // 프리셋을 바꾸면 값도 그 프리셋 기준으로 새로 만듭니다. 이전 프리셋에서 만진 값을
   // 그대로 들고 가면 레이아웃이 달라 뜻이 어긋납니다.
   const setPreset = useCallback((id: string) => {
     const next = presetById(id);
-    setPresetId(next.id);
-    setOptions(valuesFor(next, {}));
-  }, []);
+    setPhotos((previous) =>
+      applyToSelected(previous, selected, (photo) => ({
+        ...photo,
+        presetId: next.id,
+        values: valuesFor(next, {}),
+      })),
+    );
+  }, [selected]);
 
   useEffect(() => {
-    writeSettings({ presetId, values: Object.fromEntries(options) });
-  }, [presetId, options]);
+    if (!previewPhoto) return;
+    writeSettings({
+      presetId: previewPhoto.presetId,
+      values: Object.fromEntries(previewPhoto.values),
+    });
+  }, [previewPhoto]);
 
   const download = useCallback(async () => {
     const services = servicesRef.current;
     const client = clientRef.current;
-    if (!loaded || !services || !client || !fontReady) return;
+    if (!previewPhoto || !services || !client || !fontReady) return;
 
     setBusy(true);
     setStatus({ key: 'status.rendering' });
@@ -293,8 +389,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const limit = limitRef.current;
 
       const scene = buildScene({
-        photoPx: { width: loaded.preview.width, height: loaded.preview.height },
-        fields: loaded.fields,
+        photoPx: { width: previewPhoto.preview.width, height: previewPhoto.preview.height },
+        fields: previewPhoto.fields,
         logoId: undefined,
         layout: layoutFor(preset),
         options,
@@ -302,10 +398,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       });
 
       const result = await client.render({
-        file: loaded.file,
+        file: previewPhoto.file,
         scene,
-        autoOriented: loaded.autoOriented,
-        orientation: loaded.meta.orientation,
+        autoOriented: previewPhoto.autoOriented,
+        orientation: previewPhoto.meta.orientation,
         limit,
         size: exportSize,
         format: 'image/jpeg',
@@ -316,7 +412,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `${loaded.file.name.replace(/\.[^.]+$/, '')}-halfstop.jpg`;
+      anchor.download = `${previewPhoto.file.name.replace(/\.[^.]+$/, '')}-halfstop.jpg`;
       anchor.click();
       // 클릭 직후에 회수하면 브라우저가 blob을 다 읽기 전에 주소가 사라져 파일이
       // 잘릴 수 있습니다. 이 앱이 내보내는 것은 수십 메가바이트짜리 사진입니다.
@@ -333,7 +429,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     } finally {
       setBusy(false);
     }
-  }, [loaded, options, fontId, fontReady, preset, exportSize]);
+  }, [previewPhoto, options, fontId, fontReady, preset, exportSize]);
 
   return {
     status,
@@ -343,9 +439,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     download,
     busy,
     ready: fontReady,
-    hasPhoto: loaded !== null,
+    photos,
+    selected,
+    toggleSelected,
+    toggleAll,
+    hasPreview: previewPhoto !== null,
+    exportTargetName: previewPhoto?.file.name ?? null,
     frameText,
-    presetId,
+    presetId: preset.id,
     setPreset,
     presetOptions,
     exportSize,

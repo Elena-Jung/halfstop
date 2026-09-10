@@ -61,13 +61,14 @@ export const ko = {
   'action.download': '내려받기',
   'action.downloading': '만드는 중입니다',
   'action.pick': '사진 고르기',
+  'export.target': '{name} 사진을 내려받습니다',
 
   // 상태
   'status.preparing': '준비하는 중입니다',
   'status.readyToDrop': '사진을 끌어다 놓거나 위에서 고르십시오',
   'status.reading': '읽는 중입니다',
   'status.loaded': '{name} 파일을 불러왔습니다',
-  'status.onlyFirst': '{name} 파일 하나만 불러왔습니다. 여러 장을 한 번에 처리하는 기능은 아직 없습니다',
+  'status.tooMany': '사진은 한 번에 최대 {max}장까지 불러옵니다. 앞의 {max}장만 불러왔습니다',
   'status.rendering': '전체 해상도로 그리는 중입니다',
   'status.downloaded': '내려받았습니다. {width}x{height}',
   'status.downloadedClamped': '내려받았습니다. 기기 한계 때문에 {width}x{height} 로 줄였습니다',
@@ -77,8 +78,14 @@ export const ko = {
   'drop.hint': '창 어디에나 사진을 끌어다 놓을 수 있습니다',
   'drop.active': '여기에 놓으십시오',
 
+  // 사진 목록
+  'photos.legend': '불러온 사진',
+  'photos.selectAll': '전체 선택',
+  'photos.deselectAll': '전체 해제',
+
   // 캔버스
   'canvas.empty': '아직 불러온 사진이 없습니다',
+  'canvas.noSelection': '고른 사진이 없습니다',
   'canvas.withFrame': '프레임을 씌운 사진 미리보기입니다. 프레임에 적힌 글은 {text} 입니다',
 
   // 오류

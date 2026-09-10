@@ -249,12 +249,17 @@ body {
   position: relative;
 }
 
-.preset-item[data-selected='true'] .hs-radio-box {
+/*
+ * 프리셋 카드와 사진 썸네일이 같은 표시자를 씁니다. data-selected 를 올리는 요소가
+ * 프리셋 카드(.preset-item)든 썸네일(.photo-item)이든 표시자 모양은 하나로 통일합니다.
+ * 사용자가 두 가지 고르는 방식을 따로 배우지 않게 하려는 것입니다.
+ */
+[data-selected='true'] .hs-radio-box {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.preset-item[data-selected='true'] .hs-radio-box::after {
+[data-selected='true'] .hs-radio-box::after {
   content: '';
   position: absolute;
   left: 5px;
@@ -297,4 +302,88 @@ body {
   place-items: center;
   font-size: 18px;
   pointer-events: none;
+}
+
+/*
+ * 불러온 사진의 썸네일 모음입니다. 프리셋 목록과 마찬가지로 fieldset 으로 묶어
+ * disabled 하나로 안의 체크박스와 전체 선택 단추를 모두 잠급니다.
+ */
+.photo-strip {
+  border: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.photo-strip legend {
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.photo-select-all {
+  justify-self: end;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.photo-item {
+  display: grid;
+  gap: 4px;
+  width: 84px;
+  cursor: pointer;
+}
+
+/*
+ * 썸네일 자체는 프리셋 카드와 달리 이미지가 주인공이라 표시자를 사진 위 왼쪽 위에
+ * 얹습니다. 고른 항목은 테두리가 accent 로 바뀌어 프리셋 카드의 강조와 같은 언어를 씁니다.
+ */
+.photo-thumb-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.photo-item[data-selected='true'] .photo-thumb-wrap {
+  border-color: var(--accent);
+}
+
+.photo-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-item .hs-radio-box {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: var(--surface);
+}
+
+.photo-name {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 84px;
 }
