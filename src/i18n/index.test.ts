@@ -19,6 +19,32 @@ describe('t', () => {
   });
 });
 
+/**
+ * 해요체 종결 어미만 골라 냅니다. 앞선 검사는 `요` 로 끝나기만 하면 잡아서 `중요` 와 `필요`
+ * 같은 명사를 위반으로 몰았고, 반대로 문장 중간에 섞인 해요체는 놓쳤습니다.
+ */
+const HAEYO = /(?:아요|어요|여요|예요|에요|해요|세요|게요|까요|네요|죠)(?=[\s.,!?]|$)/;
+
+describe('해요체 검사', () => {
+  it('명사가 요 로 끝나는 것을 위반으로 잡지 않습니다', () => {
+    for (const ok of ['중요', '필요', '중요한 값입니다']) {
+      expect(HAEYO.test(ok), ok).toBe(false);
+    }
+  });
+
+  it('문장 끝과 문장 중간의 해요체를 모두 잡습니다', () => {
+    for (const bad of ['사진을 골라 주세요', '이렇게 했어요, 다시 하십시오', '어떨까요']) {
+      expect(HAEYO.test(bad), bad).toBe(true);
+    }
+  });
+
+  it('습니다체와 하십시오체를 위반으로 잡지 않습니다', () => {
+    for (const ok of ['불러왔습니다', '여기에 놓으십시오', '만드는 중입니다']) {
+      expect(HAEYO.test(ok), ok).toBe(false);
+    }
+  });
+});
+
 describe('사전', () => {
   it('빈 문구가 없습니다', () => {
     for (const [key, value] of Object.entries(ko)) {
@@ -29,7 +55,7 @@ describe('사전', () => {
   it('해요체를 쓰지 않습니다', () => {
     // 습니다체만 씁니다. 종결형이 요 로 끝나는 문구를 걸러냅니다.
     for (const [key, value] of Object.entries(ko)) {
-      expect(/요[.!?]?$/.test(value.trim()), `${key}: ${value}`).toBe(false);
+      expect(HAEYO.test(value), `${key}: ${value}`).toBe(false);
     }
   });
 
