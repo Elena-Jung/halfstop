@@ -262,14 +262,15 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     const client = clientRef.current;
     if (!loaded || !services || !client || !fontReady) return;
 
-    // 실제 캔버스 한계는 큰 할당을 여러 번 해 봐야 알 수 있어 느립니다. 미리보기에는
-    // 필요 없으니 내보내기 직전인 여기서 처음 재고, 이후로는 캐시된 값을 씁니다.
-    limitRef.current ??= cachedCanvasLimit();
-    const limit = limitRef.current;
-
     setBusy(true);
     setStatus('전체 해상도로 그리는 중입니다');
     try {
+      // 실제 캔버스 한계는 큰 할당을 여러 번 해 봐야 알 수 있어 느립니다. 미리보기에는
+      // 필요 없으니 내보내기 직전인 여기서 처음 재고, 이후로는 캐시된 값을 씁니다.
+      // busy 표시보다 먼저 재면 화면이 반응 없이 멈춘 것처럼 보이므로 반드시 뒤에 둡니다.
+      limitRef.current ??= cachedCanvasLimit();
+      const limit = limitRef.current;
+
       const scene = buildScene({
         photoPx: { width: loaded.preview.width, height: loaded.preview.height },
         fields: loaded.fields,
