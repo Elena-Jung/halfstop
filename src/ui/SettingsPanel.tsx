@@ -84,7 +84,7 @@ export function SettingsPanel(props: {
       case 'export':
         return (
           <div className="field-list">
-            <label className="field">
+            <label className="hs-field">
               <span>{t('export.size')}</span>
               <select
                 value={exportSize}

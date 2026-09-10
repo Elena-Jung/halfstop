@@ -2,11 +2,39 @@
 @import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 
 :root {
+  /*
+   * 어두운 테마의 유일한 색 출처입니다. src/ui/theme.test.ts 가 이 블록을 node:fs 로
+   * 읽어 명암비를 검사하므로 값을 바꾸려면 그 검사부터 통과해야 합니다.
+   * --border 는 원안(#3a414a)이 --bg 대비 1.76:1로 WCAG 비텍스트 기준 3:1에 미달해
+   * #5f6b78로 밝혀 두었습니다.
+   */
+  --bg: #14161a;
+  --surface: #1c1f24;
+  --surface-raised: #262b32;
+  --border: #5f6b78;
+  --text: #e8eaed;
+  --text-dim: #a8b0ba;
+  --accent: #4a9eff;
+  --on-accent: #08131f;
+  --danger: #ff8a8a;
+
   font-family: 'Pretendard Variable', system-ui, sans-serif;
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  color-scheme: dark;
+}
+
+/*
+ * 초점 표시를 지우지 않고 모든 조작 요소에 같은 표시를 줍니다. --accent 는 --bg 대비
+ * 3:1을 넘도록 검사되어 있어 어떤 배경 위에서도 보입니다.
+ */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .app {
@@ -21,7 +49,7 @@ body {
 }
 
 .intake {
-  border: 2px dashed #bbb;
+  border: 2px dashed var(--border);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 16px;
@@ -34,7 +62,7 @@ body {
 .hint {
   margin: 0 0 12px;
   font-size: 13px;
-  opacity: 0.75;
+  color: var(--text-dim);
 }
 
 /*
@@ -63,7 +91,7 @@ body {
   display: block;
   max-width: 100%;
   width: 100%;
-  background: #f4f4f4;
+  background: var(--surface);
   min-height: 200px;
 }
 
@@ -111,18 +139,13 @@ body {
 }
 
 .rail-tab[data-selected='true'] {
-  background: #e6e6e6;
-  border-color: #ccc;
+  background: var(--surface-raised);
+  border-color: var(--border);
 }
 
 .rail-tab:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.rail-tab:focus-visible {
-  outline: 2px solid #4a9eff;
-  outline-offset: 2px;
 }
 
 .preset-list {
@@ -152,8 +175,24 @@ body {
   gap: 8px;
 }
 
-.field {
+.hs-field {
   display: grid;
   gap: 4px;
   font-size: 13px;
+}
+
+/*
+ * 창 전체를 덮는 드롭 표시입니다. 배경은 --accent 를 옅게 섞어 만들어 색이 두
+ * 자리(문자열과 이 규칙)로 갈라지지 않게 합니다.
+ */
+.hs-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  border: 3px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  pointer-events: none;
 }

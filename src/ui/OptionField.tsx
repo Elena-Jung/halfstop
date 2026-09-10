@@ -94,7 +94,7 @@ export function OptionField(props: {
   };
 
   return (
-    <label style={{ display: 'grid', gap: 4, fontSize: 13 }}>
+    <label className="hs-field">
       <span>{t(option.labelKey as MessageKey)}</span>
       {field()}
     </label>

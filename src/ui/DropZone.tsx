@@ -75,20 +75,7 @@ export function DropZone(props: {
   return (
     <>
       {dragging && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 10,
-            border: '3px dashed #4a9eff',
-            background: 'rgba(74, 158, 255, 0.12)',
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: 18,
-            pointerEvents: 'none',
-          }}
-        >
+        <div aria-hidden="true" className="hs-drop-overlay">
           {t('drop.active')}
         </div>
       )}
