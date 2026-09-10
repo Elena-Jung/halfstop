@@ -180,7 +180,9 @@ export function App() {
           marginBottom: 16,
         }}
       >
-        <p style={{ margin: '0 0 12px' }}>{status}</p>
+        <p role="status" style={{ margin: '0 0 12px' }}>
+          {status}
+        </p>
         <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
           창 어디에나 사진을 끌어다 놓을 수 있습니다
         </p>
@@ -195,6 +197,8 @@ export function App() {
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
         <canvas
           ref={canvasRef}
+          role="img"
+          aria-label={hasPhoto ? '프레임을 씌운 사진 미리보기입니다' : '아직 불러온 사진이 없습니다'}
           style={{ maxWidth: '100%', flex: 1, background: '#f4f4f4', minHeight: 200 }}
         />
 
