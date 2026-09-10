@@ -626,13 +626,15 @@ body {
   color: var(--text-dim);
 }
 
+/*
+ * 설정 칸이 스크롤 컨테이너라 목록을 그 안에 두면 칸 가장자리에서 잘립니다. body 로
+ * 포털해 띄우고 좌표는 Listbox.tsx 가 트리거를 재서 인라인으로 넣습니다. 실행 중에
+ * 계산되는 값이라 인라인 style 을 쓰는 것이 맞는 자리입니다.
+ */
 .hs-listbox-list {
-  position: absolute;
+  position: fixed;
   z-index: 20;
-  left: 0;
-  right: 0;
-  top: 100%;
-  margin: var(--space-1) 0 0;
+  margin: 0;
   padding: var(--space-1);
   list-style: none;
   border: 1px solid var(--border);
@@ -641,13 +643,6 @@ body {
   max-height: 220px;
   overflow-y: auto;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--bg) 70%, transparent);
-}
-
-/* 아래로 펼치면 화면 밖을 넘길 때만 트리거 위쪽으로 뒤집습니다(Listbox.tsx 가 계산). */
-.hs-listbox-list[data-placement='top'] {
-  top: auto;
-  bottom: 100%;
-  margin: 0 0 var(--space-1);
 }
 
 .hs-listbox-option {

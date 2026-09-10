@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialActiveIndex, typeaheadIndex, wrapIndex } from './listboxLogic';
+import { initialActiveIndex, listPosition, typeaheadIndex, wrapIndex } from './listboxLogic';
 
 describe('wrapIndex', () => {
   it('보통은 델타만큼 옮깁니다', () => {
@@ -70,5 +70,34 @@ describe('typeaheadIndex', () => {
 
   it('대소문자를 가리지 않습니다', () => {
     expect(typeaheadIndex(fonts, 'PRETEND', 0)).toBe(3);
+  });
+});
+
+describe('listPosition', () => {
+  it('아래에 자리가 넉넉하면 트리거 아래에 둡니다', () => {
+    expect(listPosition({ left: 100, top: 200, bottom: 232, width: 280 }, 220, 900, 4)).toEqual({
+      left: 100,
+      top: 236,
+      width: 280,
+      placement: 'bottom',
+    });
+  });
+
+  it('아래가 모자라고 위에 자리가 있으면 위로 뒤집습니다', () => {
+    expect(listPosition({ left: 100, top: 300, bottom: 332, width: 280 }, 220, 400, 4)).toEqual({
+      left: 100,
+      top: 76,
+      width: 280,
+      placement: 'top',
+    });
+  });
+
+  it('위아래 모두 모자라면 뒤집지 않습니다. 뒤집어도 나아지지 않습니다', () => {
+    expect(listPosition({ left: 0, top: 10, bottom: 42, width: 280 }, 500, 400, 4)).toEqual({
+      left: 0,
+      top: 46,
+      width: 280,
+      placement: 'bottom',
+    });
   });
 });

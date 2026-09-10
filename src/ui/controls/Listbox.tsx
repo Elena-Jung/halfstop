@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { initialActiveIndex, typeaheadIndex, wrapIndex } from './listboxLogic';
+import { createPortal } from 'react-dom';
+import { initialActiveIndex, listPosition, typeaheadIndex, wrapIndex, type ListPosition } from './listboxLogic';
 
 export interface ListboxOption<T extends string = string> {
   readonly value: T;
@@ -9,6 +10,9 @@ export interface ListboxOption<T extends string = string> {
 
 /** 글자 입력으로 찾아가는 버퍼가 비는 데 걸리는 시간입니다. */
 const TYPEAHEAD_RESET_MS = 500;
+
+/** 트리거와 펼친 목록 사이 간격입니다. ui.css 의 --space-1 과 같아야 합니다. */
+const LIST_GAP = 4;
 
 /**
  * `select` 를 대체합니다. WAI-ARIA 의 combobox(목록 상자를 여는 형태) 패턴을 따릅니다.
@@ -34,7 +38,7 @@ export function Listbox<T extends string = string>(props: {
 
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
+  const [position, setPosition] = useState<ListPosition | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -73,19 +77,50 @@ export function Listbox<T extends string = string>(props: {
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) close();
+      const target = event.target as Node;
+      // 목록은 포털로 body 에 있어 rootRef 밖입니다. 두 곳을 모두 봐야 항목을 누를 때
+      // 닫히지 않습니다.
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [open]);
 
-  // 아래로 펼치면 화면 밖으로 넘칠 때만 트리거 위쪽으로 바꿔 띄웁니다.
+  /**
+   * 목록을 body 에 포털로 띄우므로 좌표를 직접 계산합니다. 설정 칸이 스크롤 컨테이너라
+   * 목록을 그 안에 두면 칸 가장자리에서 잘리고, 그것을 피할 CSS 가 없습니다.
+   *
+   * 띄운 뒤 트리거가 움직이면 좌표가 틀어지므로 스크롤과 창 크기 변화에서는 다시
+   * 계산하지 않고 닫습니다. 열려 있는 동안 따라다니게 만들면 스크롤할 때마다 다시
+   * 그려야 하는데, 목록이 열린 채로 스크롤하는 일이 드물어 값어치가 없습니다.
+   * 스크롤은 캡처 단계로 듣습니다. 설정 칸처럼 안쪽에서 나는 스크롤은 거품이 올라오지
+   * 않습니다.
+   */
   useLayoutEffect(() => {
     if (!open || !triggerRef.current || !listRef.current) return;
-    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const rect = triggerRef.current.getBoundingClientRect();
     const listHeight = listRef.current.getBoundingClientRect().height;
-    const spaceBelow = window.innerHeight - triggerRect.bottom;
-    setPlacement(spaceBelow < listHeight && triggerRect.top > listHeight ? 'top' : 'bottom');
+    setPosition(
+      listPosition(
+        { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width },
+        listHeight,
+        window.innerHeight,
+        LIST_GAP,
+      ),
+    );
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMoved = () => close();
+    window.addEventListener('scroll', onMoved, true);
+    window.addEventListener('resize', onMoved);
+    return () => {
+      window.removeEventListener('scroll', onMoved, true);
+      window.removeEventListener('resize', onMoved);
+    };
   }, [open]);
 
   useEffect(
@@ -178,31 +213,39 @@ export function Listbox<T extends string = string>(props: {
         <span className="hs-listbox-value">{triggerContent}</span>
         <ChevronDown aria-hidden="true" size={16} className="hs-listbox-caret" />
       </button>
-      <ul
-        id={listboxId}
-        role="listbox"
-        aria-label={label}
-        ref={listRef}
-        className="hs-listbox-list"
-        data-placement={placement}
-        hidden={!open}
-      >
-        {options.map((option, index) => (
-          <li
-            key={option.value}
-            id={optionId(index)}
-            role="option"
-            aria-selected={option.value === value}
-            data-selected={option.value === value}
-            data-active={index === activeIndex}
-            className="hs-listbox-option"
-            onMouseEnter={() => setActiveIndex(index)}
-            onClick={() => commit(index)}
-          >
-            {renderOption ? renderOption(option) : option.label}
-          </li>
-        ))}
-      </ul>
+      {createPortal(
+        <ul
+          id={listboxId}
+          role="listbox"
+          aria-label={label}
+          ref={listRef}
+          className="hs-listbox-list"
+          data-placement={position?.placement ?? 'bottom'}
+          hidden={!open}
+          style={
+            position
+              ? { left: `${position.left}px`, top: `${position.top}px`, width: `${position.width}px` }
+              : undefined
+          }
+        >
+          {options.map((option, index) => (
+            <li
+              key={option.value}
+              id={optionId(index)}
+              role="option"
+              aria-selected={option.value === value}
+              data-selected={option.value === value}
+              data-active={index === activeIndex}
+              className="hs-listbox-option"
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => commit(index)}
+            >
+              {renderOption ? renderOption(option) : option.label}
+            </li>
+          ))}
+        </ul>,
+        document.body,
+      )}
     </div>
   );
 }

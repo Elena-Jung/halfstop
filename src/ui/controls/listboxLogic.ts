@@ -50,3 +50,32 @@ export function typeaheadIndex(
   }
   return null;
 }
+
+/** 포털로 띄운 목록의 화면 좌표입니다. position: fixed 기준입니다. */
+export interface ListPosition {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly placement: 'bottom' | 'top';
+}
+
+/**
+ * 트리거 아래에 띄우되, 아래가 모자라고 위에 자리가 있을 때만 위로 뒤집습니다. 양쪽 다
+ * 모자라면 뒤집어도 나아지지 않으므로 아래에 둡니다. 목록을 body 로 포털했으므로 좌표를
+ * 직접 계산해야 하고, 그 계산을 순수 함수로 빼서 검사합니다.
+ */
+export function listPosition(
+  trigger: { left: number; top: number; bottom: number; width: number },
+  listHeight: number,
+  viewportHeight: number,
+  gap: number,
+): ListPosition {
+  const needed = listHeight + gap;
+  const flip = viewportHeight - trigger.bottom < needed && trigger.top > needed;
+  return {
+    left: trigger.left,
+    top: flip ? trigger.top - listHeight - gap : trigger.bottom + gap,
+    width: trigger.width,
+    placement: flip ? 'top' : 'bottom',
+  };
+}
