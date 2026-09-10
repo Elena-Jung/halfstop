@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PresetOption } from '../core/layout/options';
-import { BAR_OPTIONS } from '../core/layout/layouts/bar';
+import { PRESETS } from '../core/layout/presets';
 import { fontById } from '../core/paint/fontFamilies';
 import { usePipeline } from './usePipeline';
 
@@ -11,7 +11,7 @@ function optionLabel(optionId: string, value: string): string {
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { status, options, setOption, load, download, busy, ready, hasPhoto } =
+  const { status, options, setOption, load, download, busy, ready, hasPhoto, presetId, setPreset, presetOptions } =
     usePipeline(canvasRef);
 
   const [dragging, setDragging] = useState(false);
@@ -180,7 +180,17 @@ export function App() {
         />
 
         <aside style={{ width: 260, display: 'grid', gap: 8 }}>
-          {BAR_OPTIONS.map((option) => (
+          <label style={{ display: 'grid', gap: 4, fontSize: 13, marginBottom: 8 }}>
+            <span>프리셋</span>
+            <select value={presetId} onChange={(e) => setPreset(e.target.value)}>
+              {PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {presetOptions.map((option) => (
             <label key={option.id} style={{ display: 'grid', gap: 4, fontSize: 13 }}>
               <span>{option.id}</span>
               {field(option)}

@@ -6,8 +6,13 @@ import { PREVIEW_LONG_EDGE } from '../core/export/resolution';
 import { detectAutoOrientation } from '../core/io/autoOrientProbe';
 import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { swapsAxes } from '../core/io/orientation';
-import { defaultValues } from '../core/layout/options';
-import { BAR_OPTIONS, barLayout } from '../core/layout/layouts/bar';
+import {
+  DEFAULT_PRESET_ID,
+  layoutFor,
+  optionsFor,
+  presetById,
+  valuesFor,
+} from '../core/layout/presets';
 import type { LayoutServices, OptionValue, TemplateToken } from '../core/layout/types';
 import type { CanvasLimit } from '../core/limits/clampExportSize';
 import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
@@ -16,6 +21,7 @@ import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import { cachedCanvasLimit } from '../platform/canvasLimitCache';
+import { readSettings, writeSettings } from '../platform/settingsStore';
 import { createRenderClient, type RenderClient } from '../worker/client';
 import { toUserMessage } from './errorMessage';
 
@@ -67,9 +73,17 @@ interface Loaded {
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const [status, setStatus] = useState('준비하는 중입니다');
-  const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
-    defaultValues(BAR_OPTIONS),
+  const stored = useMemo(() => readSettings(), []);
+  const [presetId, setPresetId] = useState(
+    () => presetById(stored?.presetId ?? DEFAULT_PRESET_ID).id,
   );
+  const [options, setOptions] = useState<Map<string, OptionValue>>(() =>
+    valuesFor(presetById(stored?.presetId ?? DEFAULT_PRESET_ID), stored?.values ?? {}),
+  );
+
+  const preset = useMemo(() => presetById(presetId), [presetId]);
+  const presetOptions = useMemo(() => optionsFor(preset), [preset]);
+
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
@@ -125,7 +139,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       photoPx: { width: loaded.preview.width, height: loaded.preview.height },
       fields: loaded.fields,
       logoId: undefined,
-      layout: barLayout,
+      layout: layoutFor(preset),
       options,
       services,
     });
@@ -138,7 +152,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       targetLongEdge: PREVIEW_LONG_EDGE,
       limit: PREVIEW_LIMIT,
     });
-  }, [canvasRef, loaded, options, fontReady]);
+  }, [canvasRef, loaded, options, fontReady, preset]);
 
   // 옵션이 연달아 바뀌어도 프레임마다 한 번만 그립니다.
   useEffect(() => {
@@ -202,6 +216,18 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setOptions((previous) => new Map(previous).set(id, value));
   }, []);
 
+  // 프리셋을 바꾸면 값도 그 프리셋 기준으로 새로 만듭니다. 이전 프리셋에서 만진 값을
+  // 그대로 들고 가면 레이아웃이 달라 뜻이 어긋납니다.
+  const setPreset = useCallback((id: string) => {
+    const next = presetById(id);
+    setPresetId(next.id);
+    setOptions(valuesFor(next, {}));
+  }, []);
+
+  useEffect(() => {
+    writeSettings({ presetId, values: Object.fromEntries(options) });
+  }, [presetId, options]);
+
   const download = useCallback(async () => {
     const services = servicesRef.current;
     const client = clientRef.current;
@@ -219,7 +245,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         photoPx: { width: loaded.preview.width, height: loaded.preview.height },
         fields: loaded.fields,
         logoId: undefined,
-        layout: barLayout,
+        layout: layoutFor(preset),
         options,
         services,
       });
@@ -256,7 +282,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     } finally {
       setBusy(false);
     }
-  }, [loaded, options, fontId, fontReady]);
+  }, [loaded, options, fontId, fontReady, preset]);
 
   return {
     status,
@@ -267,5 +293,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     busy,
     ready: fontReady,
     hasPhoto: loaded !== null,
+    presetId,
+    setPreset,
+    presetOptions,
   };
 }
