@@ -91,8 +91,8 @@ export function SettingsPanel(props: {
         );
       case 'frame':
         return <div className="field-list">{renderOptions(grouped.frame)}</div>;
-      case 'text':
-        return <div className="field-list">{renderOptions(grouped.text)}</div>;
+      case 'arrangement':
+        return <div className="field-list">{renderOptions(grouped.arrangement)}</div>;
       case 'export':
         return (
           <div className="field-list">

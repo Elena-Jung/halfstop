@@ -6,14 +6,16 @@ import { RAIL_TABS, railPanelId, railTabId, type RailTab } from './groups';
 const ICON_BY_TAB: Record<RailTab, LucideIcon> = {
   preset: LayoutGrid,
   frame: Frame,
-  text: Type,
+  arrangement: Type,
   export: Download,
 };
 
 const LABEL_KEY_BY_TAB: Record<RailTab, MessageKey> = {
   preset: 'rail.preset',
   frame: 'rail.frame',
-  text: 'rail.text',
+  // 이름표 키는 다음 작업이 rail.arrangement 로 바꿉니다. 지금은 사전을 다른 작업이 쓰고
+  // 있어 건드리지 않습니다.
+  arrangement: 'rail.text',
   export: 'rail.export',
 };
 
