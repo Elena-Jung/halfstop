@@ -95,6 +95,7 @@ export const ko = {
   'photos.legend': '불러온 사진',
   'photos.selectAll': '전체 선택',
   'photos.deselectAll': '전체 해제',
+  'photos.count': '{count}장',
 
   // 커스텀 컨트롤
   'control.increase': '{label} 늘리기',

@@ -2,11 +2,20 @@ import type { OptionValue } from '../core/layout/options';
 import { PRESETS } from '../core/layout/presets';
 import type { ExportPreset } from '../core/export/resolution';
 import { t, type MessageKey } from '../i18n';
+import { Listbox, type ListboxOption } from './controls/Listbox';
 import { arrangementsForLayout, groupOptions, railPanelId, railTabId, RAIL_TABS, type RailTab } from './groups';
 import { OptionField } from './OptionField';
 import type { PresetOption } from '../core/layout/options';
 
 const EXPORT_SIZES: readonly ExportPreset[] = ['original', '4k', '2k', 'sns'];
+
+/** 배경색과 글자색은 서로의 대비를 보여야 뜻이 있는 짝입니다. 두 레이아웃 모두 이 둘을
+ * 함께 선언하므로 여기서 짝을 고정해 둡니다. */
+function contrastPairId(optionId: string): string | undefined {
+  if (optionId === 'BACKGROUND') return 'TEXT_COLOR';
+  if (optionId === 'TEXT_COLOR') return 'BACKGROUND';
+  return undefined;
+}
 
 /**
  * 레일 칸 넷 각각에 맞는 tabpanel 을 모두 그리고, 고르지 않은 것은 hidden 속성으로
@@ -62,15 +71,23 @@ export function SettingsPanel(props: {
       .filter((option) => option.id !== 'MODE')
       // split 배치는 좌우가 이미 정해져 정렬 옵션이 뜻이 없습니다.
       .filter((option) => option.id !== 'ALIGN' || mode !== 'split')
-      .map((option) => (
-        <OptionField
-          key={option.id}
-          option={option}
-          value={options.get(option.id) ?? option.default}
-          disabled={locked}
-          onChange={(value) => setOption(option.id, value)}
-        />
-      ));
+      .map((option) => {
+        const pairId = contrastPairId(option.id);
+        const pairValue = pairId ? options.get(pairId) : undefined;
+        // exactOptionalPropertyTypes 라 contrastAgainst 에 undefined 를 명시적으로
+        // 넘길 수 없습니다. 값이 있을 때만 속성 자체를 붙입니다.
+        const contrastProps = typeof pairValue === 'string' ? { contrastAgainst: pairValue } : {};
+        return (
+          <OptionField
+            key={option.id}
+            option={option}
+            value={options.get(option.id) ?? option.default}
+            disabled={locked}
+            onChange={(value) => setOption(option.id, value)}
+            {...contrastProps}
+          />
+        );
+      });
 
   const contentFor = (tabValue: RailTab) => {
     switch (tabValue) {
@@ -127,29 +144,31 @@ export function SettingsPanel(props: {
             {renderOptions(grouped.arrangement)}
           </div>
         );
-      case 'export':
+      case 'export': {
+        const exportOptions: ListboxOption<ExportPreset>[] = EXPORT_SIZES.map((size) => ({
+          value: size,
+          label: t(`export.size.${size}` as MessageKey),
+        }));
         return (
           <div className="field-list">
-            <label className="hs-field">
-              <span>{t('export.size')}</span>
-              <select
+            <div className="hs-field">
+              <label htmlFor="export-size">{t('export.size')}</label>
+              <Listbox
+                id="export-size"
+                label={t('export.size')}
                 value={exportSize}
-                onChange={(e) => setExportSize(e.target.value as ExportPreset)}
+                options={exportOptions}
                 disabled={locked}
-              >
-                {EXPORT_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {t(`export.size.${size}` as MessageKey)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" onClick={onDownload} disabled={!hasPhoto || busy}>
+                onChange={setExportSize}
+              />
+            </div>
+            <button type="button" className="hs-button" onClick={onDownload} disabled={!hasPhoto || busy}>
               {busy ? t('action.downloading') : t('action.download')}
             </button>
             {exportTargetName && <p className="hint">{t('export.target', { name: exportTargetName })}</p>}
           </div>
         );
+      }
     }
   };
 

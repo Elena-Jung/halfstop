@@ -324,7 +324,7 @@ body {
 }
 
 .photo-select-all {
-  justify-self: end;
+  justify-self: start;
   font-size: 12px;
   padding: 4px 10px;
   border: 1px solid var(--border);
@@ -386,6 +386,49 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 84px;
+}
+
+/*
+ * 점선 상자(.intake) 맨 아래 왼쪽에 놓이는 줄입니다. 사진이 없을 때는 파일 선택
+ * 단추만, 있을 때는 그 옆에 장수 표시가 함께 붙습니다.
+ */
+.intake-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/*
+ * input[type=file]은 커스텀 컨트롤이 없어 그대로 두되, 이 단추 모양의 이름표 뒤로
+ * 감춥니다. 감춘 입력은 .hs-radio-input 과 같은 sr-only 기법이라 초점을 잃지 않고,
+ * 이 label 이 대신 클릭과 초점 표시를 받습니다.
+ */
+.file-picker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.file-picker[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.file-picker:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.photo-count {
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 /*
@@ -788,4 +831,25 @@ body {
 
 .hs-colorpicker-contrast[data-insufficient='true'] {
   color: var(--danger);
+}
+
+/*
+ * 강조 단추입니다. 지금은 내려받기 하나만 쓰지만 이름을 그 기능에 묶지 않아 다른
+ * 자리에도 그대로 쓸 수 있게 둡니다.
+ */
+.hs-button {
+  min-height: 32px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hs-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }

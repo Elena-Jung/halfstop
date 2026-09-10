@@ -71,23 +71,36 @@ export function App() {
           <p role="status" className="status-line">
             {t(status.key, status.vars)}
           </p>
-          <p className="hint">{t('drop.hint')}</p>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            onChange={onPick}
-            disabled={!ready || busy}
-          />
-        </div>
 
-        <PhotoStrip
-          photos={photos}
-          selected={selected}
-          onToggle={toggleSelected}
-          onToggleAll={toggleAll}
-          disabled={busy}
-        />
+          {photos.length > 0 ? (
+            <PhotoStrip
+              photos={photos}
+              selected={selected}
+              onToggle={toggleSelected}
+              onToggleAll={toggleAll}
+              disabled={busy}
+            />
+          ) : (
+            <p className="hint">{t('drop.hint')}</p>
+          )}
+
+          <div className="intake-footer">
+            <label className="file-picker" data-disabled={!ready || busy}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={onPick}
+                disabled={!ready || busy}
+                className="hs-radio-input"
+              />
+              <span>{t('action.pick')}</span>
+            </label>
+            {photos.length > 0 && (
+              <span className="photo-count">{t('photos.count', { count: photos.length })}</span>
+            )}
+          </div>
+        </div>
 
         <div className="layout">
           <section className="preview-pane">
