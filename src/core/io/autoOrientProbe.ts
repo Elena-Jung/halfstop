@@ -38,14 +38,17 @@ export function buildOrientation6Jpeg(baseJpeg: Uint8Array): Uint8Array {
  * 회전을 두 번 거는 것보다 한 번도 안 거는 쪽이 원인을 찾기 쉽기 때문입니다.
  */
 export async function detectAutoOrientation(
-  decode: (blob: Blob) => Promise<{ width: number; height: number }>,
+  decode: (blob: Blob) => Promise<{ width: number; height: number; close?: () => void }>,
   baseJpeg: Uint8Array,
 ): Promise<boolean> {
   try {
     const tagged = buildOrientation6Jpeg(baseJpeg);
     const blob = new Blob([tagged as BlobPart], { type: 'image/jpeg' });
-    const { width, height } = await decode(blob);
-    return height > width;
+    const decoded = await decode(blob);
+    const autoOriented = decoded.height > decoded.width;
+    // createImageBitmap 이 만든 비트맵입니다. 작지만 다른 곳은 모두 닫으므로 여기도 닫습니다.
+    decoded.close?.();
+    return autoOriented;
   } catch {
     return false;
   }
