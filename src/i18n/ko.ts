@@ -85,6 +85,7 @@ export const ko = {
   'error.decode': '이 사진을 열지 못했습니다. 다른 파일로 시도하십시오',
   'error.tooLarge': '사진이 너무 커서 이 기기에서 처리하지 못했습니다',
   'error.canvas': '이 브라우저에서는 그리기를 쓸 수 없습니다',
+  'error.encoding': '이 브라우저가 그 형식으로 저장하지 못했습니다. 다른 형식으로 시도하십시오',
   'error.exportSize': '내보낼 크기를 정하지 못했습니다. 여백 값을 확인하십시오',
   'error.worker': '그리는 중에 문제가 생겼습니다. 다시 시도하십시오',
   'error.unknown': '알 수 없는 문제가 생겼습니다',

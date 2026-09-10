@@ -19,10 +19,12 @@ describe('toUserMessage', () => {
     expect(toUserMessage(new Error('사진 크기가 올바르지 않습니다: 0x0'))).toBe('error.decode');
   });
 
-  it('인코딩 미지원 문구를 캔버스 키로 바꿉니다', () => {
+  it('인코딩 미지원 문구를 인코딩 키로 바꿉니다', () => {
+    // 그리기는 멀쩡한데 저장 형식만 못 만드는 경우입니다. 캔버스 키로 보내면 그리기 자체가
+    // 안 된다는 더 심각한 진단이 사용자에게 나갑니다.
     expect(
       toUserMessage(new Error('image/webp 인코딩을 지원하지 않습니다. 받은 형식은 image/png입니다')),
-    ).toBe('error.canvas');
+    ).toBe('error.encoding');
   });
 
   it('워커 관련 문구를 워커 키로 바꿉니다', () => {
@@ -58,7 +60,7 @@ describe('사전의 모든 오류 키에 닿는 길이 있습니다', () => {
     ['회전용 2D 컨텍스트를 만들지 못했습니다', 'error.canvas'],
     ['2D 컨텍스트를 만들지 못했습니다', 'error.canvas'],
     ['이 환경에서는 캔버스를 쓸 수 없습니다: 0, 0', 'error.canvas'],
-    ['image/webp 인코딩을 지원하지 않습니다. 받은 형식은 image/png입니다', 'error.canvas'],
+    ['image/webp 인코딩을 지원하지 않습니다. 받은 형식은 image/png입니다', 'error.encoding'],
     ['내보내기 크기가 올바르지 않습니다: -800x1000 -> 1600', 'error.exportSize'],
     ['Array buffer allocation failed', 'error.tooLarge'],
     ['워커에서 오류가 났습니다', 'error.worker'],
