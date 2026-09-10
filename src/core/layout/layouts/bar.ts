@@ -1,6 +1,6 @@
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { num, str, type PresetOption } from '../options';
-import { ellipsize } from '../primitives';
+import { ellipsize, halfHeight, twoLineHeight } from '../primitives';
 import { resolveSlot } from '../slots';
 import { renderTemplate } from '../template';
 import type { PresetLayout, SceneNode, TextStyle } from '../types';
@@ -77,11 +77,12 @@ export const barLayout: PresetLayout = (input, services) => {
   /** 주 줄과 부 줄을 세로 가운데를 기준으로 벌려 놓습니다. */
   const push = (slot: 'PRIMARY' | 'SECONDARY', x: number, align: TextStyle['align'], width: number) => {
     const resolved = resolveSlot(options, slot, input.fields, divider);
-    // 두 줄이 서로 겹치지도, 슬롯 밖으로 나가지도 않도록 간격을 좁힙니다. 글자는 중심선을
-    // 기준으로 위아래로 size * 0.62 만큼 뻗으므로, 두 줄이 차지하는 높이는 큰 쪽 글자의
-    // 반높이 두 개입니다. 그래서 계수가 1.24 입니다.
-    const wanted = Math.max(fontSize * 1.25, (fontSize + subSize) * 0.62);
-    const room = slotHeight - Math.max(fontSize, subSize) * 1.24;
+    // 두 줄이 서로 겹치지도, 슬롯 밖으로 나가지도 않도록 간격을 좁힙니다.
+    // 슬롯이 한 줄보다도 좁으면 room 이 음수가 되어 간격은 0 이 됩니다. 그때는 두 줄이
+    // 겹치고 글자가 슬롯을 조금 넘습니다. 간격으로 해결할 수 있는 문제가 아니라 글자 크기나
+    // 바 높이를 막아야 하는 문제입니다.
+    const wanted = Math.max(fontSize * 1.25, halfHeight(fontSize) + halfHeight(subSize));
+    const room = slotHeight - twoLineHeight(fontSize, subSize);
     const gap = Math.max(0, Math.min(wanted, room));
     const twoLines = resolved.main !== '' && resolved.sub !== '';
 

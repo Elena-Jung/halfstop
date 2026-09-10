@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MATTE_OPTIONS, matteLayout } from './matte';
 import { defaultValues } from '../options';
+import { halfHeight } from '../primitives';
 import type { LayoutInput, LayoutServices, SceneNode } from '../types';
 
 const services: LayoutServices = {
@@ -106,9 +107,48 @@ describe('matteLayout', () => {
     expect(sub).toBeDefined();
     const gap = Math.abs((sub?.y ?? 0) - (main?.y ?? 0));
     expect(gap).toBeGreaterThanOrEqual((30 + 90) / 2);
-    // areaCenterY = 1160. wanted = max(37.5, 74.4) = 74.4, room = 200-90=110, gap = 74.4.
+    // areaCenterY = 1160. wanted = max(37.5, 74.4) = 74.4, room = 200-111.6=88.4, gap = 74.4.
     expect(main?.y).toBeCloseTo(1122.8);
     expect(sub?.y).toBeCloseTo(1197.2);
+  });
+
+  it('가운데 줄 자체가 아래 여백보다 크면 poster 는 여백을 넘습니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'poster');
+    options.set('PRIMARY_SUB', '여름의 끝');
+    options.set('SUB_SCALE', 3);
+    options.set('PAD_BOTTOM', 100);
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    const areaTop = 60 + 1000;
+    const EPSILON = 1e-9;
+    // 바깥 두 줄은 step 이 붙잡아 주므로 여백 안에 정확히 맞닿습니다.
+    for (const node of [nodes[0]!, nodes[2]!]) {
+      expect(node.y - halfHeight(node.style.size)).toBeGreaterThanOrEqual(areaTop - EPSILON);
+      expect(node.y + halfHeight(node.style.size)).toBeLessThanOrEqual(scene.height + EPSILON);
+    }
+    // 가운데 줄은 언제나 areaCenterY 에 놓이므로 step 이 손댈 수 없습니다. 반높이 55.8 이
+    // 여백 절반 50 을 넘어 위아래로 각각 5.8 씩 삐져나옵니다. 이 한계를 숫자로 못박아 두어,
+    // 옵션 범위로 막기 전까지 조용히 나빠지지 않게 합니다.
+    const middle = nodes[1]!;
+    expect(areaTop - (middle.y - halfHeight(middle.style.size))).toBeCloseTo(5.8);
+    expect(middle.y + halfHeight(middle.style.size) - scene.height).toBeCloseTo(5.8);
+  });
+
+  it('아래 여백이 큰 줄 하나보다도 좁으면 간격이 0 이 되고 그 줄이 여백을 넘습니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'single');
+    options.set('PRIMARY_SUB', '여름의 끝');
+    options.set('SUB_SCALE', 3);
+    options.set('PAD_BOTTOM', 100);
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    // room 이 음수라 간격이 0 으로 좁혀지고 두 줄이 같은 자리에 놓입니다.
+    expect(nodes[0]?.y).toBeCloseTo(nodes[1]?.y ?? 0);
+    // bar 의 좁은 슬롯과 같은 한계입니다. 간격으로는 더 줄일 수 없습니다.
+    const big = nodes.find((n) => n.style.size === 90);
+    expect(big?.y ?? 0).toBeCloseTo(1110);
+    expect((big?.y ?? 0) + halfHeight(90) - scene.height).toBeCloseTo(5.8);
   });
 
   it('SUB_SCALE를 3으로 올린 poster에서 세 줄이 서로 겹치지 않습니다', () => {
@@ -124,8 +164,8 @@ describe('matteLayout', () => {
     for (let i = 0; i + 1 < nodes.length; i += 1) {
       const upper = nodes[i]!;
       const lower = nodes[i + 1]!;
-      const upperBottom = upper.y + upper.style.size * 0.62;
-      const lowerTop = lower.y - lower.style.size * 0.62;
+      const upperBottom = upper.y + halfHeight(upper.style.size);
+      const lowerTop = lower.y - halfHeight(lower.style.size);
       expect(lowerTop).toBeGreaterThanOrEqual(upperBottom - EPSILON);
     }
   });
@@ -145,8 +185,8 @@ describe('matteLayout', () => {
     const areaTop = 60 + 1000;
     const EPSILON = 1e-9;
     for (const node of nodes) {
-      expect(node.y - node.style.size * 0.62).toBeGreaterThanOrEqual(areaTop - EPSILON);
-      expect(node.y + node.style.size * 0.62).toBeLessThanOrEqual(scene.height + EPSILON);
+      expect(node.y - halfHeight(node.style.size)).toBeGreaterThanOrEqual(areaTop - EPSILON);
+      expect(node.y + halfHeight(node.style.size)).toBeLessThanOrEqual(scene.height + EPSILON);
     }
   });
 
@@ -161,7 +201,7 @@ describe('matteLayout', () => {
     const height = 1000 + 60 + 200; // photoHeight + padTop + padBottom
     expect(nodes.length).toBe(3);
     for (const node of nodes) {
-      const half = node.style.size * 0.62;
+      const half = halfHeight(node.style.size);
       expect(node.y - half).toBeGreaterThanOrEqual(areaTop);
       expect(node.y + half).toBeLessThanOrEqual(height);
     }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BAR_OPTIONS, barLayout } from './bar';
 import { defaultValues } from '../options';
+import { halfHeight } from '../primitives';
 import type { LayoutInput, LayoutServices, SceneNode } from '../types';
 
 const services: LayoutServices = {
@@ -114,11 +115,11 @@ describe('barLayout 두 줄 y 좌표', () => {
     // 앵커가 아니라 글자 상단으로 확인합니다. 앵커만 보면 글자가 사진을 덮어도 통과합니다.
     // 주 줄은 경계에 정확히 맞닿으므로 이진 부동소수점에서 1000 을 머리카락만큼 밑돕니다.
     const EPSILON = 1e-9;
-    expect((main?.y ?? 0) - 34 * 0.62).toBeGreaterThanOrEqual(1000 - EPSILON);
-    expect((sub?.y ?? 0) - 23.8 * 0.62).toBeGreaterThanOrEqual(1000 - EPSILON);
+    expect((main?.y ?? 0) - halfHeight(34)).toBeGreaterThanOrEqual(1000 - EPSILON);
+    expect((sub?.y ?? 0) - halfHeight(23.8)).toBeGreaterThanOrEqual(1000 - EPSILON);
     // 부 줄과 꼬리 줄은 둘 다 글자 크기가 23.8이므로, 반높이의 합(23.8*0.62*2)
     // 이상 떨어져 있어야 겹치지 않습니다.
-    expect((footer?.y ?? 0) - (sub?.y ?? 0)).toBeGreaterThanOrEqual(23.8 * 1.24);
+    expect((footer?.y ?? 0) - (sub?.y ?? 0)).toBeGreaterThanOrEqual(halfHeight(23.8) * 2);
   });
 
   it('슬롯이 한 줄보다 좁아지면 두 줄 간격을 0으로 좁힙니다', () => {
@@ -137,9 +138,8 @@ describe('barLayout 두 줄 y 좌표', () => {
     // 없고 글자 크기나 바 높이를 손대야 합니다. 설정 화면에서 막을 몫으로 남겨 둡니다.
     expect(main?.y).toBeCloseTo(1020.4);
     expect(sub?.y).toBeCloseTo(1020.4);
-    for (const node of nodes) {
-      expect(node.y).toBeGreaterThanOrEqual(1000);
-    }
+    // 남은 침범을 숫자로 못박아 둡니다. 앵커만 보는 검사로는 침범이 더 나빠져도 통과합니다.
+    expect((main?.y ?? 0) - halfHeight(34)).toBeCloseTo(999.32);
   });
 });
 
