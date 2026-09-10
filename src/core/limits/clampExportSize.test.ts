@@ -119,4 +119,8 @@ describe('clampExportSize', () => {
   it('targetLongEdge가 음수면 던집니다', () => {
     expect(() => clampExportSize(1500, 1000, -1920, ROOMY)).toThrow();
   });
+
+  it('한계가 0이면 1x1을 내놓지 않고 던집니다', () => {
+    expect(() => clampExportSize(1500, 1000, 1920, { maxSide: 0, maxArea: 0 })).toThrow();
+  });
 });

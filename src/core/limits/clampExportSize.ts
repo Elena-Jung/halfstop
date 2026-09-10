@@ -35,6 +35,15 @@ export function clampExportSize(
     throw new Error(`내보내기 크기가 올바르지 않습니다: ${sceneWidth}x${sceneHeight} -> ${targetLongEdge}`);
   }
 
+  if (
+    !Number.isFinite(limit.maxSide) ||
+    !Number.isFinite(limit.maxArea) ||
+    limit.maxSide <= 0 ||
+    limit.maxArea <= 0
+  ) {
+    throw new Error(`이 환경에서는 캔버스를 쓸 수 없습니다: ${limit.maxSide}, ${limit.maxArea}`);
+  }
+
   const sceneLongEdge = Math.max(sceneWidth, sceneHeight);
   const requested = targetLongEdge / sceneLongEdge;
 
