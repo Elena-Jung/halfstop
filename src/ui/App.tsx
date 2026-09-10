@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import type { PresetOption } from '../core/layout/options';
 import { PRESETS } from '../core/layout/presets';
 import { fontById } from '../core/paint/fontFamilies';
+import { t, type MessageKey } from '../i18n';
 import { usePipeline } from './usePipeline';
 
 /** 서체 선택만 id 대신 사람이 읽는 이름을 보여줍니다. */
@@ -11,8 +12,20 @@ function optionLabel(optionId: string, value: string): string {
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { status, options, setOption, load, download, busy, ready, hasPhoto, presetId, setPreset, presetOptions } =
-    usePipeline(canvasRef);
+  const {
+    status,
+    options,
+    setOption,
+    load,
+    download,
+    busy,
+    ready,
+    hasPhoto,
+    frameText,
+    presetId,
+    setPreset,
+    presetOptions,
+  } = usePipeline(canvasRef);
 
   const [dragging, setDragging] = useState(false);
 
@@ -170,7 +183,7 @@ export function App() {
             pointerEvents: 'none',
           }}
         >
-          여기에 놓으십시오
+          {t('drop.active')}
         </div>
       )}
 
@@ -183,10 +196,10 @@ export function App() {
         }}
       >
         <p role="status" style={{ margin: '0 0 12px' }}>
-          {status}
+          {t(status.key, status.vars)}
         </p>
         <p style={{ margin: '0 0 12px', fontSize: 13, opacity: 0.75 }}>
-          창 어디에나 사진을 끌어다 놓을 수 있습니다
+          {t('drop.hint')}
         </p>
         <input
           type="file"
@@ -200,29 +213,29 @@ export function App() {
         <canvas
           ref={canvasRef}
           role="img"
-          aria-label={hasPhoto ? '프레임을 씌운 사진 미리보기입니다' : '아직 불러온 사진이 없습니다'}
+          aria-label={hasPhoto ? t('canvas.withFrame', { text: frameText }) : t('canvas.empty')}
           style={{ maxWidth: '100%', flex: 1, background: '#f4f4f4', minHeight: 200 }}
         />
 
         <aside style={{ width: 260, display: 'grid', gap: 8 }}>
           <label style={{ display: 'grid', gap: 4, fontSize: 13, marginBottom: 8 }}>
-            <span>프리셋</span>
+            <span>{t('rail.preset')}</span>
             <select value={presetId} onChange={(e) => setPreset(e.target.value)} disabled={busy}>
               {PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>
-                  {preset.id}
+                  {t(preset.labelKey as MessageKey)}
                 </option>
               ))}
             </select>
           </label>
           {presetOptions.map((option) => (
             <label key={option.id} style={{ display: 'grid', gap: 4, fontSize: 13 }}>
-              <span>{option.id}</span>
+              <span>{t(option.labelKey as MessageKey)}</span>
               {field(option)}
             </label>
           ))}
           <button type="button" onClick={() => void download()} disabled={!hasPhoto || busy}>
-            {busy ? '만드는 중' : '내려받기'}
+            {busy ? t('action.downloading') : t('action.download')}
           </button>
         </aside>
       </div>

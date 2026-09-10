@@ -20,12 +20,19 @@ import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts'
 import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
 import { paintToCanvas } from '../core/render/paintToCanvas';
+import type { MessageKey } from '../i18n';
 import { cachedCanvasLimit } from '../platform/canvasLimitCache';
 import { readSettings, writeSettings } from '../platform/settingsStore';
 import { createRenderClient, type RenderClient } from '../worker/client';
 import { toUserMessage } from './errorMessage';
 
 const NO_LOGO = () => null;
+
+/** 화면이 t() 로 옮길 상태 문구입니다. 훅은 키와 값만 들고, 문자열은 만들지 않습니다. */
+export interface StatusMessage {
+  key: MessageKey;
+  vars?: Record<string, string | number>;
+}
 
 /**
  * 미리보기는 긴 변 1600 이라 어떤 기기에서도 한계에 걸리지 않습니다. 실제 측정은
@@ -74,7 +81,7 @@ interface Loaded {
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const [status, setStatus] = useState('준비하는 중입니다');
+  const [status, setStatus] = useState<StatusMessage>({ key: 'status.preparing' });
   const stored = useMemo(() => readSettings(), []);
   const [presetId, setPresetId] = useState(
     () => presetById(stored?.presetId ?? DEFAULT_PRESET_ID).id,
@@ -89,6 +96,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
+  // 캔버스 aria-label 이 사진 위에 실제로 적힌 글을 읽어 줄 수 있도록, 그린 장면의
+  // 글자 노드를 그대로 모아 둡니다. 화면이 이 값을 그대로 보여 주지 않고 t() 로
+  // 문장에 끼워 넣습니다.
+  const [frameText, setFrameText] = useState('');
 
   const servicesRef = useRef<LayoutServices | null>(null);
   const limitRef = useRef<CanvasLimit | null>(null);
@@ -130,7 +141,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         setLoadedFonts((previous) => new Set(previous).add(fontId));
       })
       .catch(() => {
-        if (alive) setStatus(`${fontById(fontId).label} 서체를 불러오지 못했습니다`);
+        if (alive) setStatus({ key: 'status.fontFailed', vars: { font: fontById(fontId).label } });
       });
     return () => {
       alive = false;
@@ -138,7 +149,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [fontId, loadedFonts]);
 
   useEffect(() => {
-    if (fontReady && !loaded) setStatus('사진을 끌어다 놓거나 아래에서 선택하십시오');
+    if (fontReady && !loaded) setStatus({ key: 'status.readyToDrop' });
   }, [fontReady, loaded]);
 
   const repaint = useCallback(() => {
@@ -166,9 +177,16 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         targetLongEdge: PREVIEW_LONG_EDGE,
         limit: PREVIEW_LIMIT,
       });
+
+      setFrameText(
+        scene.nodes
+          .filter((node) => node.kind === 'text')
+          .map((node) => node.text)
+          .join(', '),
+      );
     } catch (error) {
       console.error(error);
-      setStatus(toUserMessage(error, '미리보기를 그리지 못했습니다'));
+      setStatus({ key: toUserMessage(error) });
     }
   }, [canvasRef, loaded, options, fontReady, preset]);
 
@@ -192,7 +210,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     // 남아야 합니다. 세대 번호로 늦게 끝난 요청이 먼저 끝난 요청을 덮어쓰는 것도
     // 막습니다.
     const generation = (loadGenerationRef.current += 1);
-    setStatus('읽는 중입니다');
+    setStatus({ key: 'status.reading' });
 
     try {
       const meta = await readExif(await file.arrayBuffer());
@@ -230,14 +248,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       // 알 수 없으므로 무엇을 불러왔고 무엇을 안 불러왔는지 밝힙니다.
       setStatus(
         files.length > 1
-          ? `${file.name} 파일 하나만 불러왔습니다. 여러 장을 한 번에 처리하는 기능은 아직 없습니다`
-          : `${file.name} 파일을 불러왔습니다`,
+          ? { key: 'status.onlyFirst', vars: { name: file.name } }
+          : { key: 'status.loaded', vars: { name: file.name } },
       );
     } catch (error) {
       console.error(error);
       // 이미 다음 요청이 시작됐으면 그 요청의 상태 문구를 덮어쓰지 않습니다.
       if (loadGenerationRef.current !== generation) return;
-      setStatus(toUserMessage(error, '사진을 여는 데 실패했습니다'));
+      setStatus({ key: toUserMessage(error) });
     }
   }, []);
 
@@ -263,7 +281,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     if (!loaded || !services || !client || !fontReady) return;
 
     setBusy(true);
-    setStatus('전체 해상도로 그리는 중입니다');
+    setStatus({ key: 'status.rendering' });
     try {
       // 실제 캔버스 한계는 큰 할당을 여러 번 해 봐야 알 수 있어 느립니다. 미리보기에는
       // 필요 없으니 내보내기 직전인 여기서 처음 재고, 이후로는 캐시된 값을 씁니다.
@@ -303,12 +321,12 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
       setStatus(
         result.clamped
-          ? `내려받았습니다. 기기 한계 때문에 ${result.width}x${result.height}로 줄였습니다`
-          : `내려받았습니다. ${result.width}x${result.height}`,
+          ? { key: 'status.downloadedClamped', vars: { width: result.width, height: result.height } }
+          : { key: 'status.downloaded', vars: { width: result.width, height: result.height } },
       );
     } catch (error) {
       console.error(error);
-      setStatus(toUserMessage(error, '내보내기에 실패했습니다'));
+      setStatus({ key: toUserMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -323,6 +341,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     busy,
     ready: fontReady,
     hasPhoto: loaded !== null,
+    frameText,
     presetId,
     setPreset,
     presetOptions,
