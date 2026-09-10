@@ -18,6 +18,17 @@ export interface ExportSize {
   scale: number;
 }
 
+/**
+ * 픽셀 수는 내림입니다. 다만 나눗셈과 곱셈을 거치면서 참값이 640 인 자리에
+ * 639.9999999999999 가 나오는 일이 있고, 그대로 내림하면 사진이 1 픽셀 줄어 원본 크기로
+ * 내보냈는데도 다시 표본이 잡힙니다. 정수에서 한 톨만큼 떨어진 값은 부동소수점 잡음으로
+ * 보고 그 정수를 씁니다. 561.6 처럼 실제로 소수인 값은 그대로 내립니다.
+ */
+function toPixels(value: number): number {
+  const rounded = Math.round(value);
+  return Math.abs(value - rounded) < 1e-6 ? rounded : Math.floor(value);
+}
+
 export function clampExportSize(
   sceneWidth: number,
   sceneHeight: number,
@@ -51,8 +62,8 @@ export function clampExportSize(
   const areaScale = Math.sqrt(limit.maxArea / (sceneWidth * sceneHeight));
   const scale = Math.min(requested, sideScale, areaScale);
 
-  const width = Math.max(1, Math.floor(sceneWidth * scale));
-  const height = Math.max(1, Math.floor(sceneHeight * scale));
+  const width = Math.max(1, toPixels(sceneWidth * scale));
+  const height = Math.max(1, toPixels(sceneHeight * scale));
 
   // areaScale은 제곱근으로, requested는 나눗셈으로 구해서 반올림 경로가 다릅니다.
   // 수학적으로 같은 값이어도 몇 비트 차이가 나므로 그대로 비교하면, 한계에 딱 맞는

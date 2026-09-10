@@ -123,4 +123,20 @@ describe('clampExportSize', () => {
   it('한계가 0이면 1x1을 내놓지 않고 던집니다', () => {
     expect(() => clampExportSize(1500, 1000, 1920, { maxSide: 0, maxArea: 0 })).toThrow();
   });
+
+  it('원본 크기로 내보낼 때 부동소수점 때문에 사진이 1픽셀 줄지 않습니다', () => {
+    // 640x480 사진에 하단 바 170 단위를 붙인 실제 경우입니다. toUnits 가
+    // (640 * 1000) / 480 = 1333.3333333333333 을 내고, 여기에 0.48 을 곱하면
+    // 참값 640 대신 639.9999999999999 가 나옵니다. 그대로 내리면 사진이 1픽셀 줄어
+    // 원본 크기로 골랐는데도 다시 표본이 잡힙니다.
+    const sceneWidth = (640 * 1000) / 480;
+    const sceneHeight = (480 * 1000) / 480 + 170;
+    const target = Math.max(sceneWidth, sceneHeight) * (480 / 1000);
+    const size = clampExportSize(sceneWidth, sceneHeight, target, ROOMY);
+    expect(size.width).toBe(640);
+    // 세로의 참값은 561.6 이므로 이쪽은 내림이 맞습니다. 잡음만 걷어내고 진짜 소수는
+    // 그대로 두는지 함께 확인합니다.
+    expect(size.height).toBe(561);
+    expect(size.clamped).toBe(false);
+  });
 });
