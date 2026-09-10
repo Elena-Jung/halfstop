@@ -69,6 +69,8 @@ interface Loaded {
   meta: PhotoMeta;
   fields: Partial<Record<TemplateToken, string>>;
   preview: DecodedImage;
+  /** 이 사진을 디코딩한 조건입니다. 사진에 딸린 사실이므로 내보낼 때 다시 재지 않고 들고 있습니다. */
+  autoOriented: boolean;
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
@@ -222,7 +224,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
       setLoaded((previous) => {
         previous?.preview.bitmap.close();
-        return { file, meta, fields: toFields(meta), preview };
+        return { file, meta, fields: toFields(meta), preview, autoOriented };
       });
       // 여러 장 처리는 아직 없습니다. 조용히 버리면 사용자는 왜 한 장만 나오는지
       // 알 수 없으므로 무엇을 불러왔고 무엇을 안 불러왔는지 밝힙니다.
@@ -280,7 +282,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const result = await client.render({
         file: loaded.file,
         scene,
-        autoOriented: await autoOrientedFlag(),
+        autoOriented: loaded.autoOriented,
         orientation: loaded.meta.orientation,
         limit,
         preset: 'original',
