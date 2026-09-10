@@ -1,7 +1,9 @@
+import { ImagePlus } from 'lucide-react';
 import { useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import { t } from '../i18n';
 import { DropZone } from './DropZone';
 import type { RailTab } from './groups';
+import { MAX_PHOTOS } from './photos';
 import { PhotoStrip } from './PhotoStrip';
 import { Rail } from './Rail';
 import { SettingsPanel } from './SettingsPanel';
@@ -112,6 +114,12 @@ export function App() {
 
         <div className="layout">
           <section className="preview-pane">
+            {/*
+             * 캔버스를 조건부로 빼지 않고 hidden 으로 감춥니다. usePipeline 이 ref 로 붙잡고
+             * 있어 다시 붙일 때 컨텍스트를 새로 얻어야 하는데, 그럴 이유가 없습니다.
+             * .preview-canvas 에 display: block 이 있으므로 아래 [hidden] 규칙이 반드시
+             * 함께 있어야 실제로 감춰집니다.
+             */}
             <canvas
               ref={canvasRef}
               role="img"
@@ -123,7 +131,26 @@ export function App() {
                     : t('canvas.noSelection')
               }
               className="preview-canvas"
+              hidden={photos.length === 0}
             />
+
+            {photos.length === 0 && (
+              <label className="preview-empty" data-disabled={!ready || busy}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={onPick}
+                  disabled={!ready || busy}
+                  className="hs-radio-input"
+                />
+                <ImagePlus aria-hidden="true" size={40} />
+                <span className="preview-empty-main">{t('drop.empty')}</span>
+                <span className="preview-empty-sub">
+                  {t('drop.emptyDetail', { max: MAX_PHOTOS })}
+                </span>
+              </label>
+            )}
           </section>
 
           <SettingsPanel

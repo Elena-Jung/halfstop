@@ -94,7 +94,9 @@ export const ko = {
   'status.fontFailed': '{font} 서체를 불러오지 못했습니다',
 
   // 드롭
-  'drop.hint': '창 어디에나 사진을 끌어다 놓을 수 있습니다',
+  'drop.empty': '사진을 끌어다 놓거나 여기를 눌러 고르십시오',
+  'drop.emptyDetail':
+    'JPEG, PNG, WebP 파일을 한 번에 {max}장까지 불러옵니다. 사진은 브라우저를 떠나지 않습니다',
   'drop.active': '여기에 놓으십시오',
 
   // 사진 목록

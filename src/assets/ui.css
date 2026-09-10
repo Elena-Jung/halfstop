@@ -248,6 +248,55 @@ body {
   max-height: 100%;
 }
 
+/*
+ * .preview-canvas 에 display: block 을 선언했으므로 이 규칙 없이는 hidden 속성이 듣지
+ * 않습니다. 저작자 스타일시트가 원점 우선순위로 브라우저 기본 [hidden] 규칙을 덮습니다.
+ * .settings-panel 이 실제로 이것에 걸린 적이 있습니다.
+ */
+.preview-canvas[hidden] {
+  display: none;
+}
+
+/*
+ * 사진이 없을 때 미리보기 칸을 통째로 놓는 곳으로 씁니다. 화면에서 가장 큰 자리가 빈
+ * 채로 시작하지 않게 하려는 것입니다. 파일 입력을 감싸는 label 이라 누르면 고르기가
+ * 열리고, 그래서 새 상태나 이벤트 처리가 필요 없습니다.
+ */
+.preview-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-dim);
+  text-align: center;
+  cursor: pointer;
+}
+
+.preview-empty[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 감춘 입력이 초점을 받으면 보이는 상자에 초점 표시를 그립니다. */
+.preview-empty:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.preview-empty-main {
+  font-size: var(--text-md);
+  color: var(--text);
+}
+
+.preview-empty-sub {
+  font-size: var(--text-sm);
+}
+
 .settings-panel {
   grid-area: settings;
   display: grid;
