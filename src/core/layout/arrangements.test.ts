@@ -18,12 +18,12 @@ const VALUE_KEYS = [
 ];
 
 describe('ARRANGEMENTS', () => {
-  it('아홉 프리셋에서 1:1 로 뽑았으므로 아홉 개입니다', () => {
-    expect(ARRANGEMENTS).toHaveLength(9);
+  it('아홉 프리셋에서 뽑은 아홉 개에 한 덩이 하나를 더해 열 개입니다', () => {
+    expect(ARRANGEMENTS).toHaveLength(10);
   });
 
   it('id 가 겹치지 않습니다', () => {
-    expect(new Set(ARRANGEMENTS.map((a) => a.id)).size).toBe(9);
+    expect(new Set(ARRANGEMENTS.map((a) => a.id)).size).toBe(10);
   });
 
   it('모든 배치에 이름표 키가 있습니다', () => {

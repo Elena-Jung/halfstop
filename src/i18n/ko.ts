@@ -33,6 +33,7 @@ export const ko = {
   'arrangement.polaroid': '왼쪽에 장비, 오른쪽에 노출값',
   'arrangement.letterbox': '장비와 초점 거리, 조리개를 한 줄로',
   'arrangement.poster': '촬영 일시와 장비를 위아래로',
+  'arrangement.one-block': '한 덩이에 장비와 노출값 전부',
 
   // 옵션 이름
   'option.MODE': '배치',

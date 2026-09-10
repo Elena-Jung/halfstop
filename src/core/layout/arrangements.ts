@@ -25,6 +25,10 @@ export interface Arrangement {
 /**
  * 아홉 프리셋에서 1:1 로 뽑았습니다. 프리셋마다 슬롯 템플릿이 서로 달라 하나로 합칠 수
  * 없었습니다. 비슷한 배치를 묶는 것은 이 작업의 범위 밖이고 나중에 따로 판단합니다.
+ *
+ * 거기에 one-block 하나를 더했습니다. 프리셋에서 뽑은 것이 아니라 사용자가 신고한 요구를
+ * 채우려고 만든 것입니다. 좌우로 나뉜 배치에서 한 덩이로 바꿀 때 렌즈 정보가 사라지지 않는
+ * 배치가 하나도 없었습니다. 뽑아 온 단일 배치 셋은 모두 렌즈 토큰을 담고 있지 않습니다.
  */
 export const ARRANGEMENTS: readonly Arrangement[] = [
   {
@@ -164,6 +168,23 @@ export const ARRANGEMENTS: readonly Arrangement[] = [
       // 프리셋의 모습을 바꾸는 작업이 아닙니다. 세 줄로 채우는 것은 별도 판단이 필요합니다.
       PRIMARY_SUB: '',
       SECONDARY_MAIN: '{MAKER}{BODY}{MM}',
+      SECONDARY_SUB: '',
+      FOOTER: '',
+    },
+  },
+  {
+    id: 'one-block',
+    labelKey: 'arrangement.one-block',
+    // 꼬리 줄을 쓰지 않고 single 모드만 쓰므로 두 레이아웃 모두에서 뜻이 통합니다.
+    layouts: ['bar', 'matte'],
+    values: {
+      MODE: 'single',
+      ALIGN: 'center',
+      DIVIDER: '·',
+      // 좌우로 나뉜 배치에서 넘어와도 잃는 정보가 없도록 장비와 노출을 모두 담습니다.
+      PRIMARY_MAIN: '{MAKER}{BODY}{LENS}',
+      PRIMARY_SUB: '{MM}{F}{SEC}{ISO}',
+      SECONDARY_MAIN: '',
       SECONDARY_SUB: '',
       FOOTER: '',
     },
