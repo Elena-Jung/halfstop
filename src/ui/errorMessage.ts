@@ -25,6 +25,16 @@ export const RULES: readonly Rule[] = [
   // 문제인 캔버스 키로 묶었습니다. 대응이 정확하지 않을 수 있어 보고서에 남깁니다.
   { match: /인코딩을 지원하지 않습니다/, key: 'error.canvas' },
   { match: /워커/, key: 'error.worker' },
+  // 2D 컨텍스트를 못 만드는 세 자리(측정용, 회전용, 그리기용)와 캔버스를 아예 못 쓰는
+  // 환경입니다. 모두 브라우저가 그리기를 지원하지 않는다는 같은 뜻입니다.
+  { match: /2D 컨텍스트를 만들지 못했습니다/, key: 'error.canvas' },
+  { match: /이 환경에서는 캔버스를 쓸 수 없습니다/, key: 'error.canvas' },
+  // 여백 값 때문에 장면 크기가 0 이나 음수가 된 경우입니다. 사용자가 고칠 수 있는
+  // 문제이므로 캔버스 오류와 따로 알립니다.
+  { match: /내보내기 크기가 올바르지 않습니다/, key: 'error.exportSize' },
+  // 사진이 너무 커서 브라우저가 메모리를 잡지 못한 경우입니다. 우리 코드가 던지는 것이
+  // 아니라 브라우저가 던지므로 문구가 환경마다 다릅니다.
+  { match: /allocation failed|out of memory|메모리/i, key: 'error.tooLarge' },
 ];
 
 export function toUserMessage(error: unknown): MessageKey {
