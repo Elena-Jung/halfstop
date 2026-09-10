@@ -92,6 +92,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const limitRef = useRef<CanvasLimit | null>(null);
   const clientRef = useRef<RenderClient | null>(null);
   const frameRef = useRef<number | null>(null);
+  // load() 를 연달아 부르면 늦게 시작한 쪽이 먼저 끝날 수 있습니다. 이 값으로 진 쪽을 가려냅니다.
+  const loadGenerationRef = useRef(0);
+  // 마운트 해제 때 마지막으로 성공한 미리보기 비트맵을 닫는 데 씁니다.
+  const loadedRef = useRef<Loaded | null>(null);
 
   const fontId = useMemo(() => {
     const value = options.get('FONT_FAMILY');
@@ -106,8 +110,13 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     return () => {
       clientRef.current?.dispose();
       clientRef.current = null;
+      loadedRef.current?.preview.bitmap.close();
     };
   }, []);
+
+  useEffect(() => {
+    loadedRef.current = loaded;
+  }, [loaded]);
 
   // 고른 서체가 준비되기 전에 measureText를 부르면 대체 서체 폭으로 배치가 계산됩니다.
   useEffect(() => {
@@ -170,11 +179,11 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     const file = files[0];
     if (!file) return;
 
+    // 이전 사진을 미리 지우지 않습니다. 이 시도가 실패해도 열어 둔 사진은 그대로
+    // 남아야 합니다. 세대 번호로 늦게 끝난 요청이 먼저 끝난 요청을 덮어쓰는 것도
+    // 막습니다.
+    const generation = (loadGenerationRef.current += 1);
     setStatus('읽는 중입니다');
-    setLoaded((previous) => {
-      previous?.preview.bitmap.close();
-      return null;
-    });
 
     try {
       const meta = await readExif(await file.arrayBuffer());
@@ -198,7 +207,16 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         ...(sourceSize ? { sourceSize } : {}),
       });
 
-      setLoaded({ file, meta, fields: toFields(meta), preview });
+      if (loadGenerationRef.current !== generation) {
+        // 기다리는 동안 다음 요청이 이미 시작됐습니다. 이 결과는 버립니다.
+        preview.bitmap.close();
+        return;
+      }
+
+      setLoaded((previous) => {
+        previous?.preview.bitmap.close();
+        return { file, meta, fields: toFields(meta), preview };
+      });
       // 여러 장 처리는 아직 없습니다. 조용히 버리면 사용자는 왜 한 장만 나오는지
       // 알 수 없으므로 무엇을 불러왔고 무엇을 안 불러왔는지 밝힙니다.
       setStatus(
@@ -208,6 +226,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       );
     } catch (error) {
       console.error(error);
+      // 이미 다음 요청이 시작됐으면 그 요청의 상태 문구를 덮어쓰지 않습니다.
+      if (loadGenerationRef.current !== generation) return;
       setStatus(toUserMessage(error, '사진을 여는 데 실패했습니다'));
     }
   }, []);
