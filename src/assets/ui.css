@@ -138,6 +138,7 @@ body {
  */
 .intake {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
@@ -167,6 +168,18 @@ body {
  * 여백은 0 이 되고 장수 옆에 붙습니다. 사진이 없어 묶음이 없을 때는 자동 여백이 오른쪽
  * 끝으로 밀어 줍니다. 두 경우 모두 오른쪽 끝입니다.
  */
+/*
+ * 좁은 화면에서는 상태 문구를 제 줄로 내립니다. 한 줄에 밀어 넣으면 375px 에서 90px 로
+ * 눌려 스물한 자짜리 문구가 열 자만 보입니다. 이 줄이 오류가 사용자에게 닿는 유일한
+ * 자리라(모든 오류가 status 로 들어옵니다) 여기서 잘리면 알릴 방법이 없습니다.
+ */
+@media (max-width: 767px) {
+  .status-line {
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+}
+
 .status-line {
   flex: 0 1 auto;
   margin: 0 0 0 auto;

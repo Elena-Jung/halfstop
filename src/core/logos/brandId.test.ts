@@ -11,9 +11,8 @@ describe('brandId', () => {
     expect(brandId('NIKON CORPORATION')).toBe('nikon');
   });
 
-  it('캐논은 로고 그림이 없어도 id 를 돌려줍니다', () => {
-    // 캐논은 흔한 브랜드라 워드마크 폴백이 특히 중요합니다. hasLogo('canon') 이 거짓임은
-    // registry.test.ts 가 따로 확인합니다.
+  it('캐논의 짧은 표기를 알아봅니다', () => {
+    // 흔한 브랜드라 반드시 걸려야 합니다. 로고 그림은 registry.test.ts 가 따로 확인합니다.
     expect(brandId('Canon')).toBe('canon');
   });
 

@@ -114,7 +114,17 @@ export function Listbox<T extends string = string>(props: {
 
   useEffect(() => {
     if (!open) return;
-    const onMoved = () => close();
+    /*
+     * 목록 안에서 난 스크롤은 트리거를 움직이지 않으므로 닫지 않습니다. 캡처 단계로
+     * 들으면 목록 자신의 스크롤까지 잡히는데, 지금은 항목이 넷뿐이라 max-height 에 안
+     * 걸려 드러나지 않습니다. 서체가 하나 늘어나는 순간 목록을 굴리다 닫히는 결함이
+     * 조용히 나타납니다.
+     */
+    const onMoved = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && listRef.current?.contains(target)) return;
+      close();
+    };
     window.addEventListener('scroll', onMoved, true);
     window.addEventListener('resize', onMoved);
     return () => {

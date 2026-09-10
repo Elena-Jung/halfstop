@@ -71,15 +71,22 @@ CSS 를 따로 썼습니다. 공유 체계 없이 늘어난 자리는 간격과 
 
 ## 크기
 
-조작 요소는 `min-height: 32px` 이상, 아이콘만 있는 단추는 44px 이상입니다.
-WCAG 2.5.8 이 요구하는 24x24 를 넉넉히 넘기는 값입니다. `.rail-tab` 과
+새로 만드는 조작 요소는 `min-height: 32px` 이상, 아이콘만 있는 단추는 44px 이상으로
+잡습니다. WCAG 2.5.8 이 요구하는 24x24 를 넉넉히 넘기는 값입니다. `.rail-tab` 과
 `.theme-toggle` 이 44px, `.hs-text-input`, `.hs-listbox-trigger`, `.hs-button` 이
 32px 을 씁니다.
+
+**아직 이 값에 못 미치는 자리가 셋 있습니다.** `.photo-select-all` 은 `min-height` 가
+없어 계산 높이가 약 28px 이고, `.hs-number-btn` 과 `.hs-colorpicker-close` 는 28px 짜리
+아이콘 단추입니다. 셋 다 WCAG 의 24x24 는 넘기므로 접근성 위반은 아니지만 이 문서가
+정한 값에는 못 미칩니다. 그 자리를 고칠 일이 생기면 함께 올리십시오.
+
+`src/ui/scale.test.ts` 는 `min-height` 를 보지 않습니다. 이 규칙은 사람이 지킵니다.
 
 ## 상태는 `data-*` 로
 
 React 가 상태를 `data-*` 속성으로 찍고 CSS 는 그 속성만 읽습니다. `data-selected`,
-`data-theme`, `data-compact`, `data-disabled`, `data-placement`,
+`data-theme`, `data-selected`, `data-disabled`, `data-placement`,
 `data-orientation`, `data-active` 가 이 방식입니다.
 
 `:checked` 와 `:has()` 로 상태를 읽지 않습니다. 라디오와 체크박스 계열 컨트롤은
