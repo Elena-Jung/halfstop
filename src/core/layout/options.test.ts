@@ -5,12 +5,12 @@ import { MATTE_OPTIONS, matteLayout } from './layouts/matte';
 import type { LayoutInput, LayoutServices } from './types';
 
 const SCHEMA: PresetOption[] = [
-  { id: 'BACKGROUND', type: 'color', default: '#ffffff' },
-  { id: 'BAR_HEIGHT', type: 'number', default: 120, unit: 'u', min: 40, max: 500 },
-  { id: 'SHOW_LOGO', type: 'boolean', default: true },
-  { id: 'ALIGN', type: 'select', options: ['left', 'center'], default: 'left' },
-  { id: 'WEIGHT', type: 'range', min: 100, max: 900, step: 100, default: 400 },
-  { id: 'LABEL', type: 'text', default: '' },
+  { id: 'BACKGROUND', labelKey: 'option.BACKGROUND', groupKey: 'frame', type: 'color', default: '#ffffff' },
+  { id: 'BAR_HEIGHT', labelKey: 'option.BAR_HEIGHT', groupKey: 'frame', type: 'number', default: 120, unit: 'u', min: 40, max: 500 },
+  { id: 'SHOW_LOGO', labelKey: 'option.SHOW_LOGO', groupKey: 'frame', type: 'boolean', default: true },
+  { id: 'ALIGN', labelKey: 'option.ALIGN', groupKey: 'text', type: 'select', options: ['left', 'center'], default: 'left' },
+  { id: 'WEIGHT', labelKey: 'option.WEIGHT', groupKey: 'text', type: 'range', min: 100, max: 900, step: 100, default: 400 },
+  { id: 'LABEL', labelKey: 'option.LABEL', groupKey: 'text', type: 'text', default: '' },
 ];
 
 describe('defaultValues', () => {
@@ -136,5 +136,31 @@ describe('접근 헬퍼', () => {
   it('없는 키를 꺼내면 던집니다', () => {
     const values = defaultValues(SCHEMA);
     expect(() => num(values, 'NOPE')).toThrow('NOPE');
+  });
+});
+
+describe('이름표 키와 묶음 키', () => {
+  const ALL = [...BAR_OPTIONS, ...MATTE_OPTIONS];
+
+  it('모든 옵션이 labelKey 와 groupKey 를 갖습니다', () => {
+    for (const option of ALL) {
+      expect(option.labelKey, option.id).toBeTruthy();
+      expect(['frame', 'text']).toContain(option.groupKey);
+    }
+  });
+
+  it('labelKey 는 option. 으로 시작하고 id 를 그대로 씁니다', () => {
+    for (const option of ALL) {
+      expect(option.labelKey).toBe(`option.${option.id}`);
+    }
+  });
+
+  it('같은 id 는 두 레이아웃에서 같은 묶음에 들어갑니다', () => {
+    const seen = new Map<string, string>();
+    for (const option of ALL) {
+      const previous = seen.get(option.id);
+      if (previous !== undefined) expect(option.groupKey, option.id).toBe(previous);
+      seen.set(option.id, option.groupKey);
+    }
   });
 });

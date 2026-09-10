@@ -5,8 +5,8 @@ import type { PresetLayout } from './types';
 
 export interface Preset {
   id: string;
-  /** 지금은 한국어 문자열입니다. 다음 계획에서 번역 키로 바뀝니다. */
-  label: string;
+  /** 화면에 보일 이름의 번역 키입니다. */
+  labelKey: string;
   layout: 'bar' | 'matte';
   /** 레이아웃 선언의 기본값 위에 덮어쓸 값입니다. */
   values: Record<string, OptionValue>;
@@ -15,7 +15,7 @@ export interface Preset {
 export const PRESETS: readonly Preset[] = [
   {
     id: 'body-lens',
-    label: '바디와 렌즈',
+    labelKey: 'preset.body-lens',
     layout: 'bar',
     values: {
       MODE: 'split',
@@ -29,7 +29,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'gear-exposure',
-    label: '장비와 노출',
+    labelKey: 'preset.gear-exposure',
     layout: 'bar',
     values: {
       MODE: 'split',
@@ -43,7 +43,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'one-line',
-    label: '한 줄',
+    labelKey: 'preset.one-line',
     layout: 'bar',
     values: {
       MODE: 'single',
@@ -56,7 +56,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'shot-on',
-    label: 'Shot on',
+    labelKey: 'preset.shot-on',
     layout: 'bar',
     values: {
       MODE: 'single',
@@ -71,7 +71,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'minimal',
-    label: '미니멀',
+    labelKey: 'preset.minimal',
     layout: 'bar',
     values: {
       MODE: 'single',
@@ -87,7 +87,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'film',
-    label: '필름 데이터백',
+    labelKey: 'preset.film',
     layout: 'bar',
     values: {
       MODE: 'split',
@@ -105,7 +105,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'polaroid',
-    label: '폴라로이드',
+    labelKey: 'preset.polaroid',
     layout: 'matte',
     values: {
       MODE: 'split',
@@ -121,7 +121,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'letterbox',
-    label: '레터박스',
+    labelKey: 'preset.letterbox',
     layout: 'matte',
     values: {
       MODE: 'single',
@@ -139,7 +139,7 @@ export const PRESETS: readonly Preset[] = [
   },
   {
     id: 'poster',
-    label: '포스터',
+    labelKey: 'preset.poster',
     layout: 'matte',
     values: {
       MODE: 'poster',

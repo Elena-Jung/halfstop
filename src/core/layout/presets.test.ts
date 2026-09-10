@@ -24,9 +24,9 @@ describe('PRESETS', () => {
     expect(PRESETS.filter((p) => p.layout === 'matte')).toHaveLength(3);
   });
 
-  it('모든 프리셋에 사람이 읽는 이름이 있습니다', () => {
+  it('모든 프리셋에 이름표 키가 있습니다', () => {
     for (const preset of PRESETS) {
-      expect(preset.label.length).toBeGreaterThan(0);
+      expect(preset.labelKey.length).toBeGreaterThan(0);
     }
   });
 
@@ -113,5 +113,19 @@ describe('valuesFor', () => {
     expect(dirty.get('BAR_HEIGHT')).toBe(clean.get('BAR_HEIGHT'));
     expect(dirty.get('BAR_HEIGHT')).toBe(80);
     expect(dirty.has('GHOST')).toBe(false);
+  });
+});
+
+describe('프리셋 이름표 키', () => {
+  it('아홉 프리셋이 preset. 으로 시작하는 키를 갖습니다', () => {
+    for (const preset of PRESETS) {
+      expect(preset.labelKey).toBe(`preset.${preset.id}`);
+    }
+  });
+
+  it('한국어 문자열을 직접 담지 않습니다', () => {
+    for (const preset of PRESETS) {
+      expect(/[가-힣]/.test(preset.labelKey), preset.id).toBe(false);
+    }
   });
 });

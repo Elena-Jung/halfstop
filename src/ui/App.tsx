@@ -210,7 +210,7 @@ export function App() {
             <select value={presetId} onChange={(e) => setPreset(e.target.value)} disabled={busy}>
               {PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>
-                  {preset.label}
+                  {preset.id}
                 </option>
               ))}
             </select>

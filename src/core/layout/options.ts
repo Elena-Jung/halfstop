@@ -2,13 +2,23 @@ import type { OptionValue } from './types';
 
 export type { OptionValue };
 
+/** 레일의 어느 칸에 들어갈지 정합니다. 프리셋 칸과 내보내기 칸은 옵션이 아니라 따로 있습니다. */
+export type OptionGroup = 'frame' | 'text';
+
+interface OptionBase {
+  id: string;
+  /** 설정 화면에 보일 이름의 번역 키입니다. core 는 번역하지 않습니다. */
+  labelKey: string;
+  groupKey: OptionGroup;
+}
+
 export type PresetOption =
-  | { id: string; type: 'color'; default: string }
-  | { id: string; type: 'number'; default: number; unit: 'u'; min: number; max: number }
-  | { id: string; type: 'boolean'; default: boolean }
-  | { id: string; type: 'select'; options: readonly string[]; default: string }
-  | { id: string; type: 'range'; min: number; max: number; step: number; default: number }
-  | { id: string; type: 'text'; default: string };
+  | (OptionBase & { type: 'color'; default: string })
+  | (OptionBase & { type: 'number'; default: number; unit: 'u'; min: number; max: number })
+  | (OptionBase & { type: 'boolean'; default: boolean })
+  | (OptionBase & { type: 'select'; options: readonly string[]; default: string })
+  | (OptionBase & { type: 'range'; min: number; max: number; step: number; default: number })
+  | (OptionBase & { type: 'text'; default: string });
 
 export function defaultValues(options: readonly PresetOption[]): Map<string, OptionValue> {
   return new Map(options.map((option) => [option.id, option.default]));
