@@ -16,6 +16,13 @@ export function App() {
 
   const [dragging, setDragging] = useState(false);
 
+  // 내보내는 동안 열린 파일이 바뀌면 지금 보는 미리보기와 받는 파일이 달라집니다.
+  // 창 드롭 핸들러에는 disabled 속성이 없으므로 최신 busy 값을 ref 로 들고 봅니다.
+  const busyRef = useRef(busy);
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
   // 창 어디에 떨어뜨려도 받습니다. 점선 상자를 조준하게 만들 이유가 없고,
   // 빗나가면 브라우저가 그 파일로 이동해 작업이 날아갑니다.
   useEffect(() => {
@@ -27,6 +34,7 @@ export function App() {
       event.dataTransfer?.types.includes('Files') ?? false;
 
     const onEnter = (event: globalThis.DragEvent) => {
+      if (busyRef.current) return;
       if (!carriesFiles(event)) return;
       event.preventDefault();
       depth += 1;
@@ -34,6 +42,7 @@ export function App() {
     };
 
     const onOver = (event: globalThis.DragEvent) => {
+      if (busyRef.current) return;
       if (!carriesFiles(event)) return;
       // 이것을 막지 않으면 drop 이 아예 발생하지 않습니다.
       event.preventDefault();
@@ -48,6 +57,7 @@ export function App() {
     };
 
     const onWindowDrop = (event: globalThis.DragEvent) => {
+      if (busyRef.current) return;
       event.preventDefault();
       depth = 0;
       setDragging(false);
@@ -80,6 +90,7 @@ export function App() {
             type="color"
             value={String(value)}
             onChange={(e) => setOption(option.id, e.target.value)}
+            disabled={busy}
           />
         );
       case 'boolean':
@@ -88,6 +99,7 @@ export function App() {
             type="checkbox"
             checked={Boolean(value)}
             onChange={(e) => setOption(option.id, e.target.checked)}
+            disabled={busy}
           />
         );
       case 'number':
@@ -96,6 +108,7 @@ export function App() {
             type="number"
             value={Number(value)}
             onChange={(e) => setOption(option.id, Number(e.target.value))}
+            disabled={busy}
           />
         );
       case 'range':
@@ -107,11 +120,16 @@ export function App() {
             step={option.step}
             value={Number(value)}
             onChange={(e) => setOption(option.id, Number(e.target.value))}
+            disabled={busy}
           />
         );
       case 'select':
         return (
-          <select value={String(value)} onChange={(e) => setOption(option.id, e.target.value)}>
+          <select
+            value={String(value)}
+            onChange={(e) => setOption(option.id, e.target.value)}
+            disabled={busy}
+          >
             {option.options.map((choice) => (
               <option key={choice} value={choice}>
                 {optionLabel(option.id, choice)}
@@ -125,6 +143,7 @@ export function App() {
             type="text"
             value={String(value)}
             onChange={(e) => setOption(option.id, e.target.value)}
+            disabled={busy}
           />
         );
     }
@@ -169,7 +188,7 @@ export function App() {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={onPick}
-          disabled={!ready}
+          disabled={!ready || busy}
         />
       </div>
 
@@ -182,7 +201,7 @@ export function App() {
         <aside style={{ width: 260, display: 'grid', gap: 8 }}>
           <label style={{ display: 'grid', gap: 4, fontSize: 13, marginBottom: 8 }}>
             <span>프리셋</span>
-            <select value={presetId} onChange={(e) => setPreset(e.target.value)}>
+            <select value={presetId} onChange={(e) => setPreset(e.target.value)} disabled={busy}>
               {PRESETS.map((preset) => (
                 <option key={preset.id} value={preset.id}>
                   {preset.label}
