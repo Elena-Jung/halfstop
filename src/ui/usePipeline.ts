@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fontUrl } from '../assets/fontUrls';
 import { toFields } from '../core/exif/map';
 import { readExif, type PhotoMeta } from '../core/exif/read';
-import { PREVIEW_LONG_EDGE } from '../core/export/resolution';
+import { PREVIEW_LONG_EDGE, type ExportPreset } from '../core/export/resolution';
 import { detectAutoOrientation } from '../core/io/autoOrientProbe';
 import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { swapsAxes } from '../core/io/orientation';
@@ -96,6 +96,9 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
+  // 저장 설정에는 담지 않습니다. 내보내기 크기는 그때그때 고르는 값이지 사진 프레임에
+  // 딸린 값이 아닙니다.
+  const [exportSize, setExportSize] = useState<ExportPreset>('original');
   // 캔버스 aria-label 이 사진 위에 실제로 적힌 글을 읽어 줄 수 있도록, 그린 장면의
   // 글자 노드를 그대로 모아 둡니다. 화면이 이 값을 그대로 보여 주지 않고 t() 로
   // 문장에 끼워 넣습니다.
@@ -304,7 +307,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         autoOriented: loaded.autoOriented,
         orientation: loaded.meta.orientation,
         limit,
-        size: 'original',
+        size: exportSize,
         format: 'image/jpeg',
         quality: 0.92,
         fontId,
@@ -330,7 +333,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     } finally {
       setBusy(false);
     }
-  }, [loaded, options, fontId, fontReady, preset]);
+  }, [loaded, options, fontId, fontReady, preset, exportSize]);
 
   return {
     status,
@@ -345,5 +348,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     presetId,
     setPreset,
     presetOptions,
+    exportSize,
+    setExportSize,
   };
 }
