@@ -106,6 +106,8 @@ export function App() {
         return (
           <input
             type="number"
+            min={option.min}
+            max={option.max}
             value={Number(value)}
             onChange={(e) => setOption(option.id, Number(e.target.value))}
             disabled={busy}
