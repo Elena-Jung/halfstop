@@ -52,9 +52,8 @@ function clean(raw: string): string {
  * EXIF 제조사 문자열이나 렌즈 제조사 추론 결과를 로고 id 로 바꿉니다. 못 알아보면
  * undefined 를 돌려줍니다. 던지지 않습니다.
  *
- * 로고 그림이 없는 브랜드(캐논, 리코, 올림푸스, OM 시스템, 핫셀블라드)도 id 는
- * 돌려줍니다. registry.hasLogo 가 그 id 에 대해 거짓을 내놓고, layout 이 워드마크로
- * 대체합니다.
+ * 로고 그림이 없는 브랜드(OM 시스템)도 id 는 돌려줍니다. registry.hasLogo 가 그 id 에
+ * 대해 거짓을 내놓고, layout 이 워드마크로 대체합니다.
  */
 export function brandId(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;

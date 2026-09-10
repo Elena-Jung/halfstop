@@ -3,10 +3,19 @@ import type { Scene, SceneNode } from '../layout/types';
 /** 브라우저와 워커의 2D 컨텍스트가 모두 이 모양을 만족합니다. */
 export type PaintTarget = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+/**
+ * 0..1 정규화된 박스에 맞춰 둔 로고 조각 하나입니다. 조각마다 채우기 규칙이 다를 수
+ * 있어 경로만으로는 부족합니다. 규칙이 어긋나면 글자의 속이 메워지거나 반대로 뚫립니다.
+ */
+export interface LogoPiece {
+  path: Path2D;
+  fillRule: CanvasFillRule;
+}
+
 export interface PaintSources {
   photo: CanvasImageSource;
-  /** 0..1 정규화된 박스에 맞춰 둔 경로입니다. 없으면 null입니다. */
-  logo(logoId: string): Path2D | null;
+  /** 0..1 정규화된 박스에 맞춰 둔 조각들입니다. 없으면 null입니다. */
+  logo(logoId: string): readonly LogoPiece[] | null;
 }
 
 function paintNode(node: SceneNode, ctx: PaintTarget, sources: PaintSources): void {
@@ -33,13 +42,13 @@ function paintNode(node: SceneNode, ctx: PaintTarget, sources: PaintSources): vo
       return;
 
     case 'logo': {
-      const path = sources.logo(node.logoId);
-      if (!path) return;
+      const pieces = sources.logo(node.logoId);
+      if (!pieces) return;
       ctx.save();
       ctx.translate(node.x, node.y);
       ctx.scale(node.w, node.h);
       ctx.fillStyle = node.fill;
-      ctx.fill(path);
+      for (const piece of pieces) ctx.fill(piece.path, piece.fillRule);
       ctx.restore();
       return;
     }

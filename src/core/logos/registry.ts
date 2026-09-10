@@ -1,4 +1,4 @@
-import { LOGOS, type LogoArt } from './logoData';
+import { LOGOS, type LogoArt, type LogoPart } from './logoData';
 
 /**
  * 로고가 없으면 false 를 돌려줍니다. LayoutServices.hasLogo 가 바로 이 함수이고, layout()
@@ -9,15 +9,17 @@ export function hasLogo(id: string): boolean {
 }
 
 /**
- * 경로 문자열과 viewBox 를 돌려줍니다. Path2D 를 여기서 만들지 않습니다. Path2D 는
- * 브라우저 API 라 src/core/ 가 environment: 'node' 테스트를 도는 데 걸림돌이 되기
- * 때문입니다. Path2D 로 만드는 일은 그리는 쪽(usePipeline.ts, render.worker.ts)에서
- * 합니다.
+ * 로고를 이루는 조각들과 viewBox 를 돌려줍니다. Path2D 를 여기서 만들지 않습니다.
+ * Path2D 는 브라우저 API 라 src/core/ 가 environment: 'node' 테스트를 도는 데
+ * 걸림돌이 되기 때문입니다. Path2D 로 만드는 일은 그리는 쪽(usePipeline.ts,
+ * render.worker.ts)에서 합니다. 조각의 transform 도 그쪽에서 DOMMatrix 로 적용합니다.
  */
-export function logoPath(id: string): { path: string; viewBox: LogoArt['viewBox'] } | undefined {
+export function logoParts(
+  id: string,
+): { parts: readonly LogoPart[]; viewBox: LogoArt['viewBox'] } | undefined {
   const logo = LOGOS.find((entry) => entry.id === id);
   if (!logo) return undefined;
-  return { path: logo.path, viewBox: logo.viewBox };
+  return { parts: logo.parts, viewBox: logo.viewBox };
 }
 
 export interface FitBox {

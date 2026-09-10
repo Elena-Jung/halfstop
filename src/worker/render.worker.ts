@@ -2,9 +2,10 @@ import { fontUrl } from '../assets/fontUrls';
 import { encodeCanvas } from '../core/export/encode';
 import { targetLongEdge } from '../core/export/resolution';
 import { decodeImage } from '../core/io/decode';
-import { fitLogoBox, logoPath } from '../core/logos/registry';
+import { fitLogoBox, logoParts } from '../core/logos/registry';
 import { fontById } from '../core/paint/fontFamilies';
 import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
+import type { LogoPiece } from '../core/paint/paint';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import type { RenderJob, RenderReply } from './protocol';
 
@@ -12,18 +13,23 @@ import type { RenderJob, RenderReply } from './protocol';
  * usePipeline.ts 의 logoSource 와 같은 함수입니다. 전체 해상도 내보내기가 이 워커에서
  * 돌기 때문에, Path2D 를 만드는 자리가 메인 스레드와 워커 양쪽에 필요합니다. 서체를
  * 양쪽에 등록하는 것과 같은 구조입니다. 한쪽만 하면 미리보기에는 로고가 보이는데
- * 받은 파일에는 없는, 이 앱에서 가장 비싼 버그가 됩니다.
+ * 받은 파일에는 없는, 이 앱에서 가장 비싼 버그가 됩니다. **한쪽을 고치면 다른 쪽도
+ * 같이 고치십시오.**
  */
-function logoSource(logoId: string): Path2D | null {
-  const entry = logoPath(logoId);
+function logoSource(logoId: string): readonly LogoPiece[] | null {
+  const entry = logoParts(logoId);
   if (!entry) return null;
-  const raw = new Path2D(entry.path);
   const fit = fitLogoBox(entry.viewBox, { width: 1, height: 1 });
   const scale = fit.width / entry.viewBox.width;
-  const matrix = new DOMMatrix().translate(fit.x, fit.y).scale(scale);
-  const normalized = new Path2D();
-  normalized.addPath(raw, matrix);
-  return normalized;
+  const outer = new DOMMatrix().translate(fit.x, fit.y).scale(scale);
+  return entry.parts.map((part) => {
+    const normalized = new Path2D();
+    normalized.addPath(
+      new Path2D(part.d),
+      part.transform ? outer.multiply(new DOMMatrix([...part.transform])) : outer,
+    );
+    return { path: normalized, fillRule: part.fillRule ?? 'nonzero' };
+  });
 }
 
 async function run(job: RenderJob): Promise<RenderReply> {

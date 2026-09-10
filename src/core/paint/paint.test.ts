@@ -14,7 +14,7 @@ function recorder(): { ctx: PaintTarget; calls: string[] } {
     fillRect: (x: number, y: number, w: number, h: number) => log('fillRect', x, y, w, h),
     fillText: (t: string, x: number, y: number) => log('fillText', t, x, y),
     drawImage: (_: unknown, x: number, y: number, w: number, h: number) => log('drawImage', x, y, w, h),
-    fill: (path: unknown) => log('fill', String(path)),
+    fill: (path: unknown, rule?: unknown) => log('fill', String(path), String(rule)),
     set fillStyle(value: string) {
       log('set fillStyle', value);
     },
@@ -36,7 +36,14 @@ function recorder(): { ctx: PaintTarget; calls: string[] } {
 
 const sources: PaintSources = {
   photo: {} as CanvasImageSource,
-  logo: (id) => (id === 'nikon' ? (`path:${id}` as unknown as Path2D) : null),
+  // 조각 둘을 서로 다른 채우기 규칙으로 돌려줍니다. 규칙이 조각을 따라가는지 봅니다.
+  logo: (id) =>
+    id === 'nikon'
+      ? [
+          { path: `path:${id}:0` as unknown as Path2D, fillRule: 'nonzero' as const },
+          { path: `path:${id}:1` as unknown as Path2D, fillRule: 'evenodd' as const },
+        ]
+      : null,
 };
 
 const SCENE: Scene = {
@@ -101,6 +108,15 @@ describe('paint', () => {
     const { ctx, calls } = recorder();
     paint(SCENE, ctx, 0.25, sources);
     expect(calls).toContain('set font(normal 400 34px Inter)');
+  });
+
+  it('조각마다 그 조각의 채우기 규칙으로 칠합니다', () => {
+    const { ctx, calls } = recorder();
+    paint(SCENE, ctx, 1, sources);
+    // 규칙을 넘기지 않으면 캔버스가 nonzero 로 칠하므로, evenodd 로 설계된 조각의
+    // 속이 메워집니다. 규칙을 조각마다 넘기는지 명령 기록으로 못박습니다.
+    expect(calls).toContain('fill(path:nikon:0,nonzero)');
+    expect(calls).toContain('fill(path:nikon:1,evenodd)');
   });
 
   it('로고가 없으면 fill을 부르지 않습니다', () => {

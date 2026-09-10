@@ -1,6 +1,6 @@
 import type { Scene } from '../layout/types';
 import { clampExportSize, type CanvasLimit } from '../limits/clampExportSize';
-import { paint } from '../paint/paint';
+import { paint, type LogoPiece } from '../paint/paint';
 
 export type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
 
@@ -8,7 +8,7 @@ export interface PaintToCanvasRequest {
   scene: Scene;
   canvas: AnyCanvas;
   photo: CanvasImageSource;
-  logo: (logoId: string) => Path2D | null;
+  logo: (logoId: string) => readonly LogoPiece[] | null;
   targetLongEdge: number;
   limit: CanvasLimit;
 }

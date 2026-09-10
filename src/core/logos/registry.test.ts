@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOGOS } from './logoData';
-import { fitLogoBox, hasLogo, logoPath } from './registry';
+import { fitLogoBox, hasLogo, logoParts } from './registry';
 
 describe('hasLogo', () => {
   it('데이터에 있는 브랜드는 참입니다', () => {
@@ -8,20 +8,30 @@ describe('hasLogo', () => {
   });
 
   it('데이터에 없는 브랜드는 거짓입니다', () => {
-    // 캐논은 쓸 만한 출처를 못 찾아 로고 그림이 없습니다. bar.ts 가 이 자리에서
-    // 워드마크로 대체합니다.
-    expect(hasLogo('canon')).toBe(false);
+    // OM 시스템은 흰 글자를 어두운 배지 위에 얹은 두 색 디자인뿐이라 단색으로는
+    // 못 그립니다. bar.ts 가 이 자리에서 워드마크로 대체합니다.
+    expect(hasLogo('om-system')).toBe(false);
   });
 });
 
-describe('logoPath', () => {
-  it('경로 문자열과 viewBox 를 돌려줍니다', () => {
+describe('logoParts', () => {
+  it('조각들과 viewBox 를 돌려줍니다', () => {
     const sony = LOGOS.find((logo) => logo.id === 'sony')!;
-    expect(logoPath('sony')).toEqual({ path: sony.path, viewBox: sony.viewBox });
+    expect(logoParts('sony')).toEqual({ parts: sony.parts, viewBox: sony.viewBox });
+  });
+
+  it('조각의 행렬을 그대로 실어 보냅니다', () => {
+    // 캐논은 원본 <g> 에 matrix 가 걸려 있어 행렬 없이는 글자가 어긋납니다. 이 값이
+    // 그리는 쪽까지 닿는지 봅니다.
+    const canon = logoParts('canon')!;
+    expect(canon.parts.length).toBeGreaterThan(0);
+    for (const part of canon.parts) {
+      expect(part.transform).toEqual([1.2500506, 0, 0, 1.2500506, 0, -0.00246783]);
+    }
   });
 
   it('없는 브랜드는 undefined 입니다', () => {
-    expect(logoPath('canon')).toBeUndefined();
+    expect(logoParts('om-system')).toBeUndefined();
   });
 });
 
