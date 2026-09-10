@@ -2,15 +2,17 @@ import type { OptionValue } from '../core/layout/options';
 import { PRESETS } from '../core/layout/presets';
 import type { ExportPreset } from '../core/export/resolution';
 import { t, type MessageKey } from '../i18n';
-import { groupOptions, railPanelId, railTabId, type RailTab } from './groups';
+import { groupOptions, railPanelId, railTabId, RAIL_TABS, type RailTab } from './groups';
 import { OptionField } from './OptionField';
 import type { PresetOption } from '../core/layout/options';
 
 const EXPORT_SIZES: readonly ExportPreset[] = ['original', '4k', '2k', 'sns'];
 
 /**
- * 고른 레일 칸에 맞는 내용을 그립니다. 어느 칸이든 바깥 요소는 tabpanel 이고
- * 이를 연 탭 단추를 aria-labelledby 로 가리킵니다.
+ * 레일 칸 넷 각각에 맞는 tabpanel 을 모두 그리고, 고르지 않은 것은 hidden 속성으로
+ * 감춥니다. WAI-ARIA APG 의 탭 패턴대로입니다. 패널을 고른 것 하나만 그리면 나머지
+ * 탭의 aria-controls 가 존재하지 않는 id 를 가리켜 화면 낭독기에서 연결이 끊깁니다.
+ * hidden 은 초점도 함께 막으므로 탭 순서가 어지러워지지 않습니다.
  */
 export function SettingsPanel(props: {
   tab: RailTab;
@@ -56,25 +58,30 @@ export function SettingsPanel(props: {
         />
       ));
 
-  const content = () => {
-    switch (tab) {
+  const contentFor = (tabValue: RailTab) => {
+    switch (tabValue) {
       case 'preset':
         return (
           <fieldset className="preset-list" disabled={busy}>
             <legend>{t('rail.preset')}</legend>
-            {PRESETS.map((preset) => (
-              <label key={preset.id} className="preset-item">
-                <input
-                  type="radio"
-                  name="preset"
-                  value={preset.id}
-                  checked={presetId === preset.id}
-                  onChange={() => setPreset(preset.id)}
-                  disabled={busy}
-                />
-                {t(preset.labelKey as MessageKey)}
-              </label>
-            ))}
+            {PRESETS.map((preset) => {
+              const isSelected = presetId === preset.id;
+              return (
+                <label key={preset.id} className="preset-item" data-selected={isSelected}>
+                  <input
+                    type="radio"
+                    name="preset"
+                    value={preset.id}
+                    checked={isSelected}
+                    onChange={() => setPreset(preset.id)}
+                    disabled={busy}
+                    className="hs-radio-input"
+                  />
+                  <span className="hs-radio-box" aria-hidden="true" />
+                  {t(preset.labelKey as MessageKey)}
+                </label>
+              );
+            })}
           </fieldset>
         );
       case 'frame':
@@ -107,14 +114,20 @@ export function SettingsPanel(props: {
   };
 
   return (
-    <div
-      role="tabpanel"
-      id={railPanelId(tab)}
-      aria-labelledby={railTabId(tab)}
-      tabIndex={0}
-      className="settings-panel"
-    >
-      {content()}
-    </div>
+    <>
+      {RAIL_TABS.map((tabValue) => (
+        <div
+          key={tabValue}
+          role="tabpanel"
+          id={railPanelId(tabValue)}
+          aria-labelledby={railTabId(tabValue)}
+          tabIndex={0}
+          hidden={tabValue !== tab}
+          className="settings-panel"
+        >
+          {contentFor(tabValue)}
+        </div>
+      ))}
+    </>
   );
 }

@@ -102,13 +102,29 @@ body {
   font-size: 13px;
 }
 
+/*
+ * 탭 패턴을 지키려고 패널 넷을 모두 그리고 고르지 않은 것은 hidden 속성으로
+ * 감춥니다(src/ui/SettingsPanel.tsx). display: grid 를 이미 선언해 둔 탓에
+ * 저작자 스타일시트가 원점 우선순위로 브라우저 기본 [hidden] 규칙을 덮어써
+ * 버리므로, 이 규칙 없이는 감춘 패널도 grid 로 계속 그려져 서로 겹쳐 보입니다.
+ */
+.settings-panel[hidden] {
+  display: none;
+}
+
+/*
+ * 레일 자체를 설정 패널과 가르는 선입니다. 좁은 화면은 위쪽 경계(가로 선), 768px
+ * 부터는 왼쪽 경계(세로 선)로 바뀌어 실제 배치 방향을 따라갑니다.
+ */
 .rail {
   grid-area: rail;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
 @media (min-width: 768px) {
@@ -119,10 +135,17 @@ body {
 
   .rail {
     flex-direction: column;
+    border-top: none;
+    border-left: 1px solid var(--border);
+    padding-top: 0;
+    padding-left: 12px;
   }
 }
 
-/* 아이콘만 있는 단추입니다. WCAG 2.5.8 의 24x24 를 넉넉히 넘기는 44x44 를 최소로 둡니다. */
+/*
+ * 아이콘만 있는 단추입니다. WCAG 2.5.8 의 24x24 를 넉넉히 넘기는 44x44 를 최소로 둡니다.
+ * 모서리를 둥글리지 않아 옆 단추와 맞닿는 변이 그리드 칸처럼 곧게 만납니다.
+ */
 .rail-tab {
   width: 44px;
   height: 44px;
@@ -131,7 +154,7 @@ body {
   display: grid;
   place-items: center;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   color: inherit;
   padding: 0;
@@ -146,6 +169,21 @@ body {
 .rail-tab:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/*
+ * 단추 사이의 경계선입니다. border 속성이 아니라 box-shadow 를 써서 선택 표시용
+ * border-color 규칙과 겹치지 않게 합니다. 마지막 단추에는 선이 필요 없습니다.
+ * 좁은 화면(가로 배치)은 오른쪽에 세로 선, 768px 부터(세로 배치)는 아래쪽에 가로 선입니다.
+ */
+.rail-tab:not(:last-child) {
+  box-shadow: 1px 0 0 0 var(--border);
+}
+
+@media (min-width: 768px) {
+  .rail-tab:not(:last-child) {
+    box-shadow: 0 1px 0 0 var(--border);
+  }
 }
 
 .preset-list {
@@ -163,11 +201,75 @@ body {
   margin-bottom: 4px;
 }
 
+/*
+ * 프리셋 하나를 감싸는 둥근 사각형입니다. 고른 항목은 배경이 surface-raised 로
+ * 올라오고 테두리가 accent 로 바뀝니다. 실제 라디오(.hs-radio-input)는 화면에서만
+ * 감추고, 왼쪽의 .hs-radio-box 가 보이는 표시자 역할을 합니다.
+ */
 .preset-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
   font-size: 13px;
+  cursor: pointer;
+}
+
+.preset-item[data-selected='true'] {
+  background: var(--surface-raised);
+  border-color: var(--accent);
+}
+
+/*
+ * sr-only 방식입니다. display:none 이나 visibility:hidden 은 초점을 받지 못해
+ * 화살표 키 이동과 화면 낭독기 읽기가 끊깁니다. 1px 크기로 접어 화면에서만 감춥니다.
+ */
+.hs-radio-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hs-radio-box {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+}
+
+.preset-item[data-selected='true'] .hs-radio-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.preset-item[data-selected='true'] .hs-radio-box::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* 감춘 라디오가 초점을 받으면 눈에 보이는 표시자 쪽에 초점 표시를 그립니다. */
+.hs-radio-input:focus-visible + .hs-radio-box {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .field-list {
