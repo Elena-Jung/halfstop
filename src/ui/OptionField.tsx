@@ -4,6 +4,7 @@ import type { OptionValue, PresetOption } from '../core/layout/options';
 import { CANVAS_FONTS, fontById, fontStack } from '../core/paint/fontFamilies';
 import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
 import { ko, t, type MessageKey } from '../i18n';
+import { Checkbox } from './controls/Checkbox';
 import { ColorPicker } from './controls/ColorPicker';
 import { Listbox, type ListboxOption } from './controls/Listbox';
 import { NumberField } from './controls/NumberField';
@@ -97,13 +98,7 @@ export function OptionField(props: {
       }
       case 'boolean':
         return (
-          <input
-            id={fieldId}
-            type="checkbox"
-            checked={Boolean(value)}
-            onChange={(e) => onChange(e.target.checked)}
-            disabled={disabled}
-          />
+          <Checkbox id={fieldId} checked={Boolean(value)} disabled={disabled} onChange={onChange} />
         );
       case 'number':
         return (

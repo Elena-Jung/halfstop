@@ -17,6 +17,8 @@ import {
 } from '../core/layout/presets';
 import type { LayoutServices, OptionValue, TemplateToken } from '../core/layout/types';
 import type { CanvasLimit } from '../core/limits/clampExportSize';
+import { brandId } from '../core/logos/brandId';
+import { fitLogoBox, hasLogo, logoPath } from '../core/logos/registry';
 import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
 import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
 import { createMeasurer } from '../core/paint/measure';
@@ -29,7 +31,27 @@ import { createRenderClient, type RenderClient } from '../worker/client';
 import { toUserMessage } from './errorMessage';
 import { applyToSelected, capItems, MAX_PHOTOS, previewIndex, toggleSelectAll } from './photos';
 
-const NO_LOGO = () => null;
+/**
+ * 로고 경로 문자열을 Path2D 로 만들어 0..1 정사각형에 가로세로 비를 지키며 가운데
+ * 정렬로 맞춥니다. paint()는 이 정사각형을 노드의 w/h 로 다시 늘려 그리므로(scale(w,h)),
+ * 여기서 미리 맞춰 두어야 늘어난 결과도 로고 자체의 비율이 흐트러지지 않습니다.
+ *
+ * render.worker.ts 에 같은 함수가 있습니다. 전체 해상도 내보내기가 워커에서 돌기
+ * 때문에 Path2D 를 만드는 자리가 메인 스레드와 워커 양쪽에 필요합니다. 서체를 양쪽에
+ * 등록하는 것(ensureCanvasFontOnce)과 같은 구조입니다. 한쪽만 하면 미리보기에는
+ * 로고가 보이는데 받은 파일에는 없는, 이 앱에서 가장 비싼 버그가 됩니다.
+ */
+function logoSource(logoId: string): Path2D | null {
+  const entry = logoPath(logoId);
+  if (!entry) return null;
+  const raw = new Path2D(entry.path);
+  const fit = fitLogoBox(entry.viewBox, { width: 1, height: 1 });
+  const scale = fit.width / entry.viewBox.width;
+  const matrix = new DOMMatrix().translate(fit.x, fit.y).scale(scale);
+  const normalized = new Path2D();
+  normalized.addPath(raw, matrix);
+  return normalized;
+}
 
 /** 화면이 t() 로 옮길 상태 문구입니다. 훅은 키와 값만 들고, 문자열은 만들지 않습니다. */
 export interface StatusMessage {
@@ -173,7 +195,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
   useEffect(() => {
     clientRef.current ??= createRenderClient();
-    servicesRef.current ??= { measureText: createMeasurer(), hasLogo: () => false };
+    servicesRef.current ??= { measureText: createMeasurer(), hasLogo };
     void autoOrientedFlag().catch(() => undefined);
     return () => {
       clientRef.current?.dispose();
@@ -226,7 +248,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const scene = buildScene({
         photoPx: { width: previewPhoto.preview.width, height: previewPhoto.preview.height },
         fields: previewPhoto.fields,
-        logoId: undefined,
+        logoId: brandId(previewPhoto.fields.MAKER),
         layout: layoutFor(preset),
         options,
         services,
@@ -236,7 +258,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         scene,
         canvas,
         photo: previewPhoto.preview.bitmap,
-        logo: NO_LOGO,
+        logo: logoSource,
         targetLongEdge: PREVIEW_LONG_EDGE,
         limit: PREVIEW_LIMIT,
       });
@@ -452,7 +474,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const scene = buildScene({
         photoPx: { width: previewPhoto.preview.width, height: previewPhoto.preview.height },
         fields: previewPhoto.fields,
-        logoId: undefined,
+        logoId: brandId(previewPhoto.fields.MAKER),
         layout: layoutFor(preset),
         options,
         services,

@@ -389,6 +389,16 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * OptionField 의 boolean 컨트롤(Checkbox.tsx)입니다. .hs-radio-box 는 width/height 가
+ * flex 항목일 때만 실제로 적용되므로(그러지 않으면 인라인 요소라 치수가 무시됩니다),
+ * 감싸는 span 을 inline-flex 로 두어 preset-item/photo-item 과 같은 크기로 보입니다.
+ */
+.hs-checkbox {
+  display: inline-flex;
+  align-items: center;
+}
+
 .field-list {
   display: grid;
   gap: 8px;

@@ -147,6 +147,7 @@ describe('barLayout 로고 겹침', () => {
   it('MODE single, ALIGN center, 로고가 있으면 글이 로고 오른쪽 끝을 넘어서지 않습니다', () => {
     const withLogo: LayoutServices = { ...services, hasLogo: () => true };
     const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
     options.set('MODE', 'single');
     options.set('ALIGN', 'center');
     options.set('PRIMARY_MAIN', '가'.repeat(200));
@@ -231,14 +232,117 @@ describe('barLayout 공통', () => {
     expect(textNodes(scene.nodes)[0]?.style.family).toContain('JetBrains');
   });
 
-  it('로고가 있으면 logo 노드를 만듭니다', () => {
+  it('SHOW_LOGO 를 켜고 로고가 있으면 logo 노드를 만듭니다', () => {
     const withLogo: LayoutServices = { ...services, hasLogo: () => true };
-    const scene = barLayout(input({ logoId: 'canon' }), withLogo);
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
     expect(scene.nodes.find((n) => n.kind === 'logo')).toMatchObject({ logoId: 'canon' });
   });
 
-  it('로고가 없으면 logo 노드를 만들지 않습니다', () => {
-    const scene = barLayout(input({ logoId: 'canon' }), services);
+  it('SHOW_LOGO 를 켜도 로고가 없으면 logo 노드를 만들지 않습니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const scene = barLayout(input({ options, logoId: 'canon' }), services);
     expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+  });
+});
+
+describe('barLayout SHOW_LOGO 기본값', () => {
+  it('기본은 꺼짐이라 로고가 있어도 logo 노드를 만들지 않습니다', () => {
+    // 기본을 꺼짐으로 둔 이유는 body-lens 처럼 {MAKER}를 이미 글자로 그리는 배치에서
+    // 브랜드 이름이 두 번(글자와 로고) 나오지 않게 하기 위해서입니다.
+    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+    const scene = barLayout(input({ logoId: 'sony' }), withLogo);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+  });
+
+  it('기본은 꺼짐이라 워드마크도 그리지 않습니다', () => {
+    const scene = barLayout(input({ logoId: 'canon' }), services);
+    expect(texts(scene.nodes)).not.toContain('Canon');
+  });
+});
+
+describe('barLayout 워드마크 폴백', () => {
+  // 워드마크 크기는 logoHeight * 0.45 입니다. 기본 BAR_HEIGHT 120 에서
+  // logoHeight = 48 이므로 size = 21.6 입니다. 이 목(mock) 측정기(글자당 size*0.5)로는
+  // 'ABC' 석 자가 3*21.6*0.5 = 32.4 가 되어 logoWidth(72)에 여유 있게 들어갑니다.
+  // 길게 넘치는 경우의 줄임(ellipsize)은 아래 '브랜드 이름이 로고 자리 폭을 넘으면
+  // 줄입니다' 테스트가 따로 확인하므로, 여기서는 짧은 이름으로 폴백 자체와 자리를
+  // 확인합니다.
+  const shortMakerFields: LayoutInput['fields'] = {
+    MAKER: 'ABC',
+    BODY: 'EOS R6',
+    LENS: 'RF 50mm',
+    MM: '50mm',
+    F: 'f/2.8',
+    SEC: '1/250s',
+    ISO: 'ISO 400',
+  };
+
+  it('SHOW_LOGO 를 켰는데 그 브랜드의 로고가 없으면 브랜드 이름을 글자로 그립니다', () => {
+    // 캐논은 쓸 만한 출처를 못 찾아 로고 그림이 없습니다(registry.ts). 이 자리가 그
+    // 워드마크 폴백입니다.
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const scene = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+    expect(texts(scene.nodes)).toContain('ABC');
+  });
+
+  it('워드마크는 로고와 같은 자리(왼쪽 여백)에 놓입니다', () => {
+    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+
+    const withRealLogo = barLayout(input({ options, logoId: 'sony', fields: shortMakerFields }), withLogo);
+    const logo = withRealLogo.nodes.find((n) => n.kind === 'logo');
+
+    const withWordmark = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
+    // PRIMARY 슬롯도 align:'left' 라 텍스트만으로는 못 가릅니다. 워드마크는 로고와
+    // 같은 x(패딩)에 놓이고 PRIMARY 는 로고/워드마크가 예약한 폭만큼 더 들어간
+    // x(패딩+logoGap)에 놓이므로, 좌표로 구분합니다.
+    const wordmark = textNodes(withWordmark.nodes).find((n) => n.x === logo?.x);
+
+    expect(logo).toBeDefined();
+    expect(wordmark).toBeDefined();
+    expect(wordmark?.text).toBe('ABC');
+    expect(wordmark?.style.align).toBe('left');
+  });
+
+  it('로고와 워드마크가 예약하는 폭이 같아, 켜고 끌 때 옆 텍스트 배치가 흔들리지 않습니다', () => {
+    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+
+    const withRealLogo = barLayout(input({ options, logoId: 'sony', fields: shortMakerFields }), withLogo);
+    const withWordmark = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
+
+    // 오른쪽(SECONDARY) 슬롯의 x 는 애초에 logoGap 의 영향을 받지 않습니다(오른쪽 끝
+    // 기준). 폭이 흔들리지 않는지는 왼쪽(PRIMARY) 슬롯의 x 로 확인해야 뜻이 있습니다.
+    const primaryText = 'ABC · EOS R6';
+    const leftTextWithLogo = textNodes(withRealLogo.nodes).find((n) => n.text === primaryText);
+    const leftTextWithWordmark = textNodes(withWordmark.nodes).find((n) => n.text === primaryText);
+    expect(leftTextWithLogo).toBeDefined();
+    expect(leftTextWithLogo?.x).toBe(leftTextWithWordmark?.x);
+  });
+
+  it('브랜드 이름이 로고 자리 폭을 넘으면 줄입니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const scene = barLayout(
+      input({ options, logoId: 'canon', fields: { MAKER: '가'.repeat(200) } }),
+      services,
+    );
+    const wordmark = textNodes(scene.nodes).find((n) => n.x === 60);
+    expect(wordmark?.text.endsWith('…')).toBe(true);
+  });
+
+  it('MAKER 필드가 없으면 로고 id 가 있어도 워드마크를 그리지 않습니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const scene = barLayout(input({ options, logoId: 'canon', fields: {} }), services);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+    expect(textNodes(scene.nodes).some((n) => n.x === 60 && n.style.align === 'left')).toBe(false);
   });
 });

@@ -60,6 +60,7 @@ export const ko = {
   'option.SECONDARY_MAIN': '오른쪽 주 줄',
   'option.SECONDARY_SUB': '오른쪽 부 줄',
   'option.FOOTER': '꼬리 줄',
+  'option.SHOW_LOGO': '브랜드 로고',
 
   // 옵션 값 이름
   'value.MODE.split': '좌우 나눔',
