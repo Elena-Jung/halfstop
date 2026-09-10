@@ -355,7 +355,7 @@ describe('토큰 밖의 치수', () => {
 
 Run: `npx vitest run src/ui/scale.test.ts`
 
-Expected: FAIL. `간격, 모서리, 글자 크기가 토큰만 씁니다` 가 84개 안팎의 항목을 줄 번호와 선택자와 함께 나열합니다. **이 목록이 곧 할 일 목록입니다.** 하나씩 지워 나가십시오.
+Expected: FAIL. `간격, 모서리, 글자 크기가 토큰만 씁니다` 가 80개 항목을 줄 번호와 선택자와 함께 나열합니다. **이 목록이 곧 할 일 목록입니다.** 하나씩 지워 나가십시오.
 
 - [ ] **Step 3: 값을 토큰으로 바꿉니다**
 
@@ -439,7 +439,7 @@ git add src/assets/ui.css src/ui/scale.test.ts
 git commit -m "$(cat <<'EOF'
 어긋난 치수 값을 토큰으로 이동
 
-ui.css 의 padding, margin, gap, border-radius, font-size 84곳이 단계 밖의 값을
+ui.css 의 padding, margin, gap, border-radius, font-size 80곳이 단계 밖의 값을
 쓰고 있었습니다. 전부 치수 토큰으로 옮기고, 토큰 밖의 값을 거부하는 검사를
 scale.test.ts 에 추가했습니다.
 
