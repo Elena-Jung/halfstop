@@ -7,7 +7,7 @@ const ROOMY: CanvasLimit = { maxSide: 32_767, maxArea: 268_435_456 };
 describe('targetLongEdge', () => {
   it('세로 사진 재현 사례: 600x900 사진에 하단 바가 붙어도 사진 영역이 원본을 유지합니다', () => {
     // 사진 600x900 -> toUnits로 짧은 변 1000 정규화 -> 1000x1500.
-    // infoBar가 바 높이 120을 더해 장면은 1000x1620.
+    // barLayout이 바 높이 120을 더해 장면은 1000x1620.
     // 짧은 변 기준 배율은 600 / 1000 = 0.6 이고, 이 배율로 장면의 긴 변(1620)을
     // 그리면 1620 * 0.6 = 972 가 targetLongEdge입니다.
     const scene = { width: 1000, height: 1620 };
