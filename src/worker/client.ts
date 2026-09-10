@@ -32,6 +32,15 @@ export function createRenderClient(): RenderClient {
     pending.clear();
   });
 
+  // 응답을 구조화 복제로 옮길 수 없으면 message 도 error 도 오지 않아 기다리던
+  // 프라미스가 정착하지 않습니다. 이 핸들러가 없으면 busy 가 영구히 잠깁니다.
+  worker.addEventListener('messageerror', () => {
+    for (const [id, settle] of pending) {
+      settle({ id, ok: false, message: '워커 응답을 읽지 못했습니다' });
+    }
+    pending.clear();
+  });
+
   return {
     render(job) {
       const id = nextJobId();
