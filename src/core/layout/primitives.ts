@@ -18,6 +18,18 @@ export function twoLineHeight(sizeA: number, sizeB: number): number {
   return halfHeight(Math.max(sizeA, sizeB)) * 2;
 }
 
+/**
+ * 두 줄을 위아래로 벌려 놓을 간격입니다. 겹치지 않을 만큼 벌리되 주어진 높이를 넘지 않게
+ * 묶습니다. available 이 큰 쪽 한 줄보다도 좁으면 0 이 되고, 그때는 두 줄이 겹치며 글자가
+ * 그 높이를 조금 넘습니다. 간격으로 해결할 수 있는 문제가 아니므로 여기서는 0 을 돌려주고
+ * 부르는 쪽이 그 한계를 안고 갑니다.
+ */
+export function twoLineGap(available: number, mainSize: number, subSize: number): number {
+  const wanted = Math.max(mainSize * 1.25, halfHeight(mainSize) + halfHeight(subSize));
+  const room = available - twoLineHeight(mainSize, subSize);
+  return Math.max(0, Math.min(wanted, room));
+}
+
 import type { LayoutServices, TextStyle } from './types';
 
 const ELLIPSIS = '…';

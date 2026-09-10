@@ -1,6 +1,6 @@
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { num, str, type PresetOption } from '../options';
-import { ellipsize, halfHeight, twoLineHeight } from '../primitives';
+import { ellipsize, halfHeight, twoLineGap } from '../primitives';
 import { resolveSlot } from '../slots';
 import type { PresetLayout, SceneNode, TextStyle } from '../types';
 
@@ -77,13 +77,9 @@ export const matteLayout: PresetLayout = (input, services) => {
     if (clipped) nodes.push({ kind: 'text', x, y, text: clipped, style: textStyle });
   };
 
-  // 부 줄이 주 줄보다 커질 수 있으므로 두 크기를 모두 보고 간격을 정합니다.
-  // 아래 여백이 큰 쪽 한 줄보다도 좁으면 room 이 음수가 되어 간격은 0 이 됩니다. 그때는 두
-  // 줄이 겹치고 큰 줄이 여백을 조금 넘습니다. 겹침과 이탈 중 하나를 골라야 한다면 이탈을
-  // 막는 쪽을 지킵니다. 여백을 넘어간 글은 캔버스에서 잘려 아예 사라지기 때문입니다.
-  const wanted = Math.max(fontSize * 1.25, halfHeight(fontSize) + halfHeight(subSize));
-  const room = padBottom - twoLineHeight(fontSize, subSize);
-  const gap = Math.max(0, Math.min(wanted, room));
+  // 두 줄이 들어갈 수 있는 높이는 아래 여백입니다. 여백을 넘어간 글은 캔버스에서 잘려
+  // 아예 사라지므로, 겹침과 이탈 중 하나를 골라야 한다면 이탈을 막는 쪽을 지킵니다.
+  const gap = twoLineGap(padBottom, fontSize, subSize);
 
   if (mode === 'poster') {
     // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.

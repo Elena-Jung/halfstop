@@ -1,6 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { ellipsize } from './primitives';
+import { ellipsize, halfHeight, twoLineGap, twoLineHeight } from './primitives';
 import type { LayoutServices, TextStyle } from './types';
+
+describe('halfHeight', () => {
+  it('크기에 비율 0.62를 곱합니다', () => {
+    expect(halfHeight(34)).toBeCloseTo(21.08);
+  });
+});
+
+describe('twoLineHeight', () => {
+  it('큰 쪽 크기의 halfHeight 두 배와 같습니다', () => {
+    expect(twoLineHeight(34, 23.8)).toBeCloseTo(halfHeight(34) * 2);
+    // 인자 순서를 바꿔도 큰 쪽을 보므로 같은 값입니다.
+    expect(twoLineHeight(23.8, 34)).toBeCloseTo(halfHeight(34) * 2);
+  });
+});
+
+describe('twoLineGap', () => {
+  it('넉넉한 높이에서는 wanted 를 돌려줍니다', () => {
+    // wanted = max(34*1.25, halfHeight(34)+halfHeight(23.8)) = max(42.5, 35.836) = 42.5
+    expect(twoLineGap(200, 34, 23.8)).toBeCloseTo(42.5);
+  });
+
+  it('좁은 높이에서는 room 을 돌려줍니다', () => {
+    // room = 50 - twoLineHeight(34, 23.8) = 50 - 42.16 = 7.84
+    expect(twoLineGap(50, 34, 23.8)).toBeCloseTo(7.84);
+  });
+
+  it('available 이 큰 쪽 한 줄보다 좁으면 0 을 돌려줍니다', () => {
+    // twoLineHeight(34, 23.8) = 42.16 이므로 20 은 그보다 좁습니다.
+    expect(twoLineGap(20, 34, 23.8)).toBe(0);
+  });
+});
 
 const STYLE: TextStyle = {
   family: 'Test',
