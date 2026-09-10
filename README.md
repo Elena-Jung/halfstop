@@ -34,26 +34,29 @@ docker run --rm -p 8080:80 halfstop
 그 뒤 `http://localhost:8080`을 열어 확인합니다. docker가 없으면
 `npm run build && npm run preview`로 빌드 결과물을 확인할 수 있습니다.
 
-## 배포(GitHub Actions → Cloudflare Pages)
+## 배포(Cloudflare Pages Git 연동)
 
-`.github/workflows/deploy.yml`이 `main`에 push되거나 workflow_dispatch로 수동 실행할
-때 검사(`tsc --noEmit`, `npm test`) 후 `npm run build`로 만든 `dist/`를
-`cloudflare/wrangler-action`으로 Cloudflare Pages에 올립니다. pull request에서는 검사만
-돌고 배포는 하지 않습니다.
+Cloudflare Pages 가 저장소를 직접 보고 빌드해 올립니다. GitHub Actions 는 배포하지 않고
+검사만 합니다(`.github/workflows/ci.yml`). 두 곳에서 배포하면 같은 사이트에 두 갈래로 들어가
+서로 덮어쓰기 때문입니다. 이 방식이면 Cloudflare API 토큰을 GitHub 에 넣을 일이 없습니다.
 
-저장소 Settings → Secrets and variables → Actions에 다음 두 값을 넣어야 합니다.
+Cloudflare 대시보드에서 Workers & Pages → Pages → 저장소 연결로 `Elena-Jung/halfstop` 을
+고른 뒤 다음 값을 넣습니다.
 
-- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 대시보드의 Workers & Pages 페이지에 있는
-  Account Details(계정 세부 정보)에서 복사합니다.
-- `CLOUDFLARE_API_TOKEN`: Cloudflare 대시보드의 My Profile → API Tokens → Create Token
-  에서 Cloudflare Pages 편집 권한이 있는 토큰을 만듭니다. 대시보드에 직접 들어가
-  토큰 템플릿 이름까지 확인하지는 못했으므로, Pages 편집 권한을 주는 템플릿이나
-  커스텀 토큰 중 화면에 보이는 것을 쓰면 됩니다.
+| 칸 | 값 |
+|---|---|
+| 프로젝트 이름 | `halfstop` |
+| 프로덕션 분기 | `main` |
+| 프레임워크 미리 설정 | 없음 |
+| 빌드 명령 | `npm run build` |
+| 빌드 출력 디렉터리 | `dist` |
+| 루트 디렉터리 | 비워 둡니다 |
+| 환경 변수 | `NODE_VERSION` = `22` |
 
-배포 대상 Cloudflare Pages 프로젝트 이름은 `halfstop`으로 워크플로에 적혀 있습니다.
-Cloudflare 대시보드에서 이 이름으로 Pages 프로젝트를 먼저 만들어 두십시오. 첫 배포 전에
-프로젝트가 반드시 미리 있어야 하는지는 확인하지 못했으므로, 미리 만들어 두는 쪽이
-안전합니다.
+`NODE_VERSION` 을 빼면 빌드가 실패합니다. 이 프로젝트는 Node 22 이상이 필요한데 Cloudflare
+의 기본 Node 는 그보다 낮습니다.
+
+프로덕션 분기가 아닌 브랜치에 push 하면 미리 보기 배포가 따로 만들어집니다.
 
 ## 도메인 바꾸기
 

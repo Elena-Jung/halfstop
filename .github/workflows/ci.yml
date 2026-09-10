@@ -1,0 +1,25 @@
+name: 검사
+
+# 배포는 Cloudflare Pages 의 Git 연동이 맡습니다. 여기서 배포까지 하면 같은 사이트에 두
+# 갈래로 들어가 서로 덮어씁니다. 이 워크플로는 검사만 합니다. 그래서 Cloudflare API 토큰을
+# GitHub 에 넣을 일도 없습니다.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: 검사
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
