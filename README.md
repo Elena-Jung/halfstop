@@ -75,6 +75,17 @@ Web Analytics 항목에서 Enable(사용)을 누르면 다음 배포부터 스�
 끼워집니다. 이 순서는 실제로 대시보드에 들어가 눌러보지 못하고 Cloudflare 문서로만
 확인했으므로, 화면 구성이 바뀌었다면 "Web Analytics"라는 이름으로 찾으십시오.
 
+## 라이선스
+
+GPL-3.0-or-later 입니다. 전문은 `LICENSE` 에 있습니다.
+
+이 앱은 서버가 없고 모든 코드가 방문자 브라우저로 내려갑니다. 즉 접속하는 순간 이미 배포이므로,
+고쳐서 어딘가에 올리는 쪽은 그 소스를 같은 라이선스로 내놓아야 합니다. 서버에서 돌리며 화면만
+보여 주는 이른바 SaaS 허점이 이 구조에서는 생기지 않습니다.
+
+의존성 라이선스는 exifreader 가 MPL-2.0, react 와 react-dom 이 MIT, lucide-react 가 ISC,
+서체 넷이 OFL-1.1 입니다. 모두 GPL-3.0 과 함께 배포할 수 있습니다.
+
 ## 참고한 프로젝트
 
 이 프로젝트는 [exif-frame.yuru.cam](https://exif-frame.yuru.cam/)
