@@ -7,7 +7,7 @@ export const ko = {
   // 레일
   'rail.preset': '프리셋',
   'rail.frame': '프레임',
-  'rail.text': '텍스트',
+  'rail.arrangement': '배치',
   'rail.export': '내보내기',
   'rail.label': '설정 묶음',
 
@@ -21,6 +21,18 @@ export const ko = {
   'preset.polaroid': '폴라로이드',
   'preset.letterbox': '레터박스',
   'preset.poster': '포스터',
+
+  // 배치 이름. 어떤 정보가 어디 들어가는지를 설명합니다. id 는 지금 같은 이름의
+  // 프리셋에서 1:1 로 뽑았지만, 배치 칸에서는 프레임과 별개로 골라 쓸 수 있습니다.
+  'arrangement.body-lens': '왼쪽에 제조사와 바디, 오른쪽에 렌즈 제조사와 모델, 꼬리에 노출값',
+  'arrangement.gear-exposure': '왼쪽에 장비와 렌즈, 오른쪽에 노출값',
+  'arrangement.one-line': '한 줄에 장비와 노출값 전부',
+  'arrangement.shot-on': 'Shot on 문구와 노출값',
+  'arrangement.minimal': '장비명만',
+  'arrangement.film': '왼쪽에 촬영 일시, 오른쪽에 노출값',
+  'arrangement.polaroid': '왼쪽에 장비, 오른쪽에 노출값',
+  'arrangement.letterbox': '장비와 초점 거리, 조리개를 한 줄로',
+  'arrangement.poster': '촬영 일시와 장비를 위아래로',
 
   // 옵션 이름
   'option.MODE': '배치',
@@ -86,6 +98,17 @@ export const ko = {
   // 커스텀 컨트롤
   'control.increase': '{label} 늘리기',
   'control.decrease': '{label} 줄이기',
+
+  // 색 고르기 창
+  'colorPicker.pick': '{label} 고르기',
+  'colorPicker.close': '닫기',
+  'colorPicker.hue': '색상',
+  'colorPicker.saturation': '채도',
+  'colorPicker.brightness': '명도',
+  'colorPicker.hex': '16진값',
+  'colorPicker.contrastRatio': '지금 배경과 대비 {ratio}:1입니다',
+  'colorPicker.contrastPass': '본문 기준 4.5:1을 넘습니다',
+  'colorPicker.contrastFail': '본문 기준 4.5:1에 못 미칩니다',
 
   // 캔버스
   'canvas.empty': '아직 불러온 사진이 없습니다',

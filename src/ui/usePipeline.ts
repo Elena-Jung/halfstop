@@ -3,6 +3,7 @@ import { fontUrl } from '../assets/fontUrls';
 import { toFields } from '../core/exif/map';
 import { readExif, type PhotoMeta } from '../core/exif/read';
 import { PREVIEW_LONG_EDGE, type ExportPreset } from '../core/export/resolution';
+import { ARRANGEMENTS, arrangementById, arrangementValuesFor } from '../core/layout/arrangements';
 import { detectAutoOrientation } from '../core/io/autoOrientProbe';
 import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { swapsAxes } from '../core/io/orientation';
@@ -10,6 +11,7 @@ import {
   DEFAULT_PRESET_ID,
   layoutFor,
   optionsFor,
+  type Preset,
   presetById,
   valuesFor,
 } from '../core/layout/presets';
@@ -83,6 +85,11 @@ export interface Loaded {
   thumbUrl: string;
   /** 설정이 사진마다 따로 붙습니다. 이것이 여러 장 지원의 핵심입니다. */
   presetId: string;
+  /**
+   * 지금 어느 배치 카드가 골라져 있는지 보이기 위한 값입니다. 값을 계산하는 겹이
+   * 아닙니다. 실제 여덟 값은 배치를 고르는 순간 values 에 바로 써 넣습니다.
+   */
+  arrangementId: string;
   values: Map<string, OptionValue>;
 }
 
@@ -91,13 +98,28 @@ function closePhoto(photo: Loaded): void {
   URL.revokeObjectURL(photo.thumbUrl);
 }
 
+/**
+ * 저장된 배치 id 가 목록에 없거나 지금 프리셋의 레이아웃에서 못 쓰는 것이면 프리셋이
+ * 가리키는 기본 배치로 떨어집니다. `presetById` 가 없는 id 에 기본값을 돌려주는 것과
+ * 같은 방식입니다. 옛 저장값에는 이 필드가 아예 없어 항상 이 자리를 거칩니다.
+ */
+function resolveArrangementId(preset: Preset, storedId: string | undefined): string {
+  const found = storedId !== undefined ? ARRANGEMENTS.find((a) => a.id === storedId) : undefined;
+  return found && found.layouts.includes(preset.layout) ? found.id : preset.arrangementId;
+}
+
 /** 새로 불러온 사진의 시작 설정입니다. 저장된 마지막 설정이 없으면 기본 프리셋입니다. */
 function initialPhotoSettings(stored: StoredSettings | null): {
   presetId: string;
+  arrangementId: string;
   values: Map<string, OptionValue>;
 } {
   const preset = presetById(stored?.presetId ?? DEFAULT_PRESET_ID);
-  return { presetId: preset.id, values: valuesFor(preset, stored?.values ?? {}) };
+  return {
+    presetId: preset.id,
+    arrangementId: resolveArrangementId(preset, stored?.arrangementId),
+    values: valuesFor(preset, stored?.values ?? {}),
+  };
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
@@ -132,6 +154,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   );
   const options = previewPhoto?.values ?? emptyOptions;
   const presetOptions = useMemo(() => optionsFor(preset), [preset]);
+  const arrangementId = previewPhoto?.arrangementId ?? emptyPreset.arrangementId;
 
   const servicesRef = useRef<LayoutServices | null>(null);
   const limitRef = useRef<CanvasLimit | null>(null);
@@ -296,6 +319,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
           autoOriented,
           thumbUrl: URL.createObjectURL(file),
           presetId: initial.presetId,
+          arrangementId: initial.arrangementId,
           values: new Map(initial.values),
         });
       } catch (error) {
@@ -354,22 +378,49 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   }, [selected]);
 
   // 프리셋을 바꾸면 값도 그 프리셋 기준으로 새로 만듭니다. 이전 프리셋에서 만진 값을
-  // 그대로 들고 가면 레이아웃이 달라 뜻이 어긋납니다.
+  // 그대로 들고 가면 레이아웃이 달라 뜻이 어긋납니다. 어느 배치 카드가 골라져 있는지도
+  // 그 프리셋의 기본 배치로 되돌립니다.
   const setPreset = useCallback((id: string) => {
     const next = presetById(id);
     setPhotos((previous) =>
       applyToSelected(previous, selected, (photo) => ({
         ...photo,
         presetId: next.id,
+        arrangementId: next.arrangementId,
         values: valuesFor(next, {}),
       })),
     );
   }, [selected]);
 
+  /**
+   * 배치는 고르는 순간 그 여덟 값을 사진의 values 에 바로 써 넣습니다. valuesFor 의
+   * 세 겹(선언 기본값 -> 프리셋이 덮는 값 -> 저장된 값)을 다시 태우면 저장된 옛 값이
+   * 새 배치를 다시 덮어써 아무 일도 안 일어난 것처럼 보입니다. 값 계산 겹을 건드리지
+   * 않고 여기서 직접 쓰면, 사용자가 템플릿을 손으로 고친 것도 다음 배치 변경 전까지
+   * 살아남습니다.
+   */
+  const setArrangement = useCallback(
+    (id: string) => {
+      const arrangement = arrangementById(id);
+      const values = arrangementValuesFor(arrangement, preset.layout);
+      setPhotos((previous) =>
+        applyToSelected(previous, selected, (photo) => {
+          const nextValues = new Map(photo.values);
+          for (const [key, value] of Object.entries(values)) {
+            nextValues.set(key, value);
+          }
+          return { ...photo, arrangementId: arrangement.id, values: nextValues };
+        }),
+      );
+    },
+    [selected, preset.layout],
+  );
+
   useEffect(() => {
     if (!previewPhoto) return;
     writeSettings({
       presetId: previewPhoto.presetId,
+      arrangementId: previewPhoto.arrangementId,
       values: Object.fromEntries(previewPhoto.values),
     });
   }, [previewPhoto]);
@@ -449,6 +500,9 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     presetId: preset.id,
     setPreset,
     presetOptions,
+    layout: preset.layout,
+    arrangementId,
+    setArrangement,
     exportSize,
     setExportSize,
   };

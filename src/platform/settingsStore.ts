@@ -2,6 +2,12 @@ const KEY = 'halfstop.settings.v1';
 
 export interface StoredSettings {
   presetId: string;
+  /**
+   * 사진마다 고른 배치입니다. 옛 저장값에는 이 필드가 없습니다. 없다고 저장값 전체를
+   * 버리면 프리셋과 옵션 값까지 함께 날아가므로, 없을 때는 이 필드만 비운 채로
+   * 돌려주고 프리셋의 기본 배치로 채우는 일은 부르는 쪽(usePipeline)이 맡습니다.
+   */
+  arrangementId?: string;
   values: Record<string, unknown>;
 }
 
@@ -31,10 +37,11 @@ export function readSettings(storage?: StorageLike): StoredSettings | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
-    const { presetId, values } = parsed as Partial<StoredSettings>;
+    const { presetId, arrangementId, values } = parsed as Partial<StoredSettings>;
     if (typeof presetId !== 'string') return null;
+    if (arrangementId !== undefined && typeof arrangementId !== 'string') return null;
     if (typeof values !== 'object' || values === null || Array.isArray(values)) return null;
-    return { presetId, values };
+    return arrangementId === undefined ? { presetId, values } : { presetId, arrangementId, values };
   } catch {
     return null;
   }

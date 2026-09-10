@@ -2,7 +2,7 @@ import type { OptionValue } from '../core/layout/options';
 import { PRESETS } from '../core/layout/presets';
 import type { ExportPreset } from '../core/export/resolution';
 import { t, type MessageKey } from '../i18n';
-import { groupOptions, railPanelId, railTabId, RAIL_TABS, type RailTab } from './groups';
+import { arrangementsForLayout, groupOptions, railPanelId, railTabId, RAIL_TABS, type RailTab } from './groups';
 import { OptionField } from './OptionField';
 import type { PresetOption } from '../core/layout/options';
 
@@ -21,6 +21,9 @@ export function SettingsPanel(props: {
   presetOptions: readonly PresetOption[];
   options: ReadonlyMap<string, OptionValue>;
   setOption: (id: string, value: OptionValue) => void;
+  layout: 'bar' | 'matte';
+  arrangementId: string;
+  setArrangement: (id: string) => void;
   exportSize: ExportPreset;
   setExportSize: (size: ExportPreset) => void;
   onDownload: () => void;
@@ -35,6 +38,9 @@ export function SettingsPanel(props: {
     presetOptions,
     options,
     setOption,
+    layout,
+    arrangementId,
+    setArrangement,
     exportSize,
     setExportSize,
     onDownload,
@@ -51,6 +57,9 @@ export function SettingsPanel(props: {
 
   const renderOptions = (group: readonly PresetOption[]) =>
     group
+      // MODE 는 배치 카드가 통째로 정합니다. 개별 옵션으로 따로 보이면 카드가
+      // 고른 값과 어긋날 수 있습니다.
+      .filter((option) => option.id !== 'MODE')
       // split 배치는 좌우가 이미 정해져 정렬 옵션이 뜻이 없습니다.
       .filter((option) => option.id !== 'ALIGN' || mode !== 'split')
       .map((option) => (
@@ -92,7 +101,32 @@ export function SettingsPanel(props: {
       case 'frame':
         return <div className="field-list">{renderOptions(grouped.frame)}</div>;
       case 'arrangement':
-        return <div className="field-list">{renderOptions(grouped.arrangement)}</div>;
+        return (
+          <div className="field-list">
+            <fieldset className="preset-list" disabled={locked}>
+              <legend>{t('rail.arrangement')}</legend>
+              {arrangementsForLayout(layout).map((arrangement) => {
+                const isSelected = arrangementId === arrangement.id;
+                return (
+                  <label key={arrangement.id} className="preset-item" data-selected={isSelected}>
+                    <input
+                      type="radio"
+                      name="arrangement"
+                      value={arrangement.id}
+                      checked={isSelected}
+                      onChange={() => setArrangement(arrangement.id)}
+                      disabled={locked}
+                      className="hs-radio-input"
+                    />
+                    <span className="hs-radio-box" aria-hidden="true" />
+                    {t(arrangement.labelKey as MessageKey)}
+                  </label>
+                );
+              })}
+            </fieldset>
+            {renderOptions(grouped.arrangement)}
+          </div>
+        );
       case 'export':
         return (
           <div className="field-list">

@@ -48,6 +48,9 @@ export function App() {
     presetId,
     setPreset,
     presetOptions,
+    layout,
+    arrangementId,
+    setArrangement,
     exportSize,
     setExportSize,
   } = usePipeline(canvasRef);
@@ -109,6 +112,9 @@ export function App() {
             presetOptions={presetOptions}
             options={options}
             setOption={setOption}
+            layout={layout}
+            arrangementId={arrangementId}
+            setArrangement={setArrangement}
             exportSize={exportSize}
             setExportSize={setExportSize}
             onDownload={() => void download()}
