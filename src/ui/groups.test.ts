@@ -40,9 +40,16 @@ describe('arrangementsForLayout', () => {
     }
   });
 
-  it('지금 데이터에서는 아홉 배치가 bar 아니면 matte 딱 하나에만 속합니다', () => {
+  it('프리셋에서 뽑은 아홉 배치는 한 레이아웃에만 속하고 한 덩이만 양쪽에 속합니다', () => {
+    // 아홉 배치는 프리셋에서 1:1 로 뽑아 그 프리셋의 레이아웃에만 묶여 있습니다. 다른
+    // 레이아웃에서도 뜻이 통하는지 검증하지 않았기 때문입니다. one-block 은 프리셋에서 뽑은
+    // 것이 아니라 사용자 요구로 새로 만든 것이고, 꼬리 줄을 쓰지 않고 single 모드만 써서
+    // 양쪽에서 뜻이 통합니다.
+    const both = ARRANGEMENTS.filter((a) => a.layouts.length > 1).map((a) => a.id);
+    expect(both).toEqual(['one-block']);
+
     const bar = arrangementsForLayout('bar');
     const matte = arrangementsForLayout('matte');
-    expect(bar.length + matte.length).toBe(ARRANGEMENTS.length);
+    expect(bar.length + matte.length).toBe(ARRANGEMENTS.length + both.length);
   });
 });
