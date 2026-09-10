@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { t } from '../../i18n';
 
 /**
@@ -23,7 +24,20 @@ export function NumberField(props: {
   const { id, label, value, min, max, step = 1, unit, disabled = false, onChange } = props;
 
   const clamp = (raw: number) => Math.min(max, Math.max(min, raw));
-  const bump = (direction: 1 | -1) => onChange(clamp(value + direction * step));
+
+  // 증감 단추를 한 틱 안에 두 번 누르면 두 번째가 낡은 value 를 읽어 한 단계를 잃습니다.
+  // 부모의 상태 갱신이 비동기라서 그렇습니다. 마지막 값을 ref 에 동기적으로 써 두고 거기서
+  // 계산하면 연달아 누른 만큼 쌓입니다. 부모가 다른 값을 돌려주면 아래 효과가 다시 맞춥니다.
+  const latest = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  }, [value]);
+
+  const bump = (direction: 1 | -1) => {
+    const next = clamp(latest.current + direction * step);
+    latest.current = next;
+    onChange(next);
+  };
 
   return (
     <div className="hs-number" data-disabled={disabled}>
