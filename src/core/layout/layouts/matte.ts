@@ -82,25 +82,34 @@ export const matteLayout: PresetLayout = (input, services) => {
   const gap = twoLineGap(padBottom, fontSize, subSize);
 
   if (mode === 'poster') {
-    // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.
-    // 가운데 줄이 커지면 간격도 함께 벌리되, 아래 여백을 넘지 않게 묶어 둡니다.
-    // step 을 제한하는 것은 바깥 두 줄입니다. 그 둘은 fontSize 크기이므로 여기에 subSize 가
-    // 들어가면 가운데 줄이 커질 때 step 을 필요 이상으로 좁혀 줄끼리 겹칩니다. step 은 중심에서
-    // 그대로 옮긴 거리이므로 반높이 하나만 빼면 됩니다. 위의 room 이 반높이 두 개를 빼는 것과
-    // 다른 이유가 그것입니다.
-    //
-    // 가운데 줄은 step 과 무관하게 언제나 areaCenterY 에 놓입니다. 그래서 subSize 의 반높이가
-    // 여백 절반을 넘으면 step 을 아무리 줄여도 가운데 줄이 여백 밖으로 나갑니다. SUB_SCALE
-    // 최댓값 3 에 아래 여백이 좁으면 실제로 일어납니다. 간격으로 막을 수 없고 옵션 범위에서
-    // 막아야 하는 한계입니다.
-    const posterWanted = Math.max(padBottom / 4, halfHeight(fontSize) + halfHeight(subSize));
-    const posterRoom = padBottom / 2 - halfHeight(fontSize);
-    const step = Math.max(0, Math.min(posterWanted, posterRoom));
     const align = str(options, 'ALIGN') as TextStyle['align'];
     const x = align === 'left' ? leftInset : align === 'right' ? width - rightInset : width / 2;
-    put(primary.main, fontSize, align, x, areaCenterY - step, textWidth);
-    put(primary.sub, subSize, align, x, areaCenterY, textWidth);
-    put(secondary.main, fontSize, align, x, areaCenterY + step, textWidth);
+    if (primary.sub === '') {
+      // 가운데 줄이 비면 세 줄 자리를 그대로 두지 않고 남은 두 줄을 모읍니다. single 과
+      // split 이 빈 줄을 다루는 것과 같습니다. 남은 두 줄은 모두 fontSize 크기이므로 위에서
+      // 이미 계산해 둔 gap 을 그대로 씁니다.
+      const twoLines = primary.main !== '' && secondary.main !== '';
+      put(primary.main, fontSize, align, x, twoLines ? areaCenterY - gap / 2 : areaCenterY, textWidth);
+      put(secondary.main, fontSize, align, x, twoLines ? areaCenterY + gap / 2 : areaCenterY, textWidth);
+    } else {
+      // 위 작게, 가운데 크게, 아래 작게. 세 줄을 아래 여백 안에 세로로 나눕니다.
+      // 가운데 줄이 커지면 간격도 함께 벌리되, 아래 여백을 넘지 않게 묶어 둡니다.
+      // step 을 제한하는 것은 바깥 두 줄입니다. 그 둘은 fontSize 크기이므로 여기에 subSize 가
+      // 들어가면 가운데 줄이 커질 때 step 을 필요 이상으로 좁혀 줄끼리 겹칩니다. step 은 중심에서
+      // 그대로 옮긴 거리이므로 반높이 하나만 빼면 됩니다. 위의 room 이 반높이 두 개를 빼는 것과
+      // 다른 이유가 그것입니다.
+      //
+      // 가운데 줄은 step 과 무관하게 언제나 areaCenterY 에 놓입니다. 그래서 subSize 의 반높이가
+      // 여백 절반을 넘으면 step 을 아무리 줄여도 가운데 줄이 여백 밖으로 나갑니다. SUB_SCALE
+      // 최댓값 3 에 아래 여백이 좁으면 실제로 일어납니다. 간격으로 막을 수 없고 옵션 범위에서
+      // 막아야 하는 한계입니다.
+      const posterWanted = Math.max(padBottom / 4, halfHeight(fontSize) + halfHeight(subSize));
+      const posterRoom = padBottom / 2 - halfHeight(fontSize);
+      const step = Math.max(0, Math.min(posterWanted, posterRoom));
+      put(primary.main, fontSize, align, x, areaCenterY - step, textWidth);
+      put(primary.sub, subSize, align, x, areaCenterY, textWidth);
+      put(secondary.main, fontSize, align, x, areaCenterY + step, textWidth);
+    }
   } else if (mode === 'single') {
     const align = str(options, 'ALIGN') as TextStyle['align'];
     const x = align === 'left' ? leftInset : align === 'right' ? width - rightInset : width / 2;

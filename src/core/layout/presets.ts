@@ -150,7 +150,7 @@ export const PRESETS: readonly Preset[] = [
       PAD_LEFT: 120,
       BACKGROUND: '#f4f2ee',
       PRIMARY_MAIN: '{TAKEN_AT}',
-      PRIMARY_SUB: '제목을 입력하십시오',
+      PRIMARY_SUB: '',
       SECONDARY_MAIN: '{MAKER}{BODY}{MM}',
       SECONDARY_SUB: '',
       FONT_SIZE: 26,

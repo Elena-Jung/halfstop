@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MATTE_OPTIONS, matteLayout } from './matte';
 import { defaultValues } from '../options';
-import { halfHeight } from '../primitives';
+import { halfHeight, twoLineGap } from '../primitives';
 import type { LayoutInput, LayoutServices, SceneNode } from '../types';
 
 const services: LayoutServices = {
@@ -205,6 +205,33 @@ describe('matteLayout', () => {
       expect(node.y - half).toBeGreaterThanOrEqual(areaTop);
       expect(node.y + half).toBeLessThanOrEqual(height);
     }
+  });
+
+  it('PRIMARY_SUB 가 빈 poster 에서 남은 두 줄이 areaCenterY 를 기준으로 대칭이고 gap 만큼 떨어집니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'poster');
+    // PRIMARY_SUB 는 이미 기본값이 빈 문자열입니다.
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    expect(nodes).toHaveLength(2);
+    const areaCenterY = 60 + 1000 + 200 / 2; // padTop + photoHeight + padBottom/2
+    const fontSize = 30;
+    const subSize = fontSize * 0.7; // 기본 SUB_SCALE
+    const gap = twoLineGap(200, fontSize, subSize); // padBottom 기본값 200
+    const [first, second] = nodes;
+    expect((first!.y + second!.y) / 2).toBeCloseTo(areaCenterY);
+    expect(second!.y - first!.y).toBeCloseTo(gap);
+  });
+
+  it('PRIMARY_SUB 와 SECONDARY_MAIN 이 모두 빈 poster 에서 남은 한 줄이 정확히 areaCenterY 에 놓입니다', () => {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('MODE', 'poster');
+    options.set('SECONDARY_MAIN', '');
+    const scene = matteLayout(input({ options }), services);
+    const nodes = textNodes(scene.nodes);
+    expect(nodes).toHaveLength(1);
+    const areaCenterY = 60 + 1000 + 200 / 2;
+    expect(nodes[0]?.y).toBeCloseTo(areaCenterY);
   });
 
   it('PAD_LEFT 0, PAD_RIGHT 0인 split에서 왼쪽 글의 x가 0보다 큽니다', () => {

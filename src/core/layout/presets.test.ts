@@ -61,6 +61,25 @@ describe('optionsFor 와 layoutFor', () => {
   });
 });
 
+describe('프리셋 기본 문구', () => {
+  // 완성형 한글 음절 범위입니다. 화면에 그려지는 값에 이 범위의 글자가 있으면
+  // 안내 문구가 실수로 캔버스에 그려지는 것입니다.
+  const HANGUL_SYLLABLE = /[가-힣]/;
+  const TEXT_KEYS = ['PRIMARY_MAIN', 'PRIMARY_SUB', 'SECONDARY_MAIN', 'SECONDARY_SUB', 'FOOTER'];
+
+  it('화면에 그려지는 기본 문구에 한국어 안내 문구가 없습니다', () => {
+    for (const preset of PRESETS) {
+      const values = valuesFor(preset, {});
+      for (const key of TEXT_KEYS) {
+        const value = values.get(key);
+        if (typeof value !== 'string') continue; // 해당 레이아웃에 없는 키입니다.
+        if (value.startsWith('{')) continue; // 템플릿 토큰은 문구가 아닙니다.
+        expect(HANGUL_SYLLABLE.test(value), `${preset.id}.${key} = "${value}"`).toBe(false);
+      }
+    }
+  });
+});
+
 describe('valuesFor', () => {
   it('프리셋 값이 선언 기본값을 덮습니다', () => {
     const preset = presetById('minimal');
