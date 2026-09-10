@@ -11,7 +11,8 @@ export interface RenderJob {
   autoOriented: boolean;
   orientation: number;
   limit: CanvasLimit;
-  preset: ExportPreset;
+  /** 워커가 만들 파일의 목표 크기입니다. scene 을 만든 계획 2 의 Preset 과 이름이 겹치지 않게 size 로 부릅니다. */
+  size: ExportPreset;
   format: ExportFormat;
   quality: number;
   /** 워커가 자기 FontFaceSet에 등록할 서체입니다. 주소는 워커가 직접 찾습니다. */

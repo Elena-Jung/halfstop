@@ -286,7 +286,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         autoOriented: loaded.autoOriented,
         orientation: loaded.meta.orientation,
         limit,
-        preset: 'original',
+        size: 'original',
         format: 'image/jpeg',
         quality: 0.92,
         fontId,
