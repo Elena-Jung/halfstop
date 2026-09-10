@@ -144,23 +144,30 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     const services = servicesRef.current;
     if (!canvas || !loaded || !services || !fontReady) return;
 
-    const scene = buildScene({
-      photoPx: { width: loaded.preview.width, height: loaded.preview.height },
-      fields: loaded.fields,
-      logoId: undefined,
-      layout: layoutFor(preset),
-      options,
-      services,
-    });
+    // requestAnimationFrame 콜백 안이라 여기서 던지면 아무도 잡지 않습니다. 값을
+    // 바꿀 때마다 같은 예외가 조용히 반복되지 않도록 상태 문구로만 알립니다.
+    try {
+      const scene = buildScene({
+        photoPx: { width: loaded.preview.width, height: loaded.preview.height },
+        fields: loaded.fields,
+        logoId: undefined,
+        layout: layoutFor(preset),
+        options,
+        services,
+      });
 
-    paintToCanvas({
-      scene,
-      canvas,
-      photo: loaded.preview.bitmap,
-      logo: NO_LOGO,
-      targetLongEdge: PREVIEW_LONG_EDGE,
-      limit: PREVIEW_LIMIT,
-    });
+      paintToCanvas({
+        scene,
+        canvas,
+        photo: loaded.preview.bitmap,
+        logo: NO_LOGO,
+        targetLongEdge: PREVIEW_LONG_EDGE,
+        limit: PREVIEW_LIMIT,
+      });
+    } catch (error) {
+      console.error(error);
+      setStatus(toUserMessage(error, '미리보기를 그리지 못했습니다'));
+    }
   }, [canvasRef, loaded, options, fontReady, preset]);
 
   // 옵션이 연달아 바뀌어도 프레임마다 한 번만 그립니다.
