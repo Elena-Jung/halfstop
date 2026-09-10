@@ -80,6 +80,17 @@ describe('프리셋 기본 문구', () => {
   });
 });
 
+describe('프리셋 값과 coerce', () => {
+  it('모든 프리셋 값이 coerce 를 그대로 통과합니다', () => {
+    for (const preset of PRESETS) {
+      const values = valuesFor(preset, {});
+      for (const [key, expected] of Object.entries(preset.values)) {
+        expect(values.get(key), `${preset.id}.${key}`).toBe(expected);
+      }
+    }
+  });
+});
+
 describe('valuesFor', () => {
   it('프리셋 값이 선언 기본값을 덮습니다', () => {
     const preset = presetById('minimal');
