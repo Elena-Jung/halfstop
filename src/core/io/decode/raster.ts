@@ -39,6 +39,10 @@ export async function decodeRaster(request: RasterRequest): Promise<DecodedImage
     ctx.drawImage(bitmap, 0, 0);
 
     const rotated = canvas.transferToImageBitmap();
+    // transferToImageBitmap 뒤에도 원본 해상도 크기의 빈 백킹 스토어가 캔버스에 남습니다.
+    // probeCanvasLimit.ts, render.worker.ts 와 같은 이유로 크기를 0으로 되돌려 반납합니다.
+    canvas.width = 0;
+    canvas.height = 0;
     return { bitmap: rotated, width: rotated.width, height: rotated.height };
   } finally {
     // 중간에 예외가 나도 원본 비트맵은 반납해야 합니다. 큰 사진에서는
