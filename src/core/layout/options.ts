@@ -4,7 +4,7 @@ export type { OptionValue };
 
 export type PresetOption =
   | { id: string; type: 'color'; default: string }
-  | { id: string; type: 'number'; default: number; unit: 'u' }
+  | { id: string; type: 'number'; default: number; unit: 'u'; min: number; max: number }
   | { id: string; type: 'boolean'; default: boolean }
   | { id: string; type: 'select'; options: readonly string[]; default: string }
   | { id: string; type: 'range'; min: number; max: number; step: number; default: number }
@@ -22,7 +22,8 @@ function coerce(option: PresetOption, raw: unknown): OptionValue | undefined {
     case 'boolean':
       return typeof raw === 'boolean' ? raw : undefined;
     case 'number':
-      return typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined;
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+      return Math.min(option.max, Math.max(option.min, raw));
     case 'select':
       return typeof raw === 'string' && option.options.includes(raw) ? raw : undefined;
     case 'range':

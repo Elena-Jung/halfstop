@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { bool, defaultValues, mergeValues, num, str, type PresetOption } from './options';
+import { BAR_OPTIONS, barLayout } from './layouts/bar';
+import { MATTE_OPTIONS, matteLayout } from './layouts/matte';
+import type { LayoutInput, LayoutServices } from './types';
 
 const SCHEMA: PresetOption[] = [
   { id: 'BACKGROUND', type: 'color', default: '#ffffff' },
-  { id: 'BAR_HEIGHT', type: 'number', default: 120, unit: 'u' },
+  { id: 'BAR_HEIGHT', type: 'number', default: 120, unit: 'u', min: 40, max: 500 },
   { id: 'SHOW_LOGO', type: 'boolean', default: true },
   { id: 'ALIGN', type: 'select', options: ['left', 'center'], default: 'left' },
   { id: 'WEIGHT', type: 'range', min: 100, max: 900, step: 100, default: 400 },
@@ -66,6 +69,59 @@ describe('mergeValues 의 시작값', () => {
     const merged = mergeValues(SCHEMA, { BAR_HEIGHT: '높게' }, base);
     // 선언 기본값 120 으로 돌아가면 안 됩니다.
     expect(merged.get('BAR_HEIGHT')).toBe(80);
+  });
+});
+
+describe('number 옵션 범위', () => {
+  it('min 보다 작은 값을 저장해 두면 min 으로 조여집니다', () => {
+    expect(mergeValues(SCHEMA, { BAR_HEIGHT: -2000 }).get('BAR_HEIGHT')).toBe(40);
+  });
+
+  it('max 보다 큰 값을 저장해 두면 max 로 조여집니다', () => {
+    expect(mergeValues(SCHEMA, { BAR_HEIGHT: 9000 }).get('BAR_HEIGHT')).toBe(500);
+  });
+
+  it('모든 number 옵션에서 min 이 0 이상이고 min 이 max 보다 작으며 default 가 그 사이에 있습니다', () => {
+    for (const options of [BAR_OPTIONS, MATTE_OPTIONS]) {
+      for (const option of options) {
+        if (option.type !== 'number') continue;
+        expect(option.min, `${option.id}.min`).toBeGreaterThanOrEqual(0);
+        expect(option.min, `${option.id}.min < max`).toBeLessThan(option.max);
+        expect(option.default, `${option.id}.default >= min`).toBeGreaterThanOrEqual(option.min);
+        expect(option.default, `${option.id}.default <= max`).toBeLessThanOrEqual(option.max);
+      }
+    }
+  });
+
+  it('두 레이아웃 함수가 각 number 옵션의 min 과 max 양 끝값에서 장면 크기를 0 보다 크게 냅니다', () => {
+    const services: LayoutServices = {
+      measureText: (text, style) => text.length * style.size * 0.5,
+      hasLogo: () => false,
+    };
+    const baseInput: LayoutInput = {
+      photo: { width: 1500, height: 1000 },
+      fields: { MAKER: 'Canon', BODY: 'EOS R6' },
+      logoId: undefined,
+      options: defaultValues(BAR_OPTIONS),
+    };
+
+    const cases: Array<{ options: readonly PresetOption[]; layout: typeof barLayout }> = [
+      { options: BAR_OPTIONS, layout: barLayout },
+      { options: MATTE_OPTIONS, layout: matteLayout },
+    ];
+
+    for (const { options: declared, layout } of cases) {
+      for (const option of declared) {
+        if (option.type !== 'number') continue;
+        for (const bound of [option.min, option.max]) {
+          const values = defaultValues(declared);
+          values.set(option.id, bound);
+          const scene = layout({ ...baseInput, options: values }, services);
+          expect(scene.width, `${option.id}=${bound} width`).toBeGreaterThan(0);
+          expect(scene.height, `${option.id}=${bound} height`).toBeGreaterThan(0);
+        }
+      }
+    }
   });
 });
 
