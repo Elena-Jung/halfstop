@@ -5,7 +5,9 @@ import type { RailTab } from './groups';
 import { PhotoStrip } from './PhotoStrip';
 import { Rail } from './Rail';
 import { SettingsPanel } from './SettingsPanel';
+import { ThemeToggle } from './ThemeToggle';
 import { usePipeline } from './usePipeline';
+import { useTheme } from './useTheme';
 
 const WIDE_QUERY = '(min-width: 768px)';
 
@@ -57,6 +59,7 @@ export function App() {
 
   const orientation = useRailOrientation();
   const [tab, setTab] = useState<RailTab>('preset');
+  const [theme, toggleTheme] = useTheme();
 
   const onPick = (event: ChangeEvent<HTMLInputElement>) => {
     void load([...(event.target.files ?? [])]);
@@ -65,7 +68,10 @@ export function App() {
   return (
     <DropZone disabled={busy} onFiles={load}>
       <main className="app">
-        <h1 className="app-title">halfstop</h1>
+        <div className="app-header">
+          <h1 className="app-title">halfstop</h1>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
 
         <div className="intake">
           <p role="status" className="status-line">

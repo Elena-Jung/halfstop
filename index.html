@@ -2,6 +2,21 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // React 가 그리기 전에 저장된 테마를 올립니다. 여기서 하지 않으면 어두운 테마로
+      // 한 번 그려졌다가 밝은 테마로 바뀌는 번쩍임이 생깁니다. 이 키는
+      // src/platform/themeStore.ts 의 저장 키와 반드시 같아야 합니다.
+      (function () {
+        try {
+          if (localStorage.getItem('halfstop.theme.v1') === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch {
+          // 사생활 보호 모드 등에서는 저장소 접근이 던집니다. 기본값인 어두운 테마로
+          // 둡니다.
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#14161a" />
 

@@ -4,6 +4,10 @@
  * 충분하고, 그래야 키 오타를 컴파일 시점에 잡을 수 있기 때문입니다.
  */
 export const ko = {
+  // 테마 선택기
+  'theme.toLight': '밝은 테마로 바꿉니다',
+  'theme.toDark': '어두운 테마로 바꿉니다',
+
   // 레일
   'rail.preset': '프리셋',
   'rail.frame': '프레임',
