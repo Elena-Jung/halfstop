@@ -83,6 +83,10 @@ export const ko = {
   'photos.selectAll': '전체 선택',
   'photos.deselectAll': '전체 해제',
 
+  // 커스텀 컨트롤
+  'control.increase': '{label} 늘리기',
+  'control.decrease': '{label} 줄이기',
+
   // 캔버스
   'canvas.empty': '아직 불러온 사진이 없습니다',
   'canvas.noSelection': '고른 사진이 없습니다',
