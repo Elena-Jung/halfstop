@@ -82,10 +82,15 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * 앱 셸입니다. 화면 높이를 다 쓰는 세 줄 격자이고 셋째 줄이 남는 높이를 전부 받습니다.
+ * minmax(0, 1fr) 이라야 안의 내용이 넘칠 때 줄이 늘어나지 않고 안에서 스크롤합니다.
+ * 그냥 1fr 을 쓰면 최소 크기가 auto 라 설정 칸이 길어질수록 화면 밖으로 밀려납니다.
+ */
 .app {
-  padding: var(--space-6);
-  max-width: 1100px;
-  margin: 0 auto;
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .app-header {
@@ -93,7 +98,9 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .app-title {
@@ -125,52 +132,48 @@ body {
   background: var(--surface-raised);
 }
 
-.intake {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  margin-bottom: var(--space-4);
-}
-
 /*
- * 사진이 들어오면 여백을 줄이고 한 줄로 눕힙니다. 이 칸은 부가 기능인데 세로로 다섯 줄을
- * 쌓느라 주 기능인 미리보기를 화면 밖으로 밀어냈습니다.
+ * 불러오기 줄입니다. 점선 상자를 없애고 헤더와 같은 면 위에 한 줄로 눕혔습니다. 사진이
+ * 없을 때도 같은 한 줄이라 사진을 넣어도 아래 미리보기가 밀려나지 않습니다.
  */
-.intake[data-compact='true'] {
-  padding: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.intake-row {
+.intake {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
   min-width: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 /*
  * 썸네일이 많아지면 남는 폭이 줄어 단추 글자가 여러 줄로 접히고, 그러면 줄 전체가 다시
  * 높아집니다. 이 둘은 줄어들지도 접히지도 않게 둡니다.
  */
-.intake-row > .file-picker,
-.intake-row > .photo-count {
+.intake > .file-picker,
+.intake > .photo-count {
   flex: 0 0 auto;
   white-space: nowrap;
 }
 
-/* 썸네일 묶음만 남는 폭을 다 쓰고 넘치면 가로로 흐릅니다. */
-/*
- * 썸네일 묶음은 남는 폭을 쓰되 240px 아래로는 눌리지 않고 자기 줄로 내려갑니다. 좁은
- * 화면에서 단추가 폭을 다 먹어 썸네일이 한 장만 보이는 것을 막습니다.
- */
-.intake-row .photo-strip {
+/* 썸네일 묶음만 남는 폭을 쓰고 넘치면 가로로 흐릅니다. 240px 아래로는 눌리지 않습니다. */
+.intake > .photo-strip {
   flex: 1 1 240px;
   min-width: 0;
 }
 
-.intake[data-compact='true'] .status-line {
-  margin: var(--space-2) 0 0;
+/*
+ * 상태 문구는 줄 오른쪽 끝입니다. 썸네일 묶음이 있으면 그것이 남는 폭을 먹으므로 자동
+ * 여백은 0 이 되고 장수 옆에 붙습니다. 사진이 없어 묶음이 없을 때는 자동 여백이 오른쪽
+ * 끝으로 밀어 줍니다. 두 경우 모두 오른쪽 끝입니다.
+ */
+.status-line {
+  flex: 0 1 auto;
+  margin: 0 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--text-sm);
   color: var(--text-dim);
 }
@@ -188,10 +191,6 @@ body {
   border: 0;
 }
 
-.status-line {
-  margin: 0 0 var(--space-3);
-}
-
 .hint {
   margin: 0 0 var(--space-3);
   font-size: var(--text-md);
@@ -199,39 +198,65 @@ body {
 }
 
 /*
- * 좁은 화면은 미리보기 위, 설정 패널 가운데, 레일 아래(가로)입니다. 768px 부터는
- * 미리보기 왼쪽, 설정 패널 가운데, 레일 오른쪽(세로)으로 바뀝니다. 이 767/768 경계는
+ * 좁은 화면은 미리보기 위(45dvh 고정), 설정 가운데, 레일 아래(가로)입니다. 768px 부터는
+ * 미리보기 왼쪽, 설정 가운데, 레일 오른쪽(세로)으로 바뀝니다. 이 767/768 경계는
  * Rail 이 useSyncExternalStore 로 구독하는 매체 질의와 같아야 aria-orientation 이
  * 실제 배치와 어긋나지 않습니다.
+ *
+ * 좁은 화면에서 미리보기를 position: sticky 로 붙이는 방법은 쓰지 않습니다. 그리드
+ * 항목의 컨테이닝 블록은 자기 그리드 칸이라 칸 안에서만 움직일 수 있고, 칸 높이가 곧
+ * 내용 높이면 움직일 여지가 없어 아무 일도 일어나지 않습니다. 줄 높이를 직접 정하면
+ * 같은 목적을 확실하게 이룹니다.
  */
 .layout {
   display: grid;
   grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 45dvh) minmax(0, 1fr) auto;
   grid-template-areas:
     'preview'
     'settings'
     'rail';
-  gap: var(--space-4);
-  align-items: start;
+  min-height: 0;
 }
 
+/*
+ * grid-template-rows/columns 를 명시하지 않으면 이 칸의 유일한 셀이 auto 로 잡혀
+ * 내용 크기를 따라갑니다. auto 트랙은 퍼센트 계산의 기준이 되지 못해 아래 캔버스의
+ * max-height: 100% 가 조용히 무시되고, 세로 사진에서 캔버스가 이 칸을 넘어 페이지
+ * 전체가 스크롤됩니다. minmax(0, 1fr) 로 셀 크기를 명시해야 이 칸의 실제 높이가
+ * 퍼센트의 기준이 됩니다.
+ */
 .preview-pane {
   grid-area: preview;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  padding: var(--space-4);
   min-width: 0;
+  min-height: 0;
+  background: var(--bg);
 }
 
+/*
+ * 캔버스는 대체 요소라 max-width 와 max-height 를 함께 주면 고유 비율을 지키면서 둘 다
+ * 만족하는 크기로 줄어듭니다. width: 100% 를 주면 세로가 칸을 넘어 밖으로 나갑니다.
+ */
 .preview-canvas {
   display: block;
   max-width: 100%;
-  width: 100%;
-  background: var(--surface);
-  min-height: 200px;
+  max-height: 100%;
 }
 
 .settings-panel {
   grid-area: settings;
   display: grid;
   gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface);
   font-size: var(--text-md);
 }
 
@@ -256,22 +281,28 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0;
+  padding: var(--space-2) var(--space-1);
+  background: var(--surface);
   border-top: 1px solid var(--border);
-  padding-top: var(--space-3);
 }
 
 @media (min-width: 768px) {
   .layout {
-    grid-template-columns: 1fr 280px auto;
+    grid-template-columns: minmax(0, 1fr) 280px auto;
+    grid-template-rows: minmax(0, 1fr);
     grid-template-areas: 'preview settings rail';
+  }
+
+  .settings-panel {
+    border-left: 1px solid var(--border);
   }
 
   .rail {
     flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
     border-top: none;
     border-left: 1px solid var(--border);
-    padding-top: 0;
-    padding-left: var(--space-3);
   }
 }
 
@@ -531,17 +562,6 @@ body {
   background: var(--surface);
 }
 
-
-/*
- * 점선 상자(.intake) 맨 아래 왼쪽에 놓이는 줄입니다. 사진이 없을 때는 파일 선택
- * 단추만, 있을 때는 그 옆에 장수 표시가 함께 붙습니다.
- */
-.intake-footer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
 
 /*
  * input[type=file]은 커스텀 컨트롤이 없어 그대로 두되, 이 단추 모양의 이름표 뒤로
