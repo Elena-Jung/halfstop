@@ -105,3 +105,17 @@ function toHexByte(n: number): string {
   const clamped = Math.max(0, Math.min(255, n));
   return clamped.toString(16).padStart(2, '0');
 }
+
+/**
+ * `hsvToHex` 를 부르기 전에 범위를 벗어난 값을 조입니다. `hsvToHex` 자체는 채도와
+ * 명도가 0과 1 사이를 벗어나도 막지 않고, 형식은 `#rrggbb` 로 지키면서 색만 어긋나게
+ * 그립니다. 색상각은 원판을 도는 값이라 감고, 채도와 명도는 0과 1 사이로 자릅니다.
+ * 색 고르기 창에서 판이나 슬라이더가 만든 값을 `hsvToHex` 에 넘기기 전에 반드시
+ * 이 함수를 거칩니다.
+ */
+export function clampHsv(hsv: Hsv): Hsv {
+  const h = ((hsv.h % 360) + 360) % 360;
+  const s = Math.min(1, Math.max(0, hsv.s));
+  const v = Math.min(1, Math.max(0, hsv.v));
+  return { h, s, v };
+}

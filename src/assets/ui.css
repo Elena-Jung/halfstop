@@ -664,3 +664,128 @@ body {
   cursor: not-allowed;
   opacity: 0.5;
 }
+
+/*
+ * ColorPicker: input[type=color] 를 대체합니다. 견본 단추(swatch)는 늘 보이고, 누르면
+ * 창이 뜹니다. 견본의 배경색과 판(pad)의 그러데이션, 손잡이 테두리는 사용자가 고르는
+ * 임의의 색을 그리는 자리라 :root 토큰이 아니라 실제 색 값을 그대로 씁니다.
+ */
+.hs-colorpicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hs-colorpicker-swatch {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.hs-colorpicker-swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hs-colorpicker-value {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+/* 창 바깥의 어둑한 막입니다. 여기를 누르면 닫힙니다. */
+.hs-colorpicker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.hs-colorpicker-panel {
+  display: grid;
+  gap: 10px;
+  width: min(280px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.hs-colorpicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hs-colorpicker-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hs-colorpicker-close {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.hs-colorpicker-close:hover {
+  background: var(--surface);
+}
+
+/*
+ * 채도(가로)와 명도(세로)를 마우스로 고르는 판입니다. aria-hidden 이라 보조 기술에는
+ * 감춰집니다. 같은 값을 접근 가능하게 두는 색상·채도·명도 슬라이더가 따로 있습니다.
+ */
+.hs-colorpicker-pad {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/*
+ * 손잡이 테두리는 흰 테와 검은 테를 겹쳐 어떤 색 위에서도 위치가 보이게 합니다. 이
+ * 판이 그리는 색 자체가 임의의 값이라 토큰이 아니라 고정된 흰색/검은색을 씁니다.
+ */
+.hs-colorpicker-pad-thumb {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 3px rgb(0 0 0 / 60%);
+  pointer-events: none;
+}
+
+.hs-colorpicker-contrast {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.hs-colorpicker-contrast[data-insufficient='true'] {
+  color: var(--danger);
+}
