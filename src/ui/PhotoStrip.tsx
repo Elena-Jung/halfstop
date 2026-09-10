@@ -25,7 +25,7 @@ export function PhotoStrip(props: {
 
   return (
     <fieldset className="photo-strip" disabled={disabled}>
-      <legend>{t('photos.legend')}</legend>
+      <legend className="sr-only">{t('photos.legend')}</legend>
       <button type="button" className="photo-select-all" onClick={onToggleAll}>
         {allSelected ? t('photos.deselectAll') : t('photos.selectAll')}
       </button>
@@ -33,18 +33,28 @@ export function PhotoStrip(props: {
         {photos.map((photo, index) => {
           const isSelected = selected.has(index);
           return (
-            <label key={photo.thumbUrl} className="photo-item" data-selected={isSelected}>
+            <label
+              key={photo.thumbUrl}
+              className="photo-item"
+              data-selected={isSelected}
+              title={photo.file.name}
+            >
               <div className="photo-thumb-wrap">
+                {/*
+                 * 파일 이름을 글자로 두면 썸네일마다 한 줄이 더 붙어 불러오기 칸이 세로로
+                 * 길어집니다. 이름은 aria-label 로 옮겨 화면 낭독기에는 그대로 읽히게 하고,
+                 * 눈으로는 title 로 확인합니다.
+                 */}
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => onToggle(index)}
+                  aria-label={photo.file.name}
                   className="hs-radio-input"
                 />
                 <span className="hs-radio-box" aria-hidden="true" />
                 <img src={photo.thumbUrl} alt="" className="photo-thumb" />
               </div>
-              <span className="photo-name">{photo.file.name}</span>
             </label>
           );
         })}

@@ -73,24 +73,15 @@ export function App() {
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
 
-        <div className="intake">
-          <p role="status" className="status-line">
-            {t(status.key, status.vars)}
-          </p>
+        {/*
+         * 사진을 불러오는 일은 한 번 하고 마는 부가 기능이고, 슬라이더를 만지며 결과를 보는
+         * 것이 주 기능입니다. 사진이 들어온 뒤에는 이 칸을 한 줄로 눕혀 미리보기가 스크롤
+         * 없이 보이게 합니다. 비어 있을 때만 안내를 크게 보입니다.
+         */}
+        <div className="intake" data-compact={photos.length > 0}>
+          {photos.length === 0 && <p className="hint">{t('drop.hint')}</p>}
 
-          {photos.length > 0 ? (
-            <PhotoStrip
-              photos={photos}
-              selected={selected}
-              onToggle={toggleSelected}
-              onToggleAll={toggleAll}
-              disabled={busy}
-            />
-          ) : (
-            <p className="hint">{t('drop.hint')}</p>
-          )}
-
-          <div className="intake-footer">
+          <div className="intake-row">
             <label className="file-picker" data-disabled={!ready || busy}>
               <input
                 type="file"
@@ -102,10 +93,25 @@ export function App() {
               />
               <span>{t('action.pick')}</span>
             </label>
+
+            {photos.length > 0 && (
+              <PhotoStrip
+                photos={photos}
+                selected={selected}
+                onToggle={toggleSelected}
+                onToggleAll={toggleAll}
+                disabled={busy}
+              />
+            )}
+
             {photos.length > 0 && (
               <span className="photo-count">{t('photos.count', { count: photos.length })}</span>
             )}
           </div>
+
+          <p role="status" className="status-line">
+            {t(status.key, status.vars)}
+          </p>
         </div>
 
         <div className="layout">
