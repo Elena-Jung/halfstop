@@ -15,8 +15,8 @@ describe('capItems', () => {
     expect(result.overflow).toBe(3);
   });
 
-  it('기본 상한은 12장입니다', () => {
-    expect(MAX_PHOTOS).toBe(12);
+  it('기본 상한은 24장입니다', () => {
+    expect(MAX_PHOTOS).toBe(24);
   });
 });
 
