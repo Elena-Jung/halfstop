@@ -36,11 +36,12 @@ describe('PRESETS', () => {
 
   it('다섯 프레임의 값이 표와 같습니다', () => {
     // 프리셋은 데이터입니다. 값이 표류하면 조용히 다른 프레임이 되므로 여기서 못박습니다.
-    // bar 가 비어 있는 것이 의도입니다. 선언 기본값(BAR_HEIGHT 102, FONT_SIZE 34)이 곧
-    // 기본 프레임이라 같은 값이 두 곳에 적히지 않습니다.
+    // bar 가 로고 하나만 정하는 것이 의도입니다. 크기와 색은 선언 기본값(BAR_HEIGHT 102,
+    // FONT_SIZE 34)이 곧 기본 프레임이라 같은 값이 두 곳에 적히지 않고, 로고만 선언
+    // 기본값이 꺼짐이라 여기서 켭니다.
     const values = Object.fromEntries(PRESETS.map((p) => [p.id, p.values]));
     expect(values).toEqual({
-      bar: {},
+      bar: { SHOW_LOGO: true },
       film: {
         BACKGROUND: '#000000',
         TEXT_COLOR: '#ff9500',
@@ -48,7 +49,7 @@ describe('PRESETS', () => {
         FONT_SIZE: 30,
         BAR_HEIGHT: 100,
       },
-      polaroid: { PAD_TOP: 70, PAD_RIGHT: 70, PAD_BOTTOM: 240, PAD_LEFT: 70 },
+      polaroid: { PAD_TOP: 70, PAD_RIGHT: 70, PAD_BOTTOM: 240, PAD_LEFT: 70, SHOW_LOGO: true },
       letterbox: {
         PAD_TOP: 160,
         PAD_RIGHT: 0,
@@ -66,8 +67,29 @@ describe('PRESETS', () => {
         BACKGROUND: '#f4f2ee',
         FONT_SIZE: 26,
         SUB_SCALE: 2.6,
+        SHOW_LOGO: true,
       },
     });
+  });
+
+  it('하단 바와 폴라로이드와 포스터만 로고를 켭니다', () => {
+    // 사용자가 고른 세 프레임입니다. 필름 데이터백과 레터박스는 선언 기본값(꺼짐)을
+    // 그대로 씁니다. 위의 표가 이미 값을 통째로 못박지만, 어느 프레임이 켜지는지는
+    // 사용자가 직접 요청한 것이라 따로 읽히도록 둡니다.
+    const on = PRESETS.filter((p) => p.values.SHOW_LOGO === true).map((p) => p.id);
+    expect(on).toEqual(['bar', 'polaroid', 'poster']);
+    for (const id of ['film', 'letterbox']) {
+      expect(Object.hasOwn(presetById(id).values, 'SHOW_LOGO'), id).toBe(false);
+      expect(valuesFor(presetById(id), {}).get('SHOW_LOGO'), id).toBe(false);
+    }
+  });
+
+  it('선언 기본값은 꺼짐이라 프리셋이 켠 것인지 값만 보고 읽을 수 있습니다', () => {
+    // 선언 기본값과 프리셋 값이 같으면 어느 쪽이 정한 것인지 구분되지 않습니다.
+    for (const options of [BAR_OPTIONS, MATTE_OPTIONS]) {
+      const declared = options.find((o) => o.id === 'SHOW_LOGO');
+      expect(declared?.default).toBe(false);
+    }
   });
 
   it('모든 프리셋에 이름표 키가 있습니다', () => {
@@ -244,7 +266,9 @@ describe('bar 프레임과 body-lens 배치의 좌우 대칭', () => {
       photo: { width: 1500, height: 1000 },
       fields,
       logoId: undefined,
-      options: valuesFor(preset, {}, 'body-lens'),
+      // 로고를 끕니다. 켜 두면 로고가 없는 브랜드에서 워드마크가 text 노드로 끼어들어
+      // 좌우 대칭을 보려는 이 검사에 브랜드 이름이 한 줄 더 섞입니다.
+      options: valuesFor(preset, { SHOW_LOGO: false }, 'body-lens'),
     };
     const scene = layoutFor(preset)(input, services);
     return scene.nodes.filter((node) => node.kind === 'text').map((node) => node.text);
@@ -305,7 +329,9 @@ describe('다섯 프레임에서는 글자가 줄지 않습니다', () => {
   for (const preset of PRESETS) {
     for (const arrangement of ARRANGEMENTS.filter((a) => a.layouts.includes(preset.layout))) {
       it(`${preset.id} 프레임에 ${arrangement.id} 배치를 얹어도 글자 크기가 옵션 값 그대로입니다`, () => {
-        const options = valuesFor(preset, {}, arrangement.id);
+        // 로고를 끕니다. 워드마크는 글자 크기 슬라이더가 아니라 마크 상자에서 크기를
+        // 얻으므로 이 검사가 보려는 줄이 아닙니다.
+        const options = valuesFor(preset, { SHOW_LOGO: false }, arrangement.id);
         const fontSize = options.get('FONT_SIZE') as number;
         const subSize = fontSize * (options.get('SUB_SCALE') as number);
         const scene = layoutFor(preset)(
@@ -361,10 +387,13 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
     'poster/matte': ['2026-09-10 12:00', 'SONY ILCE-7M3 · 35mm'],
     'one-block/bar': ['SONY ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     'one-block/matte': ['SONY ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
+    // exposure-gear 는 없어진 아홉 프리셋에서 뽑은 것이 아니라 나중에 만든 배치라
+    // "전"이 없습니다. 오른쪽 주 줄이 'SONY ILCE-7M3' 이었다가 'ILCE-7M3' 으로 바뀐 것은
+    // 브랜드를 로고 자리가 맡게 하면서 {MAKER}를 뺐기 때문입니다.
     'exposure-gear/bar': [
       '35mm · f/2.8 · 1/500s',
       'ISO 200 · 2026-09-10 12:00',
-      'SONY ILCE-7M3',
+      'ILCE-7M3',
       'FE 24-70mm F2.8 GM',
     ],
   };
@@ -375,7 +404,9 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
       photo: { width: 1500, height: 1000 },
       fields,
       logoId: undefined,
-      options: valuesFor(preset, {}, arrangementId),
+      // 로고를 끕니다. 이 표는 배치가 정하는 문구만 봅니다. 브랜드 마크는 배치가 아니라
+      // 프레임이 정하는 것이고, 로고가 없는 브랜드면 워드마크가 text 노드로 끼어듭니다.
+      options: valuesFor(preset, { SHOW_LOGO: false }, arrangementId),
     };
     const scene = layoutFor(preset)(input, services);
     return scene.nodes.filter((node) => node.kind === 'text').map((node) => node.text);

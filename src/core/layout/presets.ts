@@ -32,9 +32,10 @@ export const PRESETS: readonly Preset[] = [
     id: 'bar',
     labelKey: 'preset.bar',
     layout: 'bar',
-    // 값을 하나도 정하지 않는 것이 의도입니다. 선언 기본값(BAR_HEIGHT 102, FONT_SIZE 34)이
-    // 곧 기본 프레임이라 같은 값이 두 곳에 적히지 않습니다.
-    values: {},
+    // 정하는 값은 로고 하나뿐입니다. 크기와 색은 선언 기본값(BAR_HEIGHT 102,
+    // FONT_SIZE 34)이 곧 기본 프레임이라 같은 값을 두 곳에 적지 않습니다. 로고는 선언
+    // 기본값이 꺼짐이므로 켜려면 여기서 정해야 합니다.
+    values: { SHOW_LOGO: true },
   },
   {
     id: 'film',
@@ -57,6 +58,7 @@ export const PRESETS: readonly Preset[] = [
       PAD_RIGHT: 70,
       PAD_BOTTOM: 240,
       PAD_LEFT: 70,
+      SHOW_LOGO: true,
     },
   },
   {
@@ -85,6 +87,7 @@ export const PRESETS: readonly Preset[] = [
       BACKGROUND: '#f4f2ee',
       FONT_SIZE: 26,
       SUB_SCALE: 2.6,
+      SHOW_LOGO: true,
     },
   },
 ];

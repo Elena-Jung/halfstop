@@ -271,3 +271,214 @@ describe('matteLayout', () => {
     expect(wide.height - 1000).toBe(square.height - 1000);
   });
 });
+
+describe('matteLayout 로고', () => {
+  // 기본값에서의 손 계산입니다. FONT_SIZE 30 이므로 markHeight = 36, markWidth = 54,
+  // ruleWidth = 1.8, markGap = 10.8 이고 예약하는 폭은
+  // logoGap = 54 + 10.8*2 + 1.8 = 77.4 입니다. 아래 여백 200 의 한가운데는
+  // areaCenterY = 60 + 1000 + 100 = 1160 이고 상자의 위끝은 1160 - 18 = 1142 입니다.
+  const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+  const LOGO_GAP = 77.4;
+
+  function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    for (const [key, value] of Object.entries(extra)) options.set(key, value);
+    return options;
+  }
+
+  const leftTextX = (nodes: SceneNode[], needle: string) =>
+    textNodes(nodes).find((n) => n.style.align === 'left' && n.text.includes(needle))?.x;
+
+  it('SHOW_LOGO 기본이 꺼짐이라 로고도 구분선도 워드마크도 그리지 않습니다', () => {
+    const scene = matteLayout(input({ logoId: 'nikon' }), withLogo);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+    expect(scene.nodes.some((n) => n.kind === 'rect')).toBe(false);
+    expect(textNodes(scene.nodes).map((n) => n.text)).not.toContain('Canon');
+  });
+
+  it('SHOW_LOGO 를 켜고 로고가 있으면 logo 노드를 만듭니다', () => {
+    const scene = matteLayout(input({ options: withShowLogo(), logoId: 'nikon' }), withLogo);
+    expect(scene.nodes.find((n) => n.kind === 'logo')).toMatchObject({ logoId: 'nikon' });
+  });
+
+  it('기본값(LOGO_SIDE left)에서 마크가 왼쪽 슬롯의 글 앞에 섭니다', () => {
+    // 여백 액자에서 좌우로 나뉘는 배치는 polaroid 하나뿐이고 그것이 장비를 왼쪽에
+    // 둡니다. 그래서 하단 바와 달리 왼쪽이 기본입니다.
+    const scene = matteLayout(input({ options: withShowLogo(), logoId: 'nikon' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    // 상자의 왼쪽 끝은 안쪽 여백 60 입니다. 니콘 PNG 는 512x512 라 상자 높이에 맞춰
+    // 36x36 이 되고, 남는 가로 18 을 반씩 나눠 왼쪽에 9 가 붙습니다.
+    expect(logo?.x).toBeCloseTo(69, 9);
+    expect(logo?.y).toBeCloseTo(1142, 9);
+    expect(logo?.w).toBeCloseTo(36, 9);
+    expect(logo?.h).toBeCloseTo(36, 9);
+    expect(leftTextX(scene.nodes, 'EOS')).toBeCloseTo(60 + LOGO_GAP, 9);
+  });
+
+  it('LOGO_SIDE 를 right 로 두면 오른쪽 덩어리의 왼쪽에 섭니다', () => {
+    const options = withShowLogo({ LOGO_SIDE: 'right' });
+    const scene = matteLayout(input({ options, logoId: 'nikon' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    // 오른쪽 글은 '50mm' 한 줄이고 목 측정기로 4 * 30 * 0.5 = 60 입니다. 오른쪽 끝
+    // 1560 에서 60 을 물러난 1500 이 덩어리의 시작이라 상자는 1500 - 77.4 = 1422.6 에
+    // 서고, 그림은 그 안에서 9 만큼 더 들어갑니다.
+    expect(logo?.x).toBeCloseTo(1431.6, 9);
+    // 왼쪽 슬롯은 마크가 붙지 않으므로 안쪽 여백에 그대로 있습니다.
+    expect(leftTextX(scene.nodes, 'EOS')).toBe(60);
+  });
+
+  it('로고와 글 사이에 세로 구분선을 긋습니다', () => {
+    const scene = matteLayout(input({ options: withShowLogo(), logoId: 'sony' }), withLogo);
+    const rule = scene.nodes.find((n) => n.kind === 'rect');
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    // 폭이 높이보다 훨씬 얇아야 선으로 보입니다. 1.8 대 36 입니다.
+    expect(rule?.w).toBeCloseTo(1.8, 9);
+    expect(rule?.h).toBeCloseTo(36, 9);
+    // 소니는 가로가 길어 상자를 꽉 채우므로 로고의 오른쪽 끝이 곧 상자의 오른쪽 끝입니다.
+    expect(rule?.x).toBeGreaterThan((logo?.x ?? 0) + (logo?.w ?? 0));
+    // 오른쪽 글 덩어리의 왼쪽 끝은 1560 - 60 = 1500 입니다.
+    expect((rule?.x ?? 0) + (rule?.w ?? 0)).toBeLessThan(1500);
+  });
+
+  it('기본값에서는 로고를 켜고 꺼도 오른쪽 글줄의 기준점이 움직이지 않습니다', () => {
+    // 마크가 왼쪽 슬롯에 붙으므로 오른쪽 슬롯은 안쪽 여백에 그대로 있습니다. 마크 자리는
+    // 두 슬롯 사이에서 빠집니다.
+    const rightX = (nodes: SceneNode[]) =>
+      textNodes(nodes).find((n) => n.style.align === 'right')?.x;
+    const on = matteLayout(input({ options: withShowLogo(), logoId: 'sony' }), withLogo);
+    const off = matteLayout(input({ logoId: 'sony' }), withLogo);
+    expect(rightX(on.nodes)).toBe(1560);
+    expect(rightX(off.nodes)).toBe(1560);
+  });
+
+  it('로고와 워드마크가 같은 폭을 예약해, 로고가 있고 없는 사진 사이에서 글이 흔들리지 않습니다', () => {
+    const options = withShowLogo();
+    const real = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    // services.hasLogo 가 거짓을 돌려주는 자리입니다. 실제로는 로고 데이터에 없는
+    // 브랜드에서 이 갈래로 떨어집니다.
+    const word = matteLayout(input({ options, logoId: 'sony' }), services);
+    // 60 + 77.4 입니다. 두 값이 비트까지 같아야 뜻이 있으므로 서로 견줍니다.
+    expect(leftTextX(real.nodes, 'EOS')).toBeCloseTo(137.4, 9);
+    expect(leftTextX(word.nodes, 'EOS')).toBe(leftTextX(real.nodes, 'EOS'));
+  });
+
+  it('상자 크기가 브랜드와 무관해 납작한 로고와 정사각 로고가 같은 자리를 씁니다', () => {
+    // 핫셀블라드는 512x40 으로 아주 납작하고 니콘은 정사각형이라 그려지는 크기가 크게
+    // 다릅니다. 상자가 그림을 따라가면 브랜드를 바꿀 때마다 글이 출렁입니다.
+    const options = withShowLogo();
+    const flat = matteLayout(input({ options, logoId: 'hasselblad' }), withLogo);
+    const square = matteLayout(input({ options, logoId: 'nikon' }), withLogo);
+    expect(leftTextX(flat.nodes, 'EOS')).toBe(leftTextX(square.nodes, 'EOS'));
+    expect(flat.nodes.find((n) => n.kind === 'rect')?.x).toBe(
+      square.nodes.find((n) => n.kind === 'rect')?.x,
+    );
+  });
+
+  it('오른쪽 슬롯의 글 폭이 마크 자리만큼 줄어듭니다', () => {
+    // 줄지 않으면 긴 글이 마크 자리를 침범합니다. half 는
+    // (1500 - 77.4)/2 - 30 = 681.3 이고, 목 측정기로 30 크기 한 글자가 15 입니다.
+    const options = withShowLogo({ SECONDARY_MAIN: 'X'.repeat(200) });
+    const scene = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    const right = textNodes(scene.nodes).find((n) => n.style.align === 'right');
+    expect(right?.text.endsWith('…')).toBe(true);
+    expect(services.measureText(right?.text ?? '', right!.style)).toBeLessThanOrEqual(681.3);
+  });
+
+  it('single 에서 마크와 글을 한 덩어리로 보고 가운데에 놓습니다', () => {
+    const options = withShowLogo({ MODE: 'single', ALIGN: 'center', PRIMARY_MAIN: 'ABC' });
+    const scene = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    const text = textNodes(scene.nodes)[0];
+    expect(text?.text).toBe('ABC');
+    // 목 측정기로 'ABC' 는 3 * 30 * 0.5 = 45 입니다. 덩어리 폭은 77.4 + 45 = 122.4 이고
+    // 왼쪽 끝은 (1620 - 122.4)/2 = 748.8 입니다. 글은 그 뒤 77.4 부터라 가운데가
+    // 748.8 + 77.4 + 22.5 = 848.7 입니다.
+    expect(logo?.x).toBeCloseTo(748.8, 9);
+    expect(text?.x).toBeCloseTo(848.7, 9);
+  });
+
+  it('poster 에서 마크가 쌓인 글 전체의 왼쪽에 서고 어느 줄과도 겹치지 않습니다', () => {
+    const options = withShowLogo({ MODE: 'poster', ALIGN: 'left', PRIMARY_SUB: '여름의 끝' });
+    const scene = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    const rule = scene.nodes.find((n) => n.kind === 'rect');
+    const lines = textNodes(scene.nodes);
+    expect(lines).toHaveLength(3);
+    expect(logo?.x).toBeCloseTo(60, 9);
+    for (const line of lines) {
+      expect(line.x).toBeCloseTo(137.4, 9);
+      expect(line.x).toBeGreaterThan((rule?.x ?? 0) + (rule?.w ?? 0));
+    }
+    // 마크의 세로 가운데가 쌓인 글의 가운데와 같습니다.
+    expect((logo?.y ?? 0) + (logo?.h ?? 0) / 2).toBeCloseTo(1160, 9);
+  });
+
+  it('아래 여백이 0 이면 마크가 통째로 빠지고 글 기준점도 움직이지 않습니다', () => {
+    // 글이 없는데 마크만 사진 위에 떠 있으면 안 됩니다. 예약하는 폭도 함께 0 이 됩니다.
+    const options = withShowLogo({ PAD_BOTTOM: 0, LOGO_SIDE: 'left' });
+    const scene = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+    expect(scene.nodes.some((n) => n.kind === 'rect')).toBe(false);
+    expect(leftTextX(scene.nodes, 'EOS')).toBe(60);
+  });
+
+  it('아래 여백을 좁혀도 마크가 사진 위로 올라가지 않습니다', () => {
+    // 상자 높이가 아래 여백에 묶입니다. 여백 20 이면 상자도 20 이라 위끝이 사진
+    // 아래변(60 + 1000 = 1060)에 정확히 닿고 아래끝이 캔버스 바닥(1080)에 닿습니다.
+    const options = withShowLogo({ PAD_BOTTOM: 20, LOGO_SIDE: 'left' });
+    const scene = matteLayout(input({ options, logoId: 'nikon' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    const rule = scene.nodes.find((n) => n.kind === 'rect');
+    const EPSILON = 1e-9;
+    expect(rule?.y).toBeCloseTo(1060, 9);
+    expect((rule?.y ?? 0) + (rule?.h ?? 0)).toBeCloseTo(1080, 9);
+    expect(logo?.y ?? 0).toBeGreaterThanOrEqual(1060 - EPSILON);
+    expect((logo?.y ?? 0) + (logo?.h ?? 0)).toBeLessThanOrEqual(1080 + EPSILON);
+  });
+
+  it('로고와 구분선에 TEXT_COLOR 를 실어 보냅니다', () => {
+    // 그리는 쪽이 물들일 색입니다. 물들이지 않는 로고는 이 값을 쓰지 않습니다.
+    const options = withShowLogo({ TEXT_COLOR: '#222222' });
+    const scene = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    expect(scene.nodes.find((n) => n.kind === 'logo')?.fill).toBe('#222222');
+    expect(scene.nodes.find((n) => n.kind === 'rect')?.fill).toBe('#222222');
+  });
+});
+
+describe('matteLayout 워드마크 폴백', () => {
+  function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
+    const options = defaultValues(MATTE_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SIDE', 'left');
+    for (const [key, value] of Object.entries(extra)) options.set(key, value);
+    return options;
+  }
+
+  it('그 브랜드의 로고가 없으면 브랜드 이름을 상자 자리에 글자로 그립니다', () => {
+    const scene = matteLayout(input({ options: withShowLogo(), logoId: 'sony' }), services);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+    // 상자의 왼쪽 끝이 안쪽 여백(60)에 못박히고 PRIMARY 는 예약한 폭만큼 더 들어간
+    // 137.4 에 놓이므로, 둘 다 align 이 left 라도 좌표로 갈립니다.
+    const wordmark = textNodes(scene.nodes).find((n) => n.x === 60);
+    expect(wordmark?.text).toBe('Canon');
+    // 크기는 상자 높이의 0.45 배입니다. 36 * 0.45 = 16.2 입니다.
+    expect(wordmark?.style.size).toBeCloseTo(16.2, 9);
+  });
+
+  it('브랜드 이름이 상자 폭을 넘으면 줄입니다', () => {
+    const scene = matteLayout(
+      input({ options: withShowLogo(), logoId: 'sony', fields: { MAKER: '가'.repeat(200) } }),
+      services,
+    );
+    const wordmark = textNodes(scene.nodes).find((n) => n.x === 60);
+    expect(wordmark?.text.endsWith('…')).toBe(true);
+  });
+
+  it('MAKER 가 없으면 로고 id 가 있어도 워드마크도 구분선도 그리지 않습니다', () => {
+    const scene = matteLayout(input({ options: withShowLogo(), logoId: 'sony', fields: {} }), services);
+    expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
+    expect(scene.nodes.some((n) => n.kind === 'rect')).toBe(false);
+    expect(textNodes(scene.nodes)).toHaveLength(0);
+  });
+});

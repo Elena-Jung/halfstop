@@ -62,6 +62,24 @@ describe('ARRANGEMENTS', () => {
     }
   });
 
+  it('기본 배치는 장비 줄에서 제조사를 말하지 않습니다', () => {
+    // 세 프리셋이 로고를 기본으로 켜므로 브랜드는 로고 자리가 맡습니다. 여기에 {MAKER}가
+    // 남아 있으면 로고가 워드마크인 브랜드에서 "SONY │ SONY A7M3" 처럼 이름이 두 번
+    // 나옵니다. 사용자가 일부러 고르는 다른 배치는 그대로 두었습니다.
+    const values = arrangementById('exposure-gear').values;
+    expect(values.SECONDARY_MAIN).toBe('{BODY}');
+    expect(values.PRIMARY_MAIN).not.toContain('{MAKER}');
+    expect(values.PRIMARY_SUB).not.toContain('{MAKER}');
+    expect(values.SECONDARY_SUB).not.toContain('{MAKER}');
+  });
+
+  it('기본이 아닌 배치의 {MAKER}는 그대로 남아 있습니다', () => {
+    // 제조사가 문장의 일부인 것(shot-on)도 있어 한꺼번에 걷어내지 않았습니다.
+    expect(arrangementById('shot-on').values.PRIMARY_MAIN).toContain('{MAKER}');
+    expect(arrangementById('body-lens').values.PRIMARY_MAIN).toContain('{MAKER}');
+    expect(arrangementById('polaroid').values.PRIMARY_MAIN).toContain('{MAKER}');
+  });
+
   it('MODE 가 poster 인 배치는 bar 를 쓸 수 없습니다', () => {
     // bar.ts 에는 poster 분기가 없어 else 로 떨어져 split 처럼 그려집니다. layouts 가 이를
     // 막는 유일한 방어선이므로 데이터 자체가 이 규칙을 어기지 않는지 못박아 둡니다.
