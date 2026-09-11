@@ -23,10 +23,32 @@ export interface SceneRequest {
   services: LayoutServices;
 }
 
+/**
+ * AUTHOR 는 EXIF 가 아니라 AUTHOR 옵션에서 옵니다. 사용자가 직접 치는 값 하나만 두어
+ * 값이 두 곳(EXIF의 Artist, 이 옵션)으로 갈라지지 않게 합니다.
+ *
+ * 빈 문자열은 fields 에 넣지 않습니다. 값이 없는 토큰은 템플릿에서 통째로 사라지는
+ * 것이 이 저장소의 규칙이고, 이 자리에서 그 규칙을 어기면 다른 곳에서도 값이 있는
+ * 토큰과 없는 토큰을 구분할 때 빈 문자열을 값으로 잘못 셀 수 있습니다.
+ */
+function withAuthor(
+  fields: Partial<Record<TemplateToken, string>>,
+  options: ReadonlyMap<string, OptionValue>,
+): Partial<Record<TemplateToken, string>> {
+  const author = options.get('AUTHOR');
+  if (typeof author !== 'string' || author === '') return fields;
+  return { ...fields, AUTHOR: author };
+}
+
 export function buildScene(request: SceneRequest): Scene {
   const photo = toUnits(request.photoPx.width, request.photoPx.height);
   return request.layout(
-    { photo, fields: request.fields, logoId: request.logoId, options: request.options },
+    {
+      photo,
+      fields: withAuthor(request.fields, request.options),
+      logoId: request.logoId,
+      options: request.options,
+    },
     request.services,
   );
 }

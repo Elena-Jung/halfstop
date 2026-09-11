@@ -45,6 +45,11 @@ describe('arrangementsForLayout', () => {
     // 레이아웃에서도 뜻이 통하는지 검증하지 않았기 때문입니다. one-block 은 프리셋에서 뽑은
     // 것이 아니라 사용자 요구로 새로 만든 것이고, 꼬리 줄을 쓰지 않고 single 모드만 써서
     // 양쪽에서 뜻이 통합니다.
+    //
+    // exposure-gear 도 새로 만든 것이지만 bar 전용입니다. bar 레이아웃의 기본 배치이기도
+    // 해서, matte 에도 넣으면 사진을 막 불러온 사용자가 matte 프리셋을 눌렀을 때 이 배치가
+    // 그대로 눌러붙어 포스터 같은 프리셋의 제 모습을 가립니다. one-block 은 기본값이 아니라
+    // 사용자가 일부러 고른 것이라 이 문제가 없습니다.
     const both = ARRANGEMENTS.filter((a) => a.layouts.length > 1).map((a) => a.id);
     expect(both).toEqual(['one-block']);
 

@@ -24,17 +24,19 @@ export const ko = {
   'preset.poster': '포스터',
 
   // 배치 이름. 어떤 정보가 어디 들어가는지를 설명합니다. id 는 예전 프리셋에서 1:1 로
-  // 뽑았지만, 배치 칸에서는 프레임과 별개로 골라 쓸 수 있습니다.
-  'arrangement.body-lens': '왼쪽에 제조사와 바디, 오른쪽에 렌즈 제조사와 모델, 꼬리에 노출값',
-  'arrangement.gear-exposure': '왼쪽에 장비와 렌즈, 오른쪽에 노출값',
-  'arrangement.one-line': '한 줄에 장비와 노출값 전부',
-  'arrangement.shot-on': 'Shot on 문구와 노출값',
+  // 뽑았지만, 배치 칸에서는 프레임과 별개로 골라 쓸 수 있습니다. 사용자가 하나씩
+  // 눌러 보며 미리보기로 판단하므로 이름은 짧게 둡니다.
+  'arrangement.body-lens': '바디와 렌즈',
+  'arrangement.gear-exposure': '장비와 노출',
+  'arrangement.one-line': '한 줄',
+  'arrangement.shot-on': 'Shot on',
   'arrangement.minimal': '장비명만',
-  'arrangement.film': '왼쪽에 촬영 일시, 오른쪽에 노출값',
-  'arrangement.polaroid': '왼쪽에 장비, 오른쪽에 노출값',
-  'arrangement.letterbox': '장비와 초점 거리, 조리개를 한 줄로',
-  'arrangement.poster': '촬영 일시와 장비를 위아래로',
-  'arrangement.one-block': '한 덩이에 장비와 노출값 전부',
+  'arrangement.film': '일시와 노출',
+  'arrangement.polaroid': '장비와 노출',
+  'arrangement.letterbox': '장비와 조리개',
+  'arrangement.poster': '일시와 장비',
+  'arrangement.one-block': '한 덩이',
+  'arrangement.exposure-gear': '노출과 장비',
 
   // 옵션 이름
   'option.MODE': '배치',
@@ -52,6 +54,7 @@ export const ko = {
   'option.FONT_WEIGHT': '글자 굵기',
   'option.FONT_FAMILY': '서체',
   'option.DIVIDER': '구분자',
+  'option.AUTHOR': '작가',
   'option.PRIMARY_MAIN': '왼쪽 주 줄',
   'option.PRIMARY_SUB': '왼쪽 부 줄',
   'option.SECONDARY_MAIN': '오른쪽 주 줄',

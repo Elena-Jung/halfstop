@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildScene, type SceneRequest } from './buildScene';
 import { BAR_OPTIONS, barLayout } from '../layout/layouts/bar';
 import { defaultValues } from '../layout/options';
-import type { LayoutServices, SceneNode } from '../layout/types';
+import type { LayoutInput, LayoutServices, PresetLayout, SceneNode } from '../layout/types';
 
 const services: LayoutServices = {
   measureText: (text, style) => text.length * style.size * 0.5,
@@ -43,10 +43,10 @@ function numeric(node: SceneNode): number[] {
 
 describe('buildScene', () => {
   it('사진의 짧은 변이 1000 디자인 단위에 대응합니다', () => {
-    // barLayout의 캔버스 높이는 사진 높이(가로 사진에서는 짧은 변)에 바 높이(기본 120)를
+    // barLayout의 캔버스 높이는 사진 높이(가로 사진에서는 짧은 변)에 바 높이(기본 102)를
     // 더한 값이므로, 바 높이를 빼면 사진의 짧은 변만 남습니다.
     const wide = buildScene(requestFor({ width: 6000, height: 4000 }));
-    expect(wide.height - 120).toBe(1000);
+    expect(wide.height - 102).toBe(1000);
 
     // 세로 사진에서는 짧은 변이 너비 쪽입니다. barLayout은 너비를 그대로 사진
     // 너비로 두므로 여기서는 바 높이를 빼지 않아도 됩니다.
@@ -86,5 +86,41 @@ describe('buildScene', () => {
     const drift = Math.abs(full.width - preview.width);
     expect(drift).toBeLessThan(1);
     expect(drift).toBeGreaterThan(0.5);
+  });
+});
+
+describe('buildScene 의 AUTHOR 처리', () => {
+  // AUTHOR 는 EXIF 가 아니라 옵션에서 옵니다. 레이아웃 함수가 실제로 받는 fields 를
+  // 그대로 들여다봐야 이 자리의 규칙(빈 문자열이면 키 자체를 넣지 않는다)을 확인할 수
+  // 있으므로, barLayout 대신 받은 값을 그대로 기록하는 레이아웃을 씁니다.
+  function captureFields(request: SceneRequest): LayoutInput['fields'] {
+    let captured: LayoutInput['fields'] = {};
+    const layout: PresetLayout = (input) => {
+      captured = input.fields;
+      return { width: 1, height: 1, background: '#ffffff', nodes: [] };
+    };
+    buildScene({ ...request, layout });
+    return captured;
+  }
+
+  it('AUTHOR 옵션 값을 fields.AUTHOR 로 실어 보냅니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('AUTHOR', 'Jane Doe');
+    const fields = captureFields({ ...requestFor({ width: 1500, height: 1000 }), options });
+    expect(fields.AUTHOR).toBe('Jane Doe');
+  });
+
+  it('AUTHOR 이 빈 문자열(기본값)이면 fields 에 키 자체를 넣지 않습니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    const fields = captureFields({ ...requestFor({ width: 1500, height: 1000 }), options });
+    expect(Object.hasOwn(fields, 'AUTHOR')).toBe(false);
+  });
+
+  it('AUTHOR 이 있어도 넘겨받은 fields 원본 객체는 바꾸지 않습니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('AUTHOR', 'Jane Doe');
+    const request = { ...requestFor({ width: 1500, height: 1000 }), options };
+    captureFields(request);
+    expect(Object.hasOwn(request.fields, 'AUTHOR')).toBe(false);
   });
 });

@@ -48,7 +48,8 @@ export type TemplateToken =
   | 'F'
   | 'SEC'
   | 'ISO'
-  | 'TAKEN_AT';
+  | 'TAKEN_AT'
+  | 'AUTHOR';
 
 export interface LayoutInput {
   /** 디자인 단위로 표현한 사진 크기입니다. */

@@ -19,12 +19,12 @@ const VALUE_KEYS = [
 ];
 
 describe('ARRANGEMENTS', () => {
-  it('예전 아홉 프리셋에서 뽑은 아홉 개에 한 덩이 하나를 더해 열 개입니다', () => {
-    expect(ARRANGEMENTS).toHaveLength(10);
+  it('예전 아홉 프리셋에서 뽑은 아홉 개에 한 덩이와 노출과 장비를 더해 열한 개입니다', () => {
+    expect(ARRANGEMENTS).toHaveLength(11);
   });
 
   it('id 가 겹치지 않습니다', () => {
-    expect(new Set(ARRANGEMENTS.map((a) => a.id)).size).toBe(10);
+    expect(new Set(ARRANGEMENTS.map((a) => a.id)).size).toBe(11);
   });
 
   it('모든 배치에 이름표 키가 있습니다', () => {
@@ -103,11 +103,11 @@ describe('arrangementForLayout', () => {
     // body-lens 는 꼬리 줄을 써서 bar 전용입니다.
     expect(arrangementForLayout('body-lens', 'matte').id).toBe('polaroid');
     // poster 는 matte 전용입니다. bar 에 새면 split 처럼 그려집니다.
-    expect(arrangementForLayout('poster', 'bar').id).toBe('body-lens');
+    expect(arrangementForLayout('poster', 'bar').id).toBe('exposure-gear');
   });
 
   it('모르는 id 와 없는 값은 기본 배치로 떨어집니다', () => {
-    expect(arrangementForLayout('없는-id', 'bar').id).toBe('body-lens');
+    expect(arrangementForLayout('없는-id', 'bar').id).toBe('exposure-gear');
     expect(arrangementForLayout(undefined, 'matte').id).toBe('polaroid');
   });
 

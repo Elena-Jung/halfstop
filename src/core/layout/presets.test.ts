@@ -36,7 +36,7 @@ describe('PRESETS', () => {
 
   it('다섯 프레임의 값이 표와 같습니다', () => {
     // 프리셋은 데이터입니다. 값이 표류하면 조용히 다른 프레임이 되므로 여기서 못박습니다.
-    // bar 가 비어 있는 것이 의도입니다. 선언 기본값(BAR_HEIGHT 120, FONT_SIZE 34)이 곧
+    // bar 가 비어 있는 것이 의도입니다. 선언 기본값(BAR_HEIGHT 102, FONT_SIZE 34)이 곧
     // 기본 프레임이라 같은 값이 두 곳에 적히지 않습니다.
     const values = Object.fromEntries(PRESETS.map((p) => [p.id, p.values]));
     expect(values).toEqual({
@@ -165,11 +165,13 @@ describe('프리셋 값과 coerce', () => {
 
 describe('valuesFor', () => {
   it('배치가 선언 기본값을 덮습니다', () => {
-    // bar 레이아웃의 기본 배치는 body-lens 입니다. 선언 기본값의 PRIMARY_SUB 는 빈
-    // 문자열인데 body-lens 가 {BODY} 를 놓습니다.
+    // bar 레이아웃의 기본 배치는 exposure-gear 입니다. 선언 기본값의 PRIMARY_MAIN 은
+    // '{MAKER}{BODY}'인데 exposure-gear 가 {TAKEN_AT} 으로 덮습니다.
     const values = valuesFor(presetById('bar'), {});
-    expect(values.get('PRIMARY_SUB')).toBe('{BODY}');
-    expect(values.get('FOOTER')).toBe('{MM}{F}{SEC}{ISO}');
+    expect(values.get('PRIMARY_MAIN')).toBe('{TAKEN_AT}');
+    expect(values.get('PRIMARY_SUB')).toBe('{ISO}{MM}{F}{SEC}');
+    expect(values.get('SECONDARY_SUB')).toBe('{LENS}');
+    expect(values.get('FOOTER')).toBe('');
   });
 
   it('프리셋 값이 선언 기본값을 덮습니다', () => {
@@ -188,7 +190,7 @@ describe('valuesFor', () => {
     const preset = presetById('film');
     const clean = valuesFor(preset, {});
     const dirty = valuesFor(preset, { BAR_HEIGHT: '높게', GHOST: 1 });
-    // 필름은 바 높이를 100 으로 덮습니다. 선언 기본값 120 으로 돌아가면 안 됩니다.
+    // 필름은 바 높이를 100 으로 덮습니다. 선언 기본값 102 로 돌아가면 안 됩니다.
     expect(dirty.get('BAR_HEIGHT')).toBe(clean.get('BAR_HEIGHT'));
     expect(dirty.get('BAR_HEIGHT')).toBe(100);
     expect(dirty.has('GHOST')).toBe(false);
@@ -203,10 +205,10 @@ describe('valuesFor', () => {
 
   it('그 레이아웃에서 쓸 수 없는 배치를 넘기면 레이아웃의 기본 배치로 떨어집니다', () => {
     // poster 배치는 matte 전용입니다. bar 프레임에 억지로 넘기면 MODE 가 poster 로
-    // 새는 대신 bar 의 기본 배치인 body-lens 가 깔립니다.
+    // 새는 대신 bar 의 기본 배치인 exposure-gear 가 깔립니다.
     const values = valuesFor(presetById('bar'), {}, 'poster');
     expect(values.get('MODE')).toBe('split');
-    expect(values.get('PRIMARY_SUB')).toBe('{BODY}');
+    expect(values.get('PRIMARY_MAIN')).toBe('{TAKEN_AT}');
   });
 
   it('모르는 배치 id 도 레이아웃의 기본 배치로 떨어집니다', () => {
@@ -280,8 +282,8 @@ describe('다섯 프레임에서는 글자가 줄지 않습니다', () => {
   // 비트까지 같아 장면이 달라지지 않습니다. 그 계수가 1 인지는 그려진 글자 크기가 옵션 값
   // 그대로인지로 확인합니다.
   //
-  // 손으로 셈한 여유입니다. bar 프레임은 바 120 에 꼬리 줄이 있으면 슬롯 81.6, 없으면
-  // 120 이고 글자 34 의 두 줄 높이는 34*0.62*2 = 42.16 입니다. film 프레임은 바 100 에
+  // 손으로 셈한 여유입니다. bar 프레임은 바 102 에 꼬리 줄이 있으면 슬롯 69.36, 없으면
+  // 102 이고 글자 34 의 두 줄 높이는 34*0.62*2 = 42.16 입니다. film 프레임은 바 100 에
   // 슬롯 68 또는 100 이고 글자 30 의 두 줄 높이는 37.2 입니다. 어느 쪽도 좁지 않습니다.
   const services: LayoutServices = {
     measureText: (text, style) => text.length * style.size * 0.5,
@@ -359,6 +361,12 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
     'poster/matte': ['2026-09-10 12:00', 'SONY · ILCE-7M3 · 35mm'],
     'one-block/bar': ['SONY · ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     'one-block/matte': ['SONY · ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
+    'exposure-gear/bar': [
+      '2026-09-10 12:00',
+      'ISO 200 · 35mm · f/2.8 · 1/500s',
+      'SONY · ILCE-7M3',
+      'FE 24-70mm F2.8 GM',
+    ],
   };
 
   function sceneTextsFor(arrangementId: string, layout: 'bar' | 'matte'): string[] {

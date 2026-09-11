@@ -32,7 +32,7 @@ export const PRESETS: readonly Preset[] = [
     id: 'bar',
     labelKey: 'preset.bar',
     layout: 'bar',
-    // 값을 하나도 정하지 않는 것이 의도입니다. 선언 기본값(BAR_HEIGHT 120, FONT_SIZE 34)이
+    // 값을 하나도 정하지 않는 것이 의도입니다. 선언 기본값(BAR_HEIGHT 102, FONT_SIZE 34)이
     // 곧 기본 프레임이라 같은 값이 두 곳에 적히지 않습니다.
     values: {},
   },

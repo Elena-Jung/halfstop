@@ -11,7 +11,14 @@ export const BAR_OPTIONS: PresetOption[] = [
   { id: 'ALIGN', labelKey: 'option.ALIGN', groupKey: 'arrangement', type: 'select', options: ['left', 'center', 'right'], default: 'center' },
   { id: 'BACKGROUND', labelKey: 'option.BACKGROUND', groupKey: 'frame', type: 'color', default: '#ffffff' },
   { id: 'TEXT_COLOR', labelKey: 'option.TEXT_COLOR', groupKey: 'frame', type: 'color', default: '#111111' },
-  { id: 'BAR_HEIGHT', labelKey: 'option.BAR_HEIGHT', groupKey: 'frame', type: 'number', default: 120, unit: 'u', min: 40, max: 500 },
+  // 참조한 서비스와 나란히 놓고 비교한 결과입니다. 120 에서는 두 줄이 바 안에서
+  // 위아래로 뜬 채 보였습니다. 102 로 낮추면 대부분의 배치에서 글자가 바를 더
+  // 채우면서도, 꼬리 줄까지 쓰는 body-lens 배치(가장 빡빡한 경우)에서 주 줄과 부 줄이
+  // 서로 겹치지 않습니다. 더 낮추면(95 안팎부터) 그 배치의 두 줄이 맞닿기 시작합니다.
+  // 필름 프리셋이 이미 쓰고 있는 100 과 겹치지 않도록 102 를 골랐습니다. 값이 같으면
+  // "저장된 값이 이상하면 프리셋 값으로 떨어진다" 는 회귀 검사가 선언 기본값으로
+  // 잘못 떨어져도 우연히 통과합니다.
+  { id: 'BAR_HEIGHT', labelKey: 'option.BAR_HEIGHT', groupKey: 'frame', type: 'number', default: 102, unit: 'u', min: 40, max: 500 },
   { id: 'SIDE_PADDING', labelKey: 'option.SIDE_PADDING', groupKey: 'frame', type: 'number', default: 60, unit: 'u', min: 0, max: 400 },
   { id: 'FONT_SIZE', labelKey: 'option.FONT_SIZE', groupKey: 'frame', type: 'number', default: 34, unit: 'u', min: 8, max: 120 },
   { id: 'SUB_SCALE', labelKey: 'option.SUB_SCALE', groupKey: 'frame', type: 'range', min: 0.4, max: 1, step: 0.05, default: 0.7 },
@@ -23,6 +30,9 @@ export const BAR_OPTIONS: PresetOption[] = [
   { id: 'SHOW_LOGO', labelKey: 'option.SHOW_LOGO', groupKey: 'frame', type: 'boolean', default: false },
   { id: 'LOGO_BRAND_COLOR', labelKey: 'option.LOGO_BRAND_COLOR', groupKey: 'frame', type: 'boolean', default: false },
   { id: 'DIVIDER', labelKey: 'option.DIVIDER', groupKey: 'arrangement', type: 'text', default: '·' },
+  // EXIF 의 Artist 를 읽지 않습니다. 값이 두 곳(EXIF, 이 칸)에서 올 수 있게 되면 어느
+  // 쪽이 이기는지가 모호해집니다. 사용자가 직접 치는 값 하나만 둡니다.
+  { id: 'AUTHOR', labelKey: 'option.AUTHOR', groupKey: 'arrangement', type: 'text', default: '' },
   { id: 'PRIMARY_MAIN', labelKey: 'option.PRIMARY_MAIN', groupKey: 'arrangement', type: 'text', default: '{MAKER}{BODY}' },
   { id: 'PRIMARY_SUB', labelKey: 'option.PRIMARY_SUB', groupKey: 'arrangement', type: 'text', default: '' },
   { id: 'SECONDARY_MAIN', labelKey: 'option.SECONDARY_MAIN', groupKey: 'arrangement', type: 'text', default: '{MM}{F}{SEC}{ISO}' },

@@ -40,7 +40,7 @@ describe('barLayout split 모드', () => {
   it('사진 아래에 바 높이만큼 캔버스를 늘립니다', () => {
     const scene = barLayout(input(), services);
     expect(scene.width).toBe(1500);
-    expect(scene.height).toBe(1000 + 120);
+    expect(scene.height).toBe(1000 + 102);
   });
 
   it('사진을 원점에 원본 크기로 놓습니다', () => {
@@ -107,12 +107,13 @@ describe('barLayout 두 줄 y 좌표', () => {
     expect(main).toBeDefined();
     expect(sub).toBeDefined();
     expect(footer).toBeDefined();
-    // BAR_HEIGHT 120 기본값: slotHeight 81.6, slotCenterY 1040.8. 남은 높이가 81.6 이고
-    // 큰 쪽 글자의 반높이 두 개가 34*1.24=42.16 이므로 gap 은 원하는 42.5 가 아니라 39.44
-    // 로 좁혀집니다. 그 결과 주 줄의 글자 상단이 정확히 1000, 즉 사진 경계에 맞닿습니다.
+    // BAR_HEIGHT 102 기본값: footerHeight 32.64, slotHeight 69.36, slotCenterY 1034.68.
+    // 큰 쪽 글자의 반높이 두 개가 34*1.24=42.16 이므로 gap 은 원하는 42.5 가 아니라
+    // 69.36-42.16=27.2 로 좁혀집니다. 그 결과 주 줄의 글자 상단이 정확히 1000, 즉 사진
+    // 경계에 맞닿습니다.
     expect(main?.y).toBeCloseTo(1021.08);
-    expect(sub?.y).toBeCloseTo(1060.52);
-    expect(footer?.y).toBeCloseTo(1100.8);
+    expect(sub?.y).toBeCloseTo(1048.28);
+    expect(footer?.y).toBeCloseTo(1085.68);
     // 앵커가 아니라 글자 상단으로 확인합니다. 앵커만 보면 글자가 사진을 덮어도 통과합니다.
     // 주 줄은 경계에 정확히 맞닿으므로 이진 부동소수점에서 1000 을 머리카락만큼 밑돕니다.
     const EPSILON = 1e-9;
@@ -399,9 +400,9 @@ describe('barLayout LOGO_BRAND_COLOR', () => {
 });
 
 describe('barLayout 워드마크 폴백', () => {
-  // 워드마크 크기는 logoHeight * 0.45 입니다. 기본 BAR_HEIGHT 120 에서
-  // logoHeight = 48 이므로 size = 21.6 입니다. 이 목(mock) 측정기(글자당 size*0.5)로는
-  // 'ABC' 석 자가 3*21.6*0.5 = 32.4 가 되어 logoWidth(72)에 여유 있게 들어갑니다.
+  // 워드마크 크기는 logoHeight * 0.45 입니다. 기본 BAR_HEIGHT 102 에서
+  // logoHeight = 40.8 이므로 size = 18.36 입니다. 이 목(mock) 측정기(글자당 size*0.5)로는
+  // 'ABC' 석 자가 3*18.36*0.5 = 27.54 가 되어 logoWidth(61.2)에 여유 있게 들어갑니다.
   // 길게 넘치는 경우의 줄임(ellipsize)은 아래 '브랜드 이름이 로고 자리 폭을 넘으면
   // 줄입니다' 테스트가 따로 확인하므로, 여기서는 짧은 이름으로 폴백 자체와 자리를
   // 확인합니다.
