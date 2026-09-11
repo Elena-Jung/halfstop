@@ -46,6 +46,8 @@ export function App() {
     selected,
     toggleSelected,
     toggleAll,
+    removeSelected,
+    removeAll,
     hasPreview,
     exportTargetName,
     frameText,
@@ -99,6 +101,8 @@ export function App() {
               selected={selected}
               onToggle={toggleSelected}
               onToggleAll={toggleAll}
+              onRemoveSelected={removeSelected}
+              onRemoveAll={removeAll}
               disabled={busy}
             />
           )}
