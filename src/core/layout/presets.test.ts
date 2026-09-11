@@ -213,7 +213,7 @@ describe('valuesFor', () => {
 
   it('모르는 배치 id 도 레이아웃의 기본 배치로 떨어집니다', () => {
     const values = valuesFor(presetById('polaroid'), {}, '없는-배치');
-    expect(values.get('PRIMARY_MAIN')).toBe('{MAKER}{BODY}');
+    expect(values.get('PRIMARY_MAIN')).toBe('{MAKER} {BODY}');
     expect(values.get('SECONDARY_MAIN')).toBe('{MM}{F}{SEC}{ISO}');
   });
 });
@@ -351,20 +351,20 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
 
   const BEFORE: Record<string, string[]> = {
     'body-lens/bar': ['SONY', 'ILCE-7M3', 'SONY', 'FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
-    'gear-exposure/bar': ['SONY · ILCE-7M3', 'FE 24-70mm F2.8 GM', '35mm · f/2.8', '1/500s · ISO 200'],
-    'one-line/bar': ['SONY · ILCE-7M3 · 35mm · f/2.8 · 1/500s · ISO 200'],
-    'shot-on/bar': ['Shot on SONY · ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
+    'gear-exposure/bar': ['SONY ILCE-7M3', 'FE 24-70mm F2.8 GM', '35mm · f/2.8', '1/500s · ISO 200'],
+    'one-line/bar': ['SONY ILCE-7M3 · 35mm · f/2.8 · 1/500s · ISO 200'],
+    'shot-on/bar': ['Shot on SONY ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
     'minimal/bar': ['SONY ILCE-7M3'],
     'film/bar': ['2026-09-10 12:00', '35mm f/2.8 1/500s ISO 200'],
-    'polaroid/matte': ['SONY · ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
-    'letterbox/matte': ['SONY · ILCE-7M3 · 35mm · f/2.8'],
-    'poster/matte': ['2026-09-10 12:00', 'SONY · ILCE-7M3 · 35mm'],
-    'one-block/bar': ['SONY · ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
-    'one-block/matte': ['SONY · ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
+    'polaroid/matte': ['SONY ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
+    'letterbox/matte': ['SONY ILCE-7M3 · 35mm · f/2.8'],
+    'poster/matte': ['2026-09-10 12:00', 'SONY ILCE-7M3 · 35mm'],
+    'one-block/bar': ['SONY ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
+    'one-block/matte': ['SONY ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     'exposure-gear/bar': [
       '35mm · f/2.8 · 1/500s',
       'ISO 200 · 2026-09-10 12:00',
-      'SONY · ILCE-7M3',
+      'SONY ILCE-7M3',
       'FE 24-70mm F2.8 GM',
     ],
   };

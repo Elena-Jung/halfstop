@@ -74,4 +74,33 @@ describe('renderTemplate', () => {
     // 보존됩니다 (여는 것 하나, 닫는 것 하나).
     expect(renderTemplate('{{MAKER}}', FULL, '.')).toBe('{Nikon . }');
   });
+
+  describe('토큰 사이에 적은 글자', () => {
+    const GEAR = { MAKER: 'SONY', BODY: 'A7M3' } as const;
+    const EXPOSURE = { MM: '70mm', F: 'f/2.8', SEC: '1/400s' } as const;
+
+    it('토큰 사이에 공백을 적으면 그 공백으로 이어집니다', () => {
+      expect(renderTemplate('{MAKER} {BODY}', GEAR, '·')).toBe('SONY A7M3');
+    });
+
+    it('토큰을 붙여 적으면 지금처럼 구분자로 이어집니다', () => {
+      expect(renderTemplate('{MAKER}{BODY}', GEAR, '·')).toBe('SONY · A7M3');
+    });
+
+    it('토큰 사이에 쉼표를 적으면 그 쉼표로 이어집니다', () => {
+      expect(renderTemplate('{MAKER}, {BODY}', GEAR, '·')).toBe('SONY, A7M3');
+    });
+
+    it('사이에 적은 글자가 없는 노출값 세 개는 구분자로 이어집니다', () => {
+      expect(renderTemplate('{MM}{F}{SEC}', EXPOSURE, '·')).toBe('70mm · f/2.8 · 1/400s');
+    });
+
+    it('첫 조각 앞의 글자는 머리말이고, 그 뒤 토큰 사이의 글자는 이음말입니다', () => {
+      expect(renderTemplate('Shot on {MAKER} {BODY}', GEAR, '·')).toBe('Shot on SONY A7M3');
+    });
+
+    it('값이 없는 토큰 뒤에 적은 이음말도 함께 사라져 다음 값 앞에 공백이 남지 않습니다', () => {
+      expect(renderTemplate('{MAKER} {BODY}', { BODY: 'A7M3' }, '·')).toBe('A7M3');
+    });
+  });
 });
