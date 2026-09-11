@@ -146,8 +146,9 @@ export function App() {
                 />
                 <ImagePlus aria-hidden="true" size={40} />
                 <span className="preview-empty-main">{t('drop.empty')}</span>
-                <span className="preview-empty-sub">
-                  {t('drop.emptyDetail', { max: MAX_PHOTOS })}
+                <span className="preview-empty-detail">
+                  <span>{t('drop.emptyFormats')}</span>
+                  <span>{t('drop.emptyMax', { max: MAX_PHOTOS })}</span>
                 </span>
               </label>
             )}

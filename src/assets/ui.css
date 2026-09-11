@@ -315,7 +315,15 @@ body {
   color: var(--text);
 }
 
-.preview-empty-sub {
+/*
+ * 형식과 장수 두 줄입니다. 바깥 gap(space-2) 보다 좁게 묶어 한 덩어리로 읽히게 합니다.
+ * 음수 마진 대신 감싸는 요소를 둡니다. 치수 검사가 calc 를 허용하지 않기도 하지만,
+ * 무엇이 한 덩어리인지가 마크업에 드러나는 편이 낫습니다.
+ */
+.preview-empty-detail {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
   font-size: var(--text-sm);
 }
 

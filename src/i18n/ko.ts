@@ -95,8 +95,8 @@ export const ko = {
 
   // 드롭
   'drop.empty': '사진을 끌어다 놓거나 여기를 눌러 고르십시오',
-  'drop.emptyDetail':
-    'JPEG, PNG, WebP 파일을 한 번에 {max}장까지 불러옵니다. 사진은 브라우저를 떠나지 않습니다',
+  'drop.emptyFormats': 'JPEG PNG WebP 지원',
+  'drop.emptyMax': '최대 {max}장',
   'drop.active': '여기에 놓으십시오',
 
   // 사진 목록
