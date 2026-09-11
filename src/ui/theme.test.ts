@@ -86,6 +86,11 @@ const PAIRS: readonly [string, string, number][] = [
   ['accent', 'bg', 3],
   ['on-accent', 'accent', 4.5],
   ['border', 'bg', 3],
+  // 경계선은 바탕(bg) 위보다 패널(surface) 위에 그려지는 일이 더 많습니다(.preset-item
+  // 의 테두리가 그 경우입니다). border/bg 만 검사하면 이 자리가 새어 나갑니다.
+  ['border', 'surface', 3],
+  // danger 는 지금까지 존재 확인만 받고 명암비 검사를 받지 않았습니다.
+  ['danger', 'bg', 4.5],
 ];
 
 const THEMES: readonly ThemeName[] = ['dark', 'light'];
@@ -104,6 +109,39 @@ for (const theme of THEMES) {
       it(`--${a} 와 --${b} 의 명암비가 ${min}:1 이상입니다`, () => {
         const ratio = contrastRatio(requireToken(tokens, a), requireToken(tokens, b));
         expect(ratio).toBeGreaterThanOrEqual(min);
+      });
+    }
+  });
+}
+
+/*
+ * 2026-09-11 에 파랑 쪽으로 치우친 팔레트를 중성 회색으로 바꾸기로 한 결정을 기계가
+ * 지키게 합니다. R, G, B 가 모두 같으면(채도 0) 중성입니다.
+ *
+ * --accent 와 --danger 는 색이어야 하므로 뺍니다. --on-accent 도 뺐는데, 이 토큰은
+ * 늘 --accent(파랑) 위에 놓이는 문자색이라(단추 글자, 체크 표시) 중성 배경 위에 놓이는
+ * 나머지 토큰과 성격이 다릅니다. 실제로 어두운 테마의 --on-accent 값(#0a1420)은 파랑
+ * 쪽으로 살짝 치우쳐 있어, 이 토큰까지 검사에 넣으면 팔레트 자체가 검사를 통과하지
+ * 못합니다.
+ */
+const HUE_TOKENS: ReadonlySet<string> = new Set(['accent', 'danger', 'on-accent']);
+
+function saturation(hex: string): number {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
+for (const theme of THEMES) {
+  describe(`${BLOCK_LABEL[theme]} 테마 색 토큰 채도`, () => {
+    const tokens = readThemeTokens(theme);
+
+    for (const name of REQUIRED_TOKENS) {
+      if (HUE_TOKENS.has(name)) continue;
+      it(`--${name} 의 채도가 0입니다(중성 회색)`, () => {
+        expect(saturation(requireToken(tokens, name))).toBe(0);
       });
     }
   });

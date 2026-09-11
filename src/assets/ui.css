@@ -5,18 +5,21 @@
   /*
    * 어두운 테마의 유일한 색 출처입니다. 기본 테마이고 [data-theme='light'] 속성이 없을
    * 때 씁니다. src/ui/theme.test.ts 가 이 블록과 아래 밝은 테마 블록을 node:fs 로 각각
-   * 읽어 같은 여덟 짝의 명암비를 검사하므로 값을 바꾸려면 그 검사부터 통과해야 합니다.
-   * --border 는 원안(#3a414a)이 --bg 대비 1.76:1로 WCAG 비텍스트 기준 3:1에 미달해
-   * #5f6b78로 밝혀 두었습니다.
+   * 읽어 같은 열 짝의 명암비를 검사하므로 값을 바꾸려면 그 검사부터 통과해야 합니다.
+   *
+   * 2026-09-11 에 파랑 쪽으로 치우친 팔레트를 중성 회색으로 바꿨습니다. 사진 편집
+   * 도구는 주변 색이 사진 색 판단에 끼어들지 않도록 중성 회색을 씁니다. --accent 와
+   * --danger 를 뺀 나머지 일곱 토큰은 채도(R,G,B 가 모두 같음)가 0이고, 같은 파일의
+   * 채도 검사가 그것을 지킵니다.
    */
-  --bg: #14161a;
-  --surface: #1c1f24;
-  --surface-raised: #262b32;
-  --border: #5f6b78;
-  --text: #e8eaed;
-  --text-dim: #a8b0ba;
+  --bg: #1e1e1e;
+  --surface: #262626;
+  --surface-raised: #333333;
+  --border: #6f6f6f;
+  --text: #e0e0e0;
+  --text-dim: #9e9e9e;
   --accent: #4a9eff;
-  --on-accent: #08131f;
+  --on-accent: #0a1420;
   --danger: #ff8a8a;
 
   /*
@@ -58,12 +61,12 @@
  * 아홉 토큰을 하나라도 빼먹으면 그 자리만 어두운 값이 새어 나옵니다.
  */
 [data-theme='light'] {
-  --bg: #f4f5f7;
+  --bg: #f0f0f0;
   --surface: #ffffff;
-  --surface-raised: #e8ebef;
-  --border: #7c8695;
-  --text: #14181f;
-  --text-dim: #565f6b;
+  --surface-raised: #e4e4e4;
+  --border: #8a8a8a;
+  --text: #1c1c1c;
+  --text-dim: #5c5c5c;
   --accent: #0a5fd1;
   --on-accent: #ffffff;
   --danger: #b3261e;
