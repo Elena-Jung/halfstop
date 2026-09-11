@@ -23,11 +23,11 @@
     <meta name="theme-color" content="#1e1e1e" />
 
     <title>halfstop - EXIF 정보를 프레임으로</title>
-    <meta name="description" content="halfstop - EXIF 정보를 프레임으로. 사진은 브라우저를 떠나지 않습니다." />
+    <meta name="description" content="halfstop - EXIF 정보를 프레임으로" />
     <link rel="canonical" href="https://halfstop.pages.dev/" />
 
     <meta property="og:title" content="halfstop - EXIF 정보를 프레임으로" />
-    <meta property="og:description" content="EXIF 정보를 프레임으로. 사진은 브라우저를 떠나지 않습니다." />
+    <meta property="og:description" content="EXIF 정보를 프레임으로" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://halfstop.pages.dev/" />
     <meta property="og:locale" content="ko_KR" />
@@ -36,14 +36,16 @@
   <body>
     <!--
       React 가 붙기 전까지 잠깐 보이는 글이고, 자바스크립트를 끈 방문자와 검색 로봇이 보는
-      유일한 내용입니다. 길면 페이지를 열 때마다 글 뭉치가 번쩍 스쳐 지나가므로 한 줄로
-      줄였습니다. 자바스크립트 안내는 남겨 둡니다. 없으면 자바스크립트를 끈 사람이 제목만
-      보고 아무 일도 안 일어나는 이유를 알 길이 없습니다.
+      유일한 내용입니다. 길면 페이지를 열 때마다 글 뭉치가 번쩍 스쳐 지나가므로 한 줄만
+      둡니다.
+
+      안내를 noscript 안에 둡니다. 밖에 두면 자바스크립트가 켜진 방문자에게도 React 가
+      붙기 전까지 잠깐 보여서, 사실이 아닌 문장이 스쳐 지나갑니다.
     -->
     <div id="root">
       <h1>halfstop</h1>
       <p>EXIF 정보를 프레임으로</p>
-      <p>자바스크립트를 켜야 합니다.</p>
+      <noscript><p>자바스크립트가 활성화되지 않았습니다</p></noscript>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
