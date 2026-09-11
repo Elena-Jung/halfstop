@@ -72,18 +72,16 @@ export function App() {
   return (
     <DropZone disabled={busy} onFiles={load}>
       <main className="app">
-        <div className="app-header">
-          {/*
-           * 파비콘과 같은 파일을 씁니다. 두 벌로 나누면 한쪽만 고쳐집니다. 이름이 바로
-           * 옆에 글자로 있으므로 그림은 장식이고, alt 를 비워 화면 낭독기가 같은 말을
-           * 두 번 읽지 않게 합니다.
-           */}
-          <div className="app-brand">
-            <img src="/favicon.svg" alt="" className="app-mark" />
-            <h1 className="app-title">halfstop</h1>
-          </div>
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
-        </div>
+        {/*
+         * 전용 헤더를 두지 않습니다. 이름과 테마 단추 둘이서 세로 68px 을 썼는데, 그
+         * 자리는 이 도구의 주 기능인 미리보기에 돌려주는 편이 낫습니다. 마크는 레일 위로,
+         * 테마 단추는 레일 아래로 갔습니다.
+         *
+         * 제목은 화면에서만 감춥니다. 문서에 h1 이 하나는 있어야 하고 화면 낭독기가
+         * 그것으로 페이지를 알립니다. 눈으로는 레일 위 마크와 브라우저 탭 제목이 같은
+         * 일을 합니다.
+         */}
+        <h1 className="sr-only">halfstop</h1>
 
         {/*
          * 사진을 불러오는 일은 한 번 하고 마는 부가 기능이고, 슬라이더를 만지며 결과를
@@ -184,7 +182,13 @@ export function App() {
             busy={busy}
           />
 
-          <Rail selected={tab} onSelect={setTab} orientation={orientation} disabled={busy} />
+          <Rail
+            selected={tab}
+            onSelect={setTab}
+            orientation={orientation}
+            disabled={busy}
+            themeToggle={<ThemeToggle theme={theme} onToggle={toggleTheme} />}
+          />
         </div>
       </main>
     </DropZone>

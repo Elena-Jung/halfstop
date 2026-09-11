@@ -1,5 +1,5 @@
 import { Download, Frame, LayoutGrid, Type, type LucideIcon } from 'lucide-react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { t, type MessageKey } from '../i18n';
 import { RAIL_TABS, railPanelId, railTabId, type RailTab } from './groups';
 
@@ -26,8 +26,10 @@ export function Rail(props: {
   onSelect: (tab: RailTab) => void;
   orientation: 'vertical' | 'horizontal';
   disabled: boolean;
+  /** 레일 맨 끝에 놓을 요소입니다. 지금은 테마 선택기 하나입니다. */
+  themeToggle: ReactNode;
 }) {
-  const { selected, onSelect, orientation, disabled } = props;
+  const { selected, onSelect, orientation, disabled, themeToggle } = props;
 
   const focusTab = (tab: RailTab) => {
     document.getElementById(railTabId(tab))?.focus();
@@ -65,36 +67,49 @@ export function Rail(props: {
   };
 
   return (
-    <div
-      role="tablist"
-      aria-label={t('rail.label')}
-      aria-orientation={orientation}
-      onKeyDown={onKeyDown}
-      className="rail"
-      data-orientation={orientation}
-    >
-      {RAIL_TABS.map((tab) => {
-        const Icon = ICON_BY_TAB[tab];
-        const isSelected = tab === selected;
-        return (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            id={railTabId(tab)}
-            aria-controls={railPanelId(tab)}
-            aria-selected={isSelected}
-            aria-label={t(LABEL_KEY_BY_TAB[tab])}
-            tabIndex={isSelected ? 0 : -1}
-            disabled={disabled}
-            onClick={() => onSelect(tab)}
-            className="rail-tab"
-            data-selected={isSelected}
-          >
-            <Icon aria-hidden="true" size={20} />
-          </button>
-        );
-      })}
+    <div className="rail" data-orientation={orientation}>
+      {/*
+       * 마크는 장식입니다. 도구 이름은 같은 자리의 sr-only h1 과 브라우저 탭 제목이
+       * 말합니다. 파비콘과 같은 파일을 써서 두 벌로 갈라지지 않게 합니다.
+       */}
+      <img src="/favicon.svg" alt="" className="rail-mark" />
+
+      {/*
+       * tablist 안에는 탭만 둡니다. 마크와 테마 단추를 그 안에 넣으면 화면 낭독기가
+       * 탭 개수를 잘못 셉니다. 그래서 감싸는 요소를 따로 두었습니다.
+       */}
+      <div
+        role="tablist"
+        aria-label={t('rail.label')}
+        aria-orientation={orientation}
+        onKeyDown={onKeyDown}
+        className="rail-tabs"
+      >
+        {RAIL_TABS.map((tab) => {
+          const Icon = ICON_BY_TAB[tab];
+          const isSelected = tab === selected;
+          return (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              id={railTabId(tab)}
+              aria-controls={railPanelId(tab)}
+              aria-selected={isSelected}
+              aria-label={t(LABEL_KEY_BY_TAB[tab])}
+              tabIndex={isSelected ? 0 : -1}
+              disabled={disabled}
+              onClick={() => onSelect(tab)}
+              className="rail-tab"
+              data-selected={isSelected}
+            >
+              <Icon aria-hidden="true" size={20} />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rail-foot">{themeToggle}</div>
     </div>
   );
 }

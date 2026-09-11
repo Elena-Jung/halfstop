@@ -119,40 +119,7 @@ body {
 .app {
   height: 100dvh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-/* 그림과 이름을 한 덩어리로 묶어 테마 단추와 양끝으로 갈라 놓습니다. */
-.app-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-/*
- * 파비콘과 같은 파일입니다. 제목 글자(--text-lg, 20px)보다 조금 커야 옆에서 눌리지 않고
- * 짝으로 보입니다.
- */
-.app-mark {
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  display: block;
-}
-
-.app-title {
-  font-size: var(--text-lg);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 /*
@@ -404,19 +371,51 @@ body {
 }
 
 /*
- * 레일 자체를 설정 패널과 가르는 선입니다. 좁은 화면은 위쪽 경계(가로 선), 768px
- * 부터는 왼쪽 경계(세로 선)로 바뀌어 실제 배치 방향을 따라갑니다.
+ * 레일은 세 덩어리입니다. 맨 위 마크, 가운데 탭 목록, 맨 아래 테마 단추입니다.
+ * 전용 헤더를 없애면서 마크와 테마 단추가 여기로 왔습니다.
+ *
+ * 좁은 화면은 아래쪽 가로 막대, 768px 부터는 오른쪽 세로 막대입니다. 방향이 바뀌어도
+ * 마크가 앞, 테마 단추가 끝입니다.
  */
 .rail {
   grid-area: rail;
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   background: var(--surface);
   border-top: 1px solid var(--border);
+}
+
+/* 파비콘과 같은 파일입니다. 장식이므로 이름은 sr-only h1 이 맡습니다. */
+.rail-mark {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+.rail-tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/*
+ * 테마 단추를 반대쪽 끝으로 밀고 선 하나로 탭과 가릅니다. 탭은 어느 칸을 보는지
+ * 고르는 것이고 테마는 그와 무관한 설정이라, 같은 줄에 있어도 다른 갈래로 읽혀야
+ * 합니다.
+ */
+.rail-foot {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 @media (min-width: 768px) {
@@ -432,10 +431,24 @@ body {
 
   .rail {
     flex-direction: column;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+    padding: var(--space-2) var(--space-1);
     border-top: none;
     border-left: 1px solid var(--border);
+  }
+
+  .rail-tabs {
+    flex-direction: column;
+  }
+
+  .rail-foot {
+    margin-left: 0;
+    margin-top: auto;
+    padding-left: 0;
+    padding-top: var(--space-2);
+    border-left: none;
+    border-top: 1px solid var(--border);
+    justify-content: center;
+    align-self: stretch;
   }
 }
 
