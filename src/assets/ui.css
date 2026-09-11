@@ -556,7 +556,8 @@ body {
  * 항목들과 층이 나뉩니다. .photo-strip legend 는 화면에 보이지 않지만 같은 층이라 규칙을
  * 맞춥니다.
  */
-.preset-list legend {
+.preset-list legend,
+.preset-grid legend {
   padding: 0;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -610,6 +611,90 @@ body {
   background: var(--surface-raised);
   border-color: var(--accent);
   font-weight: 600;
+}
+
+/*
+ * 프리셋 카드입니다. 배치 목록(.preset-list/.preset-item)과 클래스를 따로 두는
+ * 이유는 배치 카드가 글자만 쓰는 반면 이쪽은 그림이 있기 때문입니다. 하나로
+ * 묶으면 그림 관련 규칙이 배치 목록에도 새어 나갑니다.
+ *
+ * 2열인 이유는 설정 칸 안쪽 247px 을 --space-2 간격으로 둘로 나누면 한 칸이
+ * 119px 이 되고, 그 폭에서 다섯 프레임이 실루엣으로 또렷이 갈리는 것을 실제
+ * 렌더러로 확인했기 때문입니다.
+ */
+.preset-grid {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+
+/*
+ * 그림이 위, 이름이 아래입니다. 이름 줄은 왼쪽에 .hs-radio-box 표시자를 그대로
+ * 두어 프리셋 카드와 배치 목록, 사진 썸네일이 같은 표시 언어를 씁니다.
+ *
+ * 실제 라디오(.hs-radio-input) 바로 다음에 .hs-radio-box 를 형제로 두어 아래
+ * 초점 표시 규칙이 계속 걸리게 하고, 나머지 배치는 grid-area 로 정해 마크업
+ * 순서와 화면 순서를 분리합니다.
+ */
+.preset-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'image image'
+    'mark name';
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-md);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.preset-card:hover:not([data-selected='true']) {
+  background: var(--surface-raised);
+  border-color: var(--text-dim);
+}
+
+/* .preset-list:disabled .preset-item 과 같은 이유의 같은 규칙입니다. */
+.preset-grid:disabled .preset-card {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.preset-card[data-selected='true'] {
+  background: var(--surface-raised);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* 안쪽 모서리는 카드(--radius-md)보다 한 단계 아래인 --radius-sm 입니다. */
+.preset-card-image {
+  grid-area: image;
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.preset-card .hs-radio-box {
+  grid-area: mark;
+}
+
+.preset-card-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*

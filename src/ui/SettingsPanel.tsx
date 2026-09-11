@@ -6,6 +6,7 @@ import { Listbox, type ListboxOption } from './controls/Listbox';
 import { arrangementsForLayout, groupOptions, railPanelId, railTabId, RAIL_TABS, type RailTab } from './groups';
 import { OptionField } from './OptionField';
 import type { PresetOption } from '../core/layout/options';
+import { usePresetThumbnails } from './presetThumbnails';
 
 const EXPORT_SIZES: readonly ExportPreset[] = ['original', '4k', '2k', 'sns'];
 
@@ -61,6 +62,7 @@ export function SettingsPanel(props: {
   const grouped = groupOptions(presetOptions);
   const mode = options.get('MODE');
   const showLogo = options.get('SHOW_LOGO');
+  const presetThumbnails = usePresetThumbnails(PRESETS);
   // 고른 사진이 없으면 미리보기에 그릴 것도, 값을 적용할 대상도 없습니다. busy 와
   // 마찬가지로 패널 전체를 잠급니다.
   const locked = busy || !hasPhoto;
@@ -96,12 +98,18 @@ export function SettingsPanel(props: {
     switch (tabValue) {
       case 'preset':
         return (
-          <fieldset className="preset-list" disabled={locked}>
+          <fieldset className="preset-grid" disabled={locked}>
             <legend>{t('rail.preset')}</legend>
             {PRESETS.map((preset) => {
               const isSelected = presetId === preset.id;
+              const thumbnail = presetThumbnails.get(preset.id);
+              // 아직 그려지지 않았으면(서체 대기 등) src 자체를 생략합니다. undefined 를
+              // 그대로 넘기면 exactOptionalPropertyTypes 에 걸립니다.
+              const imageProps = thumbnail
+                ? { src: thumbnail.src, width: thumbnail.width, height: thumbnail.height }
+                : {};
               return (
-                <label key={preset.id} className="preset-item" data-selected={isSelected}>
+                <label key={preset.id} className="preset-card" data-selected={isSelected}>
                   <input
                     type="radio"
                     name="preset"
@@ -112,7 +120,10 @@ export function SettingsPanel(props: {
                     className="hs-radio-input"
                   />
                   <span className="hs-radio-box" aria-hidden="true" />
-                  {t(preset.labelKey as MessageKey)}
+                  {/* 장식용 예시 그림입니다. 이름이 바로 이어지는 글자로 있으므로 alt 를
+                   * 비워 화면 낭독기가 같은 말을 두 번 읽지 않게 합니다. */}
+                  <img alt="" className="preset-card-image" {...imageProps} />
+                  <span className="preset-card-name">{t(preset.labelKey as MessageKey)}</span>
                 </label>
               );
             })}
