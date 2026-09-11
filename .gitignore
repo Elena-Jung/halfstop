@@ -4,3 +4,5 @@ dist/
 *.local
 .superpowers/
 .claude/
+testImage/
+public/__test/

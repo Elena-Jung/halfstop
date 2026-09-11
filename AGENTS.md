@@ -264,6 +264,48 @@ document.body.offsetHeight;
 `document.getAnimations()` 로 멈춘 전환을 직접 볼 수 있습니다. 결함인지 환경인지 가르려면
 전환을 끄고 값이 맞게 나오는지 보십시오. 맞으면 환경입니다.
 
+## 시험 사진
+
+사용자가 실제로 찍은 사진 넷을 `testImage/` 에 두었고, 개발 서버가 내어 주도록
+`public/__test/` 에 같은 것이 복사되어 있습니다. **둘 다 `.gitignore` 에 있습니다.
+커밋하지 마십시오.** 사용자의 사진입니다.
+
+| 파일 | 바디 | 렌즈 | 방향 |
+|---|---|---|---|
+| `DSC_9549.JPG` | NIKON D750 | 없음 | 가로 |
+| `DSC_9365.JPG` | NIKON D750 | 없음 | 세로 |
+| `DSC06792.JPG` | SONY ILCE-7M3 | FE 70-200mm F2.8 GM OSS | 가로 |
+| `DSC06830.JPG` | SONY ILCE-7M3 | E 28-75mm F2.8 A063 | 세로 |
+
+**니콘 두 장에 렌즈 정보가 없는 것이 일부러입니다.** 니콘은 렌즈명을 표준 EXIF 가 아니라
+자기네 MakerNote 에만 적고 우리 리더는 표준 태그만 읽습니다. 배치의 한쪽 슬롯이 비는
+경우를 여기서 봅니다. 소니 두 장은 렌즈가 표준 자리에 있고, 세로 한 장은 탐론 렌즈라
+제조사 추론 규칙까지 탑니다.
+
+**가로와 세로를 반드시 함께 보십시오.** 디자인 단위가 짧은 변 기준이라 세로 사진은 폭이
+1000u 이고 가로 사진은 1500u 입니다. 좌우로 나눈 슬롯의 폭이 그만큼 다르고, 가로에서
+멀쩡하던 글줄이 세로에서 잘립니다. 실제로 그렇게 새 기본 배치의 노출 줄이 잘렸습니다.
+
+페이지에서 이렇게 불러옵니다.
+
+```js
+const names = ['DSC_9549.JPG', 'DSC_9365.JPG', 'DSC06792.JPG', 'DSC06830.JPG'];
+const input = document.querySelector('input[type=file]');
+const dt = new DataTransfer();
+for (const n of names) {
+  const r = await fetch('/__test/' + n);
+  dt.items.add(new File([await r.blob()], n, { type: 'image/jpeg' }));
+}
+input.files = dt.files;
+input.dispatchEvent(new Event('change', { bubbles: true }));
+```
+
+썸네일 체크상자를 하나만 켜면 그 사진이 미리보기에 뜹니다. 미리보기 대상은 고른 것 중
+가장 앞선 인덱스입니다.
+
+**EXIF 를 손으로 만들지 마십시오.** 실제 사진이 있는데 합성 EXIF 로 확인하면 실제 파일이
+가진 함정(MakerNote 전용 렌즈, 회전 태그)을 통째로 놓칩니다.
+
 ## 사람이 봐야 하는 것
 
 브라우저에서 직접 확인해야만 잡히는 결함이 있습니다. 실제로 이렇게 잡은 것들입니다.
