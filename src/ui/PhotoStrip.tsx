@@ -1,3 +1,4 @@
+import { Eraser, Trash2 } from 'lucide-react';
 import { t } from '../i18n';
 import type { Loaded } from './usePipeline';
 
@@ -10,8 +11,12 @@ import type { Loaded } from './usePipeline';
  * fieldset 이 disabled 이면 그 안의 모든 입력과 단추(전체 선택, 선택 삭제, 전체 삭제
  * 포함)가 함께 잠깁니다. preset-list 가 이미 쓰는 방식과 같습니다.
  *
- * 세 단추(전체 선택/해제, 선택 삭제, 전체 삭제)는 한 묶음(.photo-actions)으로 가로
- * 나란히 둡니다. 이 줄은 한 줄을 유지하는 것이 설계 목적이라 세로로 쌓지 않습니다.
+ * 줄의 왼쪽 끝은 썸네일이고 장수와 세 단추는 오른쪽 한 덩이로 모읍니다. 단추가 낱개로
+ * 흩어져 있던 때는 묶음 폭이 230px 인데 높이가 24px 이라 비율이 어그러져 보였습니다.
+ * 이제 세 단추가 테두리를 나눠 쓰는 40px 짜리 한 덩이입니다.
+ *
+ * 전체 선택과 전체 해제만 글자로 둡니다. 아이콘으로는 뜻이 통하지 않는다고 사용자가
+ * 짚었습니다. 지우는 단추 둘은 아이콘이라 aria-label 과 title 이 유일한 이름입니다.
  */
 export function PhotoStrip(props: {
   photos: readonly Loaded[];
@@ -31,22 +36,6 @@ export function PhotoStrip(props: {
   return (
     <fieldset className="photo-strip" disabled={disabled}>
       <legend className="sr-only">{t('photos.legend')}</legend>
-      <div className="photo-actions">
-        <button type="button" className="photo-select-all" onClick={onToggleAll}>
-          {allSelected ? t('photos.deselectAll') : t('photos.selectAll')}
-        </button>
-        <button
-          type="button"
-          className="photo-delete-selected"
-          onClick={onRemoveSelected}
-          disabled={selected.size === 0}
-        >
-          {t('photos.deleteSelected')}
-        </button>
-        <button type="button" className="photo-delete-all" onClick={onRemoveAll}>
-          {t('photos.deleteAll')}
-        </button>
-      </div>
       <div className="photo-grid">
         {photos.map((photo, index) => {
           const isSelected = selected.has(index);
@@ -76,6 +65,34 @@ export function PhotoStrip(props: {
             </label>
           );
         })}
+      </div>
+
+      <div className="photo-tools">
+        <span className="photo-count">{t('photos.count', { count: photos.length })}</span>
+        <div className="photo-actions">
+          <button type="button" className="photo-select-all" onClick={onToggleAll}>
+            {allSelected ? t('photos.deselectAll') : t('photos.selectAll')}
+          </button>
+          <button
+            type="button"
+            className="photo-delete-selected"
+            onClick={onRemoveSelected}
+            disabled={selected.size === 0}
+            aria-label={t('photos.deleteSelected')}
+            title={t('photos.deleteSelected')}
+          >
+            <Trash2 aria-hidden="true" size={16} />
+          </button>
+          <button
+            type="button"
+            className="photo-delete-all"
+            onClick={onRemoveAll}
+            aria-label={t('photos.deleteAll')}
+            title={t('photos.deleteAll')}
+          >
+            <Eraser aria-hidden="true" size={16} />
+          </button>
+        </div>
       </div>
     </fieldset>
   );
