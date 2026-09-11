@@ -196,3 +196,80 @@ describe('토큰 밖의 치수', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/*
+ * 아래는 움직임(전환/애니메이션) 규약을 검사합니다. 위 readDeclarations 파서를 그대로
+ * 재사용합니다. 색과 치수에 하는 것과 같은 규율을 시간 값에도 적용하는 것입니다.
+ */
+describe('움직임 토큰', () => {
+  it(":root 에 --motion-fast: 120ms 가 선언되어 있습니다", () => {
+    const block = /:root\s*\{([^}]*)\}/.exec(CSS);
+    if (!block) throw new Error(':root 블록을 ui.css 에서 찾지 못했습니다');
+    expect(block[1]).toMatch(/--motion-fast:\s*120ms\s*;/);
+  });
+});
+
+// var(--motion-fast) 밖의 시간 값입니다. 120ms 같은 리터럴이나 0.2s 같은 초 단위 모두
+// 걸립니다. --motion-fast 자체는 숫자를 담지 않으므로 이 정규식에 걸리지 않습니다.
+const RAW_TIME = /\b\d+(?:\.\d+)?m?s\b/;
+
+/*
+ * 움직임 줄이기(prefers-reduced-motion) 재정의만 예외입니다. 앱이 고른 속도(120ms)와
+ * 무관하게 항상 0에 가까워야 하는 값이라 --motion-fast 를 쓰지 않습니다. none 이 아니라
+ * 0.01ms 인 이유는 docs/css-style.md 의 "움직임" 절에 적었습니다.
+ */
+const MOTION_EXEMPT: readonly (readonly [string, string])[] = [
+  ['*, *::before, *::after', 'transition-duration'],
+];
+
+function isMotionExempt(declaration: Declaration): boolean {
+  return MOTION_EXEMPT.some(
+    ([selector, property]) => declaration.selector === selector && declaration.property === property,
+  );
+}
+
+describe('전환 시간', () => {
+  const transitionDeclarations = readDeclarations().filter(
+    (declaration) =>
+      (declaration.property === 'transition' || declaration.property === 'transition-duration') &&
+      !isMotionExempt(declaration),
+  );
+
+  it('검사할 transition 선언을 실제로 찾았습니다', () => {
+    expect(transitionDeclarations.length).toBeGreaterThan(10);
+  });
+
+  it('transition 과 transition-duration 이 시간을 직접 적지 않고 var(--motion-fast)만 씁니다', () => {
+    const offenders = transitionDeclarations
+      .filter(
+        (declaration) =>
+          RAW_TIME.test(declaration.value) || !declaration.value.includes('var(--motion-fast)'),
+      )
+      .map(
+        (declaration) =>
+          `ui.css:${declaration.line} ${declaration.selector} { ${declaration.property}: ${declaration.value} }`,
+      );
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('호버와 transform', () => {
+  const hoverDeclarations = readDeclarations().filter((declaration) => declaration.selector.includes(':hover'));
+
+  it(':hover 선언을 실제로 찾았습니다', () => {
+    expect(hoverDeclarations.length).toBeGreaterThan(0);
+  });
+
+  it(':hover 가 들어간 선택자에 transform 선언이 없습니다', () => {
+    // 사용자가 마우스를 올렸을 때 위로 떠오르는 움직임을 명시적으로 거부했습니다.
+    // translateY, scale 처럼 뜨는 효과는 모두 transform 을 거치므로 이 속성 자체를
+    // :hover 선택자에서 금지해 그 요구를 검사로 붙잡습니다.
+    const offenders = hoverDeclarations
+      .filter((declaration) => declaration.property === 'transform')
+      .map(
+        (declaration) =>
+          `ui.css:${declaration.line} ${declaration.selector} { ${declaration.property}: ${declaration.value} }`,
+      );
+    expect(offenders).toEqual([]);
+  });
+});

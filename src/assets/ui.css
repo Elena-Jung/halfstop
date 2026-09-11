@@ -40,6 +40,14 @@
   --text-md: 13px;
   --text-lg: 20px;
 
+  /*
+   * 움직임에 쓰는 유일한 시간 값입니다. 테마와 무관하므로 [data-theme='light'] 에는
+   * 넣지 않습니다. src/ui/scale.test.ts 가 이 파일의 모든 transition 선언이 시간을
+   * 직접 적지 않고 이 토큰만 쓰는지 검사합니다. docs/css-style.md 의 "움직임" 절을
+   * 함께 보십시오.
+   */
+  --motion-fast: 120ms;
+
   font-family: 'Pretendard Variable', system-ui, sans-serif;
 }
 
@@ -61,11 +69,15 @@
   --danger: #b3261e;
 }
 
+/* 테마를 바꾸는 순간이 이 앱에서 화면 전체가 가장 크게 달라지는 장면이라 전환을 겁니다. */
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
   color-scheme: dark;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 /* 네이티브 스크롤바 같은 남은 요소가 테마를 따라가게 합니다. */
@@ -80,6 +92,20 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/*
+ * 움직임을 끈 사용자를 존중합니다. none 이 아니라 0.01ms 인 것이 중요합니다. none 으로
+ * 두면 transitionend 이벤트가 아예 발생하지 않아 그것을 기다리는 코드가 멈춥니다.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 /*
@@ -126,6 +152,7 @@ body {
   color: inherit;
   padding: 0;
   cursor: pointer;
+  transition: background-color var(--motion-fast);
 }
 
 .theme-toggle:hover {
@@ -297,6 +324,11 @@ body {
   color: var(--text-dim);
   text-align: center;
   cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.preview-empty:hover:not([data-disabled='true']) {
+  border-color: var(--text-dim);
 }
 
 .preview-empty[data-disabled='true'] {
@@ -402,11 +434,20 @@ body {
   color: inherit;
   padding: 0;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 
 .rail-tab[data-selected='true'] {
   background: var(--surface-raised);
   border-color: var(--border);
+}
+
+/* 고르지 않았고 잠기지 않은 탭만 마우스에 반응합니다. */
+.rail-tab:hover:not(:disabled):not([data-selected='true']) {
+  background: var(--surface-raised);
+  border-color: var(--text-dim);
 }
 
 .rail-tab:disabled {
@@ -468,6 +509,19 @@ body {
   background: var(--surface);
   font-size: var(--text-md);
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+/*
+ * 선택 표시([data-selected='true'])와 특정도가 같은 클래스 둘이라, 나중에 오는 규칙이
+ * 이깁니다. 고른 항목에서는 호버가 --accent 테두리를 덮지 않도록
+ * :not([data-selected='true']) 로 막습니다.
+ */
+.preset-item:hover:not([data-selected='true']) {
+  background: var(--surface-raised);
+  border-color: var(--text-dim);
 }
 
 .preset-item[data-selected='true'] {
@@ -499,6 +553,9 @@ body {
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   position: relative;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 
 /*
@@ -617,6 +674,13 @@ body {
   background: var(--surface);
   color: inherit;
   cursor: pointer;
+  transition: background-color var(--motion-fast);
+}
+
+.photo-select-all:hover:not(:disabled),
+.photo-delete-selected:hover:not(:disabled),
+.photo-delete-all:hover:not(:disabled) {
+  background: var(--surface-raised);
 }
 
 /* 고른 사진이 없을 때 선택 삭제가 이 상태로 잠깁니다. */
@@ -659,10 +723,19 @@ body {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
+  transition: border-color var(--motion-fast);
 }
 
 .photo-item[data-selected='true'] .photo-thumb-wrap {
   border-color: var(--accent);
+}
+
+/*
+ * 위 선택 표시 규칙과 특정도가 같습니다(클래스 둘). 고른 항목에서 호버가 --accent
+ * 테두리를 덮지 않도록 :not([data-selected='true']) 로 막습니다.
+ */
+.photo-item:hover:not([data-selected='true']) .photo-thumb-wrap {
+  border-color: var(--text-dim);
 }
 
 .photo-thumb {
@@ -759,6 +832,11 @@ body {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--motion-fast);
+}
+
+.hs-listbox-trigger:hover:not(:disabled) {
+  background: var(--surface-raised);
 }
 
 .hs-listbox-trigger:disabled {
@@ -803,12 +881,19 @@ body {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    outline-color var(--motion-fast);
 }
 
 /*
  * 실제 초점은 트리거에 남아 있고 이 항목은 aria-activedescendant 로만 가리켜지므로,
  * 눈에 보이는 표시를 이 규칙이 대신합니다. 전역 :focus-visible 과 다른 자리(진짜 DOM
  * 초점이 없는 자리)에 쓰는 것이라 outline 색은 같지만 별도 규칙입니다.
+ *
+ * data-active 는 마우스 호버와 키보드 이동 모두에서 Listbox.tsx 가 올립니다. 여기에만
+ * 전환을 걸고 따로 :hover 를 두지 않는 것은 두 입력 방식의 표시가 어긋나지 않게
+ * 하려는 것입니다.
  */
 .hs-listbox-option[data-active='true'] {
   background: var(--surface);
@@ -830,6 +915,7 @@ body {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
+  transition: opacity var(--motion-fast);
 }
 
 .hs-number-btn {
@@ -844,6 +930,7 @@ body {
   color: inherit;
   padding: 0;
   cursor: pointer;
+  transition: background-color var(--motion-fast);
 }
 
 .hs-number-btn:hover:not(:disabled) {
@@ -987,6 +1074,7 @@ body {
   background: var(--surface);
   color: inherit;
   font: inherit;
+  transition: opacity var(--motion-fast);
 }
 
 .hs-text-input::placeholder {
@@ -1018,6 +1106,12 @@ body {
   border-radius: var(--radius-md);
   padding: 0;
   cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+/* 견본의 배경은 사용자가 고른 임의의 색이라 호버는 배경이 아니라 테두리로 반응합니다. */
+.hs-colorpicker-swatch:hover:not(:disabled) {
+  border-color: var(--text-dim);
 }
 
 .hs-colorpicker-swatch:disabled {
@@ -1077,6 +1171,7 @@ body {
   color: inherit;
   padding: 0;
   cursor: pointer;
+  transition: background-color var(--motion-fast);
 }
 
 .hs-colorpicker-close:hover {
@@ -1137,6 +1232,12 @@ body {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color var(--motion-fast);
+}
+
+/* --accent 를 --bg 쪽으로 살짝 섞어 어둡힙니다. 토큰 밖의 색을 새로 만들지 않습니다. */
+.hs-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 85%, var(--bg));
 }
 
 .hs-button:disabled {

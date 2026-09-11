@@ -83,6 +83,47 @@ CSS 를 따로 썼습니다. 공유 체계 없이 늘어난 자리는 간격과 
 
 `src/ui/scale.test.ts` 는 `min-height` 를 보지 않습니다. 이 규칙은 사람이 지킵니다.
 
+## 움직임
+
+전환에 쓰는 시간 값은 `--motion-fast`(120ms) 하나뿐입니다. `:root` 에만 두고
+테마와 무관하므로 `[data-theme='light']` 에는 넣지 않습니다. `transition` 이나
+`transition-duration` 을 선언할 때 시간을 직접 적지 말고 이 토큰만 씁니다.
+`src/ui/scale.test.ts` 가 시간 값을 직접 적은 선언이 있는지 검사합니다. 색과
+치수에 하는 것과 같은 규율이고, 이것이 없으면 다음 작업자가 200ms 를 슬쩍
+끼워 넣어도 잡히지 않습니다.
+
+전환을 걸 수 있는 속성은 상태를 나타내는 것들뿐입니다. `background-color`,
+`border-color`, `color`, `opacity`, `outline-color` 입니다.
+
+**`:hover` 선택자에 `transform` 을 쓰지 않습니다.** 사용자가 마우스를 올렸을 때
+위로 떠오르는 움직임을 명시적으로 거부했습니다. `translateY`, `scale` 로 띄우는
+것과 나타날 때 떠오르는 `@keyframes` 가 모두 여기 해당합니다.
+`src/ui/scale.test.ts` 가 `:hover` 가 들어간 선택자에 `transform` 선언이 없는지
+검사해 이 요구를 붙잡습니다.
+
+`prefers-reduced-motion: reduce` 를 켠 사용자에게는 모든 전환과 애니메이션이
+즉시 끝나야 합니다.
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+```
+
+`none` 이 아니라 `0.01ms` 인 것이 중요합니다. `none` 으로 두면 `transitionend`
+이벤트가 아예 발생하지 않아 그것을 기다리는 코드가 멈춥니다.
+
+호버 규칙이 선택 표시를 덮지 않게 주의하십시오. `.preset-item:hover` 와
+`.preset-item[data-selected='true']` 처럼 특정도가 같은 두 규칙이 같은 속성을
+다투면 파일에서 나중에 오는 쪽이 조용히 이깁니다. 고른 항목의 호버 규칙은
+`:not([data-selected='true'])` 로 선택 상태를 피해 가야 합니다.
+
 ## 상태는 `data-*` 로
 
 React 가 상태를 `data-*` 속성으로 찍고 CSS 는 그 속성만 읽습니다. `data-selected`,
@@ -206,6 +247,8 @@ React 가 상태를 `data-*` 속성으로 찍고 CSS 는 그 속성만 읽습니
   확인합니다.
 - 설정 칸을 스크롤하고, 펼친 목록(Listbox)이 화면 아래를 넘기지 않고 위로
   뒤집히는지 확인합니다.
+- 마우스를 올렸을 때 배경이나 테두리 색만 부드럽게 바뀌고 위로 뜨지 않는지
+  확인합니다. 운영체제의 움직임 줄이기를 켜면 전환이 즉시 끝나는지도 확인합니다.
 
 확인하지 못한 항목은 확인하지 못했다고 적습니다. 확인했다고 적는 것이 가장
 나쁩니다.
