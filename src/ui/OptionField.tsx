@@ -10,6 +10,7 @@ import { Listbox, type ListboxOption } from './controls/Listbox';
 import { NumberField } from './controls/NumberField';
 import { Slider } from './controls/Slider';
 import { TextField } from './controls/TextField';
+import type { UnitMode } from './unitScale';
 
 /**
  * select 선택지의 이름표를 사람이 읽는 말로 바꿉니다. FONT_FAMILY 는 서체 이름을
@@ -71,8 +72,13 @@ export function OptionField(props: {
   onChange: (value: OptionValue) => void;
   /** BACKGROUND 와 TEXT_COLOR 처럼 서로의 대비를 보여야 뜻이 있는 짝의 상대 색입니다. */
   contrastAgainst?: string;
+  /** 숫자 칸이 값을 보여 주고 받는 단위입니다. 모든 칸이 하나를 함께 씁니다. */
+  unitMode?: UnitMode;
+  pxPerUnit?: number | null;
+  onToggleUnit?: () => void;
 }) {
-  const { option, value, disabled, onChange, contrastAgainst } = props;
+  const { option, value, disabled, onChange, contrastAgainst, unitMode, pxPerUnit, onToggleUnit } =
+    props;
 
   const fieldId = `option-${option.id}`;
   const label = t(option.labelKey as MessageKey);
@@ -109,6 +115,9 @@ export function OptionField(props: {
             unit={option.unit}
             disabled={disabled}
             onChange={onChange}
+            {...(unitMode !== undefined ? { unitMode } : {})}
+            {...(pxPerUnit !== undefined ? { pxPerUnit } : {})}
+            {...(onToggleUnit !== undefined ? { onToggleUnit } : {})}
           />
         );
       case 'range':

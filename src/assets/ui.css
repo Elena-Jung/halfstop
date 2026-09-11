@@ -1203,6 +1203,34 @@ body {
 }
 
 /*
+ * 단위를 바꿀 수 있는 칸에서는 이 자리가 진짜 단추입니다. 사용자가 "u 부분이 따로 있는걸
+ * 보아하니 단위를 바꿀 수 있게 해주는거야?" 라고 물었습니다. 증감 단추 사이에 끼어 좌우로
+ * 구분선까지 있으니 누를 수 있는 것처럼 보였고, 실제로는 아무 일도 안 하는 글자였습니다.
+ * 모양이 하는 말과 실제를 맞췄습니다.
+ *
+ * 크기와 호버를 증감 단추와 같게 두어 셋이 한 줄로 읽힙니다. 글자는 옅은 색 그대로라
+ * 값이 아니라 단위라는 것이 여전히 드러납니다.
+ */
+.hs-number-unit-button {
+  min-width: 28px;
+  min-height: 28px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background-color var(--motion-fast);
+}
+
+.hs-number-unit-button:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+.hs-number-unit-button:disabled {
+  cursor: not-allowed;
+}
+
+/*
  * Slider: input[type=range] 는 그대로 두고 트랙/손잡이만 다시 그립니다. 웹킷과
  * 파이어폭스가 가상 요소 이름이 서로 달라(::-webkit-slider-thumb / ::-moz-range-thumb)
  * 한 브라우저가 모르는 이름이 섞인 선택자 목록은 전체가 무효가 됩니다. 그래서 두 벤더의

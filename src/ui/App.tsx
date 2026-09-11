@@ -63,6 +63,9 @@ export function App() {
     exportFormat,
     setExportFormat,
     exportFormats,
+    unitMode,
+    setUnitMode,
+    pxPerUnit,
   } = usePipeline(canvasRef);
 
   const orientation = useRailOrientation();
@@ -201,6 +204,9 @@ export function App() {
             hasPhoto={hasPreview}
             exportTargetName={exportTargetName}
             busy={busy}
+            unitMode={unitMode}
+            setUnitMode={setUnitMode}
+            pxPerUnit={pxPerUnit}
           />
 
           {/*

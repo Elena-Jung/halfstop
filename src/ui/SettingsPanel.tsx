@@ -5,6 +5,7 @@ import type { ExportPreset } from '../core/export/resolution';
 import { t, type MessageKey } from '../i18n';
 import { Listbox, type ListboxOption } from './controls/Listbox';
 import { arrangementsForLayout, groupOptions, railPanelId, railTabId, RAIL_TABS, type RailTab } from './groups';
+import type { UnitMode } from './unitScale';
 import { OptionField } from './OptionField';
 import type { PresetOption } from '../core/layout/options';
 import { usePresetThumbnails } from './presetThumbnails';
@@ -45,6 +46,11 @@ export function SettingsPanel(props: {
   hasPhoto: boolean;
   exportTargetName: string | null;
   busy: boolean;
+  /** 숫자 칸이 값을 보여 주고 받는 단위입니다. 칸마다 따로 두지 않고 하나를 함께 씁니다. */
+  unitMode: UnitMode;
+  setUnitMode: (mode: UnitMode) => void;
+  /** 1u 가 내보낼 파일에서 몇 픽셀인지입니다. 환산할 수 없으면 null 입니다. */
+  pxPerUnit: number | null;
 }) {
   const {
     tab,
@@ -65,6 +71,9 @@ export function SettingsPanel(props: {
     hasPhoto,
     exportTargetName,
     busy,
+    unitMode,
+    setUnitMode,
+    pxPerUnit,
   } = props;
 
   const grouped = groupOptions(presetOptions);
@@ -103,6 +112,9 @@ export function SettingsPanel(props: {
             value={options.get(option.id) ?? option.default}
             disabled={locked}
             onChange={(value) => setOption(option.id, value)}
+            unitMode={unitMode}
+            pxPerUnit={pxPerUnit}
+            onToggleUnit={() => setUnitMode(unitMode === 'u' ? 'px' : 'u')}
             {...contrastProps}
           />
         );

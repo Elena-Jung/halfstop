@@ -1,6 +1,13 @@
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { t } from '../../i18n';
+import {
+  displayBounds,
+  displayStep,
+  displayValue,
+  storedValue,
+  type UnitMode,
+} from '../unitScale';
 
 /**
  * `input[type=number]` 를 대체합니다. 네이티브 입력은 그대로 두고 브라우저 스피너만
@@ -20,23 +27,52 @@ export function NumberField(props: {
   unit?: string;
   disabled?: boolean;
   onChange: (value: number) => void;
+  /** 지금 값을 보여 주고 받는 단위입니다. 모든 숫자 칸이 하나를 함께 씁니다. */
+  unitMode?: UnitMode;
+  /** 1u 가 내보낼 파일에서 몇 픽셀인지입니다. 환산할 수 없으면 null 입니다. */
+  pxPerUnit?: number | null;
+  onToggleUnit?: () => void;
 }) {
-  const { id, label, value, min, max, step = 1, unit, disabled = false, onChange } = props;
+  const {
+    id,
+    label,
+    value,
+    min,
+    max,
+    step = 1,
+    unit,
+    disabled = false,
+    onChange,
+    unitMode = 'u',
+    pxPerUnit = null,
+    onToggleUnit,
+  } = props;
 
-  const clamp = (raw: number) => Math.min(max, Math.max(min, raw));
+  // 단위를 바꿀 수 있는 것은 디자인 단위 칸뿐이고, 사진의 원본 크기를 알아야 환산이
+  // 됩니다. 둘 중 하나라도 아니면 지금까지처럼 글자만 보입니다. 환산할 수 없는데 단추만
+  // 있으면 눌렀을 때 엉뚱한 숫자가 나옵니다.
+  const switchable = unit === 'u' && pxPerUnit !== null && onToggleUnit !== undefined;
+  const mode: UnitMode = switchable ? unitMode : 'u';
+  const scale = switchable ? pxPerUnit : null;
+  const shown = displayValue(value, mode, scale);
+  const bounds = displayBounds(min, max, mode, scale);
+  const shownStep = displayStep(step, mode);
+
+  const clamp = (raw: number) => Math.min(bounds.max, Math.max(bounds.min, raw));
 
   // 증감 단추를 한 틱 안에 두 번 누르면 두 번째가 낡은 value 를 읽어 한 단계를 잃습니다.
   // 부모의 상태 갱신이 비동기라서 그렇습니다. 마지막 값을 ref 에 동기적으로 써 두고 거기서
   // 계산하면 연달아 누른 만큼 쌓입니다. 부모가 다른 값을 돌려주면 아래 효과가 다시 맞춥니다.
-  const latest = useRef(value);
+  // 화면에 보이는 단위로 셈합니다. 저장은 언제나 u 이므로 부모에 넘기기 직전에 되돌립니다.
+  const latest = useRef(shown);
   useEffect(() => {
-    latest.current = value;
-  }, [value]);
+    latest.current = shown;
+  }, [shown]);
 
   const bump = (direction: 1 | -1) => {
-    const next = clamp(latest.current + direction * step);
+    const next = clamp(latest.current + direction * shownStep);
     latest.current = next;
-    onChange(next);
+    onChange(storedValue(next, mode, scale));
   };
 
   return (
@@ -54,17 +90,30 @@ export function NumberField(props: {
         id={id}
         type="number"
         className="hs-number-input"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
+        min={bounds.min}
+        max={bounds.max}
+        step={shownStep}
+        value={shown}
         disabled={disabled}
         onChange={(event) => {
           const next = event.target.valueAsNumber;
-          if (!Number.isNaN(next)) onChange(clamp(next));
+          if (!Number.isNaN(next)) onChange(storedValue(clamp(next), mode, scale));
         }}
       />
-      {unit && <span className="hs-number-unit">{unit}</span>}
+      {switchable ? (
+        <button
+          type="button"
+          className="hs-number-unit hs-number-unit-button"
+          aria-label={t(mode === 'u' ? 'unit.toPx' : 'unit.toUnits')}
+          title={t('unit.explain')}
+          onClick={onToggleUnit}
+          disabled={disabled}
+        >
+          {mode === 'u' ? 'u' : 'px'}
+        </button>
+      ) : (
+        unit && <span className="hs-number-unit">{unit}</span>
+      )}
       <button
         type="button"
         className="hs-number-btn"

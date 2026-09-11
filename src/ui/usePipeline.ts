@@ -33,6 +33,7 @@ import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
 import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
 import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
+import { pxPerUnitFor, type UnitMode } from './unitScale';
 import { paintToCanvas } from '../core/render/paintToCanvas';
 import { ensureSceneLogos, logoImage } from '../images/logoImages';
 import type { MessageKey } from '../i18n';
@@ -110,6 +111,12 @@ export interface Loaded {
   meta: PhotoMeta;
   fields: Partial<Record<TemplateToken, string>>;
   preview: DecodedImage;
+  /**
+   * EXIF 가 적어 둔 원본 픽셀 크기입니다. 회전이 적용된 뒤의 축 기준입니다. 숫자 칸을
+   * px 로 보일 때 1u 가 몇 픽셀인지 셈하는 데 씁니다. EXIF 에 크기가 없는 파일에서는
+   * undefined 이고, 그때는 px 단추 자체를 내보내지 않습니다.
+   */
+  sourcePx: { width: number; height: number } | undefined;
   /** 이 사진을 디코딩한 조건입니다. 사진에 딸린 사실이므로 내보낼 때 다시 재지 않고 들고 있습니다. */
   autoOriented: boolean;
   /** 썸네일에 쓸 주소입니다. 목록에서 빠질 때 반드시 회수합니다. */
@@ -174,6 +181,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 가장 앞선 것으로 떨어뜨리므로 화면이 비지 않습니다.
   const [active, setActive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // 미리보기를 그릴 때마다 그 장면의 크기를 적어 둡니다. 숫자 칸을 px 로 보일 때 1u 가
+  // 몇 픽셀인지 셈하려면 장면의 긴 변이 필요한데, 장면은 rAF 콜백 안에서 만들어집니다.
+  // 여기서 따로 한 번 더 만들면 글자 폭을 재느라 값이 바뀔 때마다 배치가 두 번 돕니다.
+  const [sceneSize, setSceneSize] = useState<{ width: number; height: number } | null>(null);
   // 저장 설정에는 담지 않습니다. 내보내기 크기는 그때그때 고르는 값이지 사진 프레임에
   // 딸린 값이 아닙니다.
   const [exportSize, setExportSize] = useState<ExportPreset>('original');
@@ -187,8 +198,21 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 문장에 끼워 넣습니다.
   const [frameText, setFrameText] = useState('');
 
+  // 숫자 칸이 값을 보여 주고 받는 단위입니다. 칸마다 따로 두지 않습니다. 한 칸은 u,
+  // 옆 칸은 px 인 화면은 읽을 수 없습니다. 저장하지 않으므로 새로 열면 u 입니다.
+  const [unitMode, setUnitMode] = useState<UnitMode>('u');
+
   const previewIdx = useMemo(() => previewIndex(selected, active), [selected, active]);
   const previewPhoto = previewIdx !== null ? (photos[previewIdx] ?? null) : null;
+
+  /**
+   * 1u 가 내보낼 파일에서 몇 픽셀이 되는지입니다. 사진의 원본 크기를 모르면 null 이고
+   * 화면은 그때 px 단추를 내보내지 않습니다.
+   */
+  const pxPerUnit = useMemo(
+    () => pxPerUnitFor(exportSize, sceneSize, previewPhoto?.sourcePx),
+    [exportSize, sceneSize, previewPhoto],
+  );
 
   const preset = useMemo(
     () => presetById(previewPhoto?.presetId ?? emptyPreset.id),
@@ -294,6 +318,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         options,
         services,
       });
+      setSceneSize({ width: scene.width, height: scene.height });
 
       // 워커도 내보내기 직전에 같은 함수를 부릅니다. 한쪽만 챙기면 미리보기와 받은
       // 파일이 갈라집니다. 이미 캐시에 있으면 false 라 다시 그리지 않습니다.
@@ -394,6 +419,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
           meta,
           fields: toFields(meta),
           preview,
+          sourcePx: sourceSize,
           autoOriented,
           thumbUrl: URL.createObjectURL(file),
           presetId: initial.presetId,
@@ -624,6 +650,9 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     removeAll,
     hasPreview: previewPhoto !== null,
     exportTargetName: previewPhoto?.file.name ?? null,
+    unitMode,
+    setUnitMode,
+    pxPerUnit,
     frameText,
     presetId: preset.id,
     setPreset,

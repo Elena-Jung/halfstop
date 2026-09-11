@@ -122,6 +122,11 @@ export const ko = {
   // 커스텀 컨트롤
   'control.increase': '{label} 늘리기',
   'control.decrease': '{label} 줄이기',
+  // 숫자 칸의 단위 단추입니다. 이름표는 지금 단위가 아니라 누르면 무엇이 되는지를
+  // 말합니다. 설명은 마우스를 올렸을 때 보이는 title 입니다.
+  'unit.toPx': '단위를 픽셀로 바꿉니다',
+  'unit.toUnits': '단위를 디자인 단위로 바꿉니다',
+  'unit.explain': '디자인 단위입니다. 사진 짧은 변의 1000분의 1이 1u 입니다',
 
   // 색 고르기 창
   'colorPicker.pick': '{label} 고르기',
