@@ -21,5 +21,6 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npm test
+      # 사람이 커밋 전에 돌리는 것과 같은 명령입니다. 둘이 갈라지면 CI 만 통과하거나
+      # CI 만 실패하는 상태가 생깁니다.
+      - run: npm run check

@@ -186,23 +186,28 @@ React 가 상태를 `data-*` 속성으로 찍고 CSS 는 그 속성만 읽습니
 
 ## 구분선
 
-선택 표시에 `border-color` 를 쓰는 요소는 항목 사이 구분선을 `border` 가
-아니라 `box-shadow` 로 그립니다. 두 규칙이 같은 속성을 놓고 다투면 나중에
-적용되는 쪽이 이겨 다른 쪽이 조용히 사라집니다. `.rail-tab` 이 이 모양입니다.
+선택 표시에 `border-color` 를 쓰는 요소에 항목 사이 구분선을 더할 때는
+`border` 가 아니라 `box-shadow` 로 그립니다. 두 규칙이 같은 속성을 놓고
+다투면 나중에 적용되는 쪽이 이겨 다른 쪽이 조용히 사라집니다.
 
 ```css
-.rail-tab[data-selected='true'] {
-  background: var(--surface-raised);
+.some-tab[data-selected='true'] {
   border-color: var(--border);
 }
 
-.rail-tab:not(:last-child) {
+.some-tab:not(:last-child) {
   box-shadow: 1px 0 0 0 var(--border);
 }
 ```
 
-선택 여부는 `border-color` 가, 단추 사이 구분선은 `box-shadow` 가 그리므로
+선택 여부는 `border-color` 가, 항목 사이 구분선은 `box-shadow` 가 그리므로
 서로 겹치지 않습니다.
+
+`.rail-tab` 이 실제로 이 모양이었습니다. 2026-09-11 에 선택 표시를 둥근
+네모로 바꾸면서 구분선 자체를 없앴습니다(단추 사이는 `.rail` 의 `gap` 이
+띄우고, 둥근 선택 표시와 호버 배경이 구별을 대신합니다). 지금 이 패턴을
+쓰는 자리는 없지만, 나중에 선택 표시와 구분선을 함께 그려야 하는 자리가
+생기면 이 규칙을 따르십시오.
 
 ## 인라인 `style`
 
