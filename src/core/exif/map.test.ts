@@ -30,9 +30,15 @@ describe('toFields의 BODY', () => {
     expect(fields.BODY).toBe('D750');
   });
 
-  it('소니처럼 모델명이 제조사와 겹치지 않으면 그대로 둡니다', () => {
+  it('소니의 내부 코드명 ILCE-7M3은 실제 표기 A7M3으로 바뀝니다', () => {
+    // 사용자 요청: 소니 바디는 ILCE- 코드명이 아니라 A7M3처럼 그립니다.
     const fields = toFields(meta({ make: 'SONY', model: 'ILCE-7M3' }));
-    expect(fields.BODY).toBe('ILCE-7M3');
+    expect(fields.BODY).toBe('A7M3');
+  });
+
+  it('후지필름처럼 ILCE-로 시작하지 않는 모델은 손대지 않습니다', () => {
+    const fields = toFields(meta({ make: 'FUJIFILM', model: 'X-T4' }));
+    expect(fields.BODY).toBe('X-T4');
   });
 
   it('모델이 없으면 키 자체가 없습니다', () => {
