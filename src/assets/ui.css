@@ -634,11 +634,25 @@ body {
   display: block;
 }
 
+/*
+ * 표시자가 사진 위에 얹히므로 고르지 않았을 때는 불투명한 바닥이 있어야 사진 위에서
+ * 보입니다.
+ */
 .photo-item .hs-radio-box {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: var(--space-1);
+  left: var(--space-1);
   background: var(--surface);
+}
+
+/*
+ * 고른 항목은 표시자가 강조색으로 차야 합니다. 위 규칙은 특정도가 같고 파일에서 뒤에
+ * 와서 공용 규칙([data-selected='true'] .hs-radio-box)의 배경을 덮고 있었습니다. 그 탓에
+ * 체크 표시가 --on-accent 로 그려지는데 바닥이 --surface 라, 밝은 테마에서는 흰 바탕에
+ * 흰 체크가 되어 고른 티가 테두리로만 났습니다. 선택자를 한 단계 좁혀 되찾습니다.
+ */
+.photo-item[data-selected='true'] .hs-radio-box {
+  background: var(--accent);
 }
 
 
