@@ -201,7 +201,7 @@ describe('barLayout 글자가 사진을 덮지 않는 불변식', () => {
               options.set('BAR_HEIGHT', barHeight);
               options.set('FONT_SIZE', fontSize);
               options.set('SUB_SCALE', subScale);
-              options.set('SHOW_LOGO', showLogo);
+              options.set('LOGO_SOURCE', showLogo ? 'body' : 'none');
 
               const scene = barLayout(
                 input({ options, fields: sweepFields, logoId: 'sony' }),
@@ -237,7 +237,7 @@ describe('barLayout 로고 겹침', () => {
   it('MODE single, ALIGN center, 로고가 있으면 글이 로고 오른쪽 끝을 넘어서지 않습니다', () => {
     const withLogo: LayoutServices = { ...services, hasLogo: () => true };
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     options.set('MODE', 'single');
     options.set('ALIGN', 'center');
     options.set('PRIMARY_MAIN', '가'.repeat(200));
@@ -323,23 +323,23 @@ describe('barLayout 공통', () => {
     expect(textNodes(scene.nodes)[0]?.style.family).toContain('JetBrains');
   });
 
-  it('SHOW_LOGO 를 켜고 로고가 있으면 logo 노드를 만듭니다', () => {
+  it('LOGO_SOURCE 를 바디로 두고 로고가 있으면 logo 노드를 만듭니다', () => {
     const withLogo: LayoutServices = { ...services, hasLogo: () => true };
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
     expect(scene.nodes.find((n) => n.kind === 'logo')).toMatchObject({ logoId: 'canon' });
   });
 
-  it('SHOW_LOGO 를 켜도 로고가 없으면 logo 노드를 만들지 않습니다', () => {
+  it('LOGO_SOURCE 를 바디로 둬도 로고가 없으면 logo 노드를 만들지 않습니다', () => {
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     const scene = barLayout(input({ options, logoId: 'canon' }), services);
     expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
   });
 });
 
-describe('barLayout SHOW_LOGO 기본값', () => {
+describe('barLayout LOGO_SOURCE 기본값', () => {
   it('기본은 꺼짐이라 로고가 있어도 logo 노드를 만들지 않습니다', () => {
     // 기본을 꺼짐으로 둔 이유는 body-lens 처럼 {MAKER}를 이미 글자로 그리는 배치에서
     // 브랜드 이름이 두 번(글자와 로고) 나오지 않게 하기 위해서입니다.
@@ -368,7 +368,7 @@ describe('barLayout 로고 자리', () => {
 
   function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     for (const [key, value] of Object.entries(extra)) options.set(key, value);
     return options;
   }
@@ -444,15 +444,16 @@ describe('barLayout 로고 자리', () => {
   });
 
   it('폭 상한에 걸린 로고는 높이를 내주고 남는 높이의 한가운데에 섭니다', () => {
-    // 핫셀블라드 PNG 는 512x40 으로 12.8대 1 입니다. 상한 6 에 걸려 폭이 40.8*6 = 244.8,
-    // 높이가 244.8/12.8 = 19.125 가 되고, 남는 40.8-19.125 = 21.675 를 반씩 나눠 위에
-    // 10.8375 가 붙습니다. 마크 위끝이 1030.6 이므로 그림 위끝은 1041.4375 입니다.
+    // 핫셀블라드 PNG 는 512x40 으로 12.8대 1 입니다. 가로세로 비 상한 6 이면 폭이
+    // 40.8*6 = 244.8 이지만, 프레임 폭 상한(1500 * 0.16 = 240)이 그보다 먼저 걸립니다.
+    // 높이는 240/12.8 = 18.75 가 되고, 남는 40.8-18.75 = 22.05 를 반씩 나눠 위에
+    // 11.025 가 붙습니다. 마크 위끝이 1030.6 이므로 그림 위끝은 1041.625 입니다.
     const options = withShowLogo({ LOGO_SIDE: 'left' });
     const scene = barLayout(input({ options, logoId: 'hasselblad' }), withLogo);
     const logo = scene.nodes.find((n) => n.kind === 'logo');
-    expect(logo!.w).toBeCloseTo(244.8, 9);
-    expect(logo!.h).toBeCloseTo(19.125, 9);
-    expect(logo!.y).toBeCloseTo(1041.4375, 9);
+    expect(logo!.w).toBeCloseTo(240, 9);
+    expect(logo!.h).toBeCloseTo(18.75, 9);
+    expect(logo!.y).toBeCloseTo(1041.625, 9);
     // 세로 구분선은 마크 높이 그대로입니다. 로고가 낮아져도 가르는 일은 같습니다.
     const rule = scene.nodes.find((n) => n.kind === 'rect');
     expect(rule!.h).toBeCloseTo(40.8, 9);
@@ -471,8 +472,8 @@ describe('barLayout 로고 자리', () => {
     };
     expect(leftText('nikon')).toBeCloseTo(60 + NIKON_GAP, 9);
     expect(leftText('sony')).toBeCloseTo(60 + SONY_GAP, 5);
-    // 핫셀블라드는 상한에 걸린 폭 244.8 에 26.52 를 더합니다.
-    expect(leftText('hasselblad')).toBeCloseTo(60 + 271.32, 9);
+    // 핫셀블라드는 프레임 폭 상한에 걸린 240 에 간격과 구분선 26.52 를 더합니다.
+    expect(leftText('hasselblad')).toBeCloseTo(60 + 266.52, 9);
   });
 
   it('기본값에서는 로고를 켜고 꺼도 왼쪽 글줄의 기준점이 움직이지 않습니다', () => {
@@ -539,11 +540,11 @@ describe('barLayout 워드마크 폴백', () => {
     ISO: 'ISO 400',
   };
 
-  it('SHOW_LOGO 를 켰는데 그 브랜드의 로고가 없으면 브랜드 이름을 글자로 그립니다', () => {
+  it('LOGO_SOURCE 를 바디로 뒀는데 그 브랜드의 로고가 없으면 브랜드 이름을 글자로 그립니다', () => {
     // services.hasLogo 가 거짓을 돌려주는 자리입니다. 실제로는 로고 데이터에 없는
     // 브랜드(코닥 같은)에서 이 갈래로 떨어집니다.
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     const scene = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
     expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
     expect(texts(scene.nodes)).toContain('ABC');
@@ -553,7 +554,7 @@ describe('barLayout 워드마크 폴백', () => {
     // LOGO_SIDE 를 left 로 두면 상자의 왼쪽 끝이 SIDE_PADDING(60)에 못박힙니다.
     // 오른쪽에 붙일 때는 상자의 자리가 글 길이를 따라 움직여 좌표로 가릴 수 없습니다.
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     options.set('LOGO_SIDE', 'left');
 
     const withWordmark = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
@@ -571,7 +572,7 @@ describe('barLayout 워드마크 폴백', () => {
     // 로고와 같은 폭에 맞출 필요가 없습니다. 한 사진에서 로고와 워드마크 중 한 갈래만
     // 나오고, 브랜드가 다르면 장비 이름도 달라 옆 글줄이 움직이는 것이 당연합니다.
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     // 왼쪽 슬롯에 붙여야 예약한 폭이 PRIMARY 의 x 로 드러납니다.
     options.set('LOGO_SIDE', 'left');
     const scene = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
@@ -588,7 +589,7 @@ describe('barLayout 워드마크 폴백', () => {
     // 마크가 그 앞으로 물러날 뿐입니다.
     const withLogo: LayoutServices = { ...services, hasLogo: () => true };
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     const on = barLayout(input({ options, logoId: 'sony' }), withLogo);
     const off = barLayout(input({ logoId: 'sony' }), withLogo);
     const xs = (scene: { nodes: SceneNode[] }) => textNodes(scene.nodes).map((n) => n.x);
@@ -599,7 +600,7 @@ describe('barLayout 워드마크 폴백', () => {
     // 상한은 로고와 같은 markHeight * 6 입니다. EXIF 의 제조사가 유난히 길어도 바 한쪽을
     // 통째로 먹지 않습니다.
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     options.set('LOGO_SIDE', 'left');
     const scene = barLayout(
       input({ options, logoId: 'canon', fields: { MAKER: '가'.repeat(200) } }),
@@ -613,7 +614,7 @@ describe('barLayout 워드마크 폴백', () => {
 
   it('MAKER 필드가 없으면 로고 id 가 있어도 워드마크를 그리지 않습니다', () => {
     const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     const scene = barLayout(input({ options, logoId: 'canon', fields: {} }), services);
     expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
     expect(textNodes(scene.nodes).some((n) => n.x === 60 && n.style.align === 'left')).toBe(false);

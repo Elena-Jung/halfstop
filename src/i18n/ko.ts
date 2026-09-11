@@ -60,7 +60,7 @@ export const ko = {
   'option.SECONDARY_MAIN': '오른쪽 큰 줄',
   'option.SECONDARY_SUB': '오른쪽 작은 줄',
   'option.FOOTER': '꼬리 줄',
-  'option.SHOW_LOGO': '브랜드 로고',
+  'option.LOGO_SOURCE': '브랜드 로고',
   'option.LOGO_SIDE': '로고가 붙는 쪽',
 
   // 옵션 값 이름
@@ -70,6 +70,10 @@ export const ko = {
   'value.ALIGN.left': '왼쪽',
   'value.ALIGN.center': '가운데',
   'value.ALIGN.right': '오른쪽',
+  // 로고를 누구의 것으로 그릴지입니다. 끄는 것도 이 목록이 함께 맡습니다.
+  'value.LOGO_SOURCE.none': '없음',
+  'value.LOGO_SOURCE.body': '바디 제조사',
+  'value.LOGO_SOURCE.lens': '렌즈 제조사',
   'value.LOGO_SIDE.left': '왼쪽',
   'value.LOGO_SIDE.right': '오른쪽',
 

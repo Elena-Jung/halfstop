@@ -202,6 +202,20 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 옆 칸은 px 인 화면은 읽을 수 없습니다. 저장하지 않으므로 새로 열면 u 입니다.
   const [unitMode, setUnitMode] = useState<UnitMode>('u');
 
+  /**
+   * 로고로 쓸 브랜드 id 입니다. LOGO_SOURCE 가 바디와 렌즈 중 어느 쪽 제조사를 볼지
+   * 정합니다. 레이아웃도 같은 값을 보고 워드마크에 쓸 이름을 고르므로, 두 곳이 같은
+   * 규칙을 따라야 로고와 이름이 어긋나지 않습니다.
+   */
+  const logoIdFor = (
+    fields: Partial<Record<TemplateToken, string>>,
+    values: ReadonlyMap<string, OptionValue>,
+  ): string | undefined => {
+    const source = values.get('LOGO_SOURCE');
+    if (source === 'none') return undefined;
+    return brandId(source === 'lens' ? fields.LENS_MAKER : fields.MAKER);
+  };
+
   const previewIdx = useMemo(() => previewIndex(selected, active), [selected, active]);
   const previewPhoto = previewIdx !== null ? (photos[previewIdx] ?? null) : null;
 
@@ -313,7 +327,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const scene = buildScene({
         photoPx: { width: previewPhoto.preview.width, height: previewPhoto.preview.height },
         fields: previewPhoto.fields,
-        logoId: brandId(previewPhoto.fields.MAKER),
+        logoId: logoIdFor(previewPhoto.fields, options),
         layout: layoutFor(preset),
         options,
         services,
@@ -590,7 +604,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       const scene = buildScene({
         photoPx: { width: previewPhoto.preview.width, height: previewPhoto.preview.height },
         fields: previewPhoto.fields,
-        logoId: brandId(previewPhoto.fields.MAKER),
+        logoId: logoIdFor(previewPhoto.fields, options),
         layout: layoutFor(preset),
         options,
         services,

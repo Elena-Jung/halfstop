@@ -1,6 +1,6 @@
-import { LOGO_MAX_ASPECT, logoArt, logoMark } from '../../logos/registry';
+import { LOGO_MAX_ASPECT, LOGO_WIDTH_SHARE, logoArt, logoMark } from '../../logos/registry';
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
-import { bool, num, str, type PresetOption } from '../options';
+import { num, str, type PresetOption } from '../options';
 import { ellipsize, halfHeight, twoLineGap } from '../primitives';
 import { resolveSlot } from '../slots';
 import type { PresetLayout, SceneNode, TextStyle } from '../types';
@@ -21,7 +21,7 @@ export const MATTE_OPTIONS: PresetOption[] = [
   { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'arrangement', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
   // 선언 기본값은 꺼짐입니다. 폴라로이드와 포스터 프리셋이 켜진 값을 따로 정하는데, 선언
   // 기본값까지 켜짐이면 어느 쪽이 정한 것인지 값만 보고는 읽을 수 없습니다.
-  { id: 'SHOW_LOGO', labelKey: 'option.SHOW_LOGO', groupKey: 'frame', type: 'boolean', default: false },
+  { id: 'LOGO_SOURCE', labelKey: 'option.LOGO_SOURCE', groupKey: 'frame', type: 'select', options: ['none', 'body', 'lens'], default: 'none' },
   // 로고는 장비 이름이 놓인 슬롯에 붙습니다. 어느 슬롯에 장비가 오는지는 배치가 정합니다.
   // 기본값이 하단 바(right)와 다른 것은 좌우로 나뉘는 배치가 반대이기 때문입니다. 여백
   // 액자에서 좌우로 나뉘는 배치는 polaroid 하나뿐이고 그것이 장비를 왼쪽에 둡니다.
@@ -83,11 +83,17 @@ export const matteLayout: PresetLayout = (input, services) => {
   const primary = resolveSlot(options, 'PRIMARY', input.fields, divider);
   const secondary = resolveSlot(options, 'SECONDARY', input.fields, divider);
 
-  // SHOW_LOGO 가 꺼져 있으면(선언 기본값) 로고 자리를 아예 만들지 않습니다. 켜져 있으면
-  // 그 브랜드의 로고가 있는지에 따라 두 갈래로 나뉩니다. 로고가 있으면 logo 노드, 없으면
-  // 브랜드 이름을 글자로 그리는 워드마크(text 노드)입니다. bar.ts 와 같은 구조입니다.
-  const showLogoOption = bool(options, 'SHOW_LOGO');
-  const brandName = input.fields.MAKER;
+  // 로고를 누구의 것으로 그릴지 LOGO_SOURCE 가 정합니다. `none` 이면(선언 기본값) 로고
+  // 자리를 아예 만들지 않고, `body` 면 바디 제조사, `lens` 면 렌즈 제조사입니다. 끄는
+  // 것을 따로 둔 체크상자가 아니라 이 목록이 함께 맡습니다. 켜고 끄는 값과 누구의 것인지
+  // 정하는 값을 나눠 두면 "켜져 있는데 아무것도 안 나오는" 조합이 생깁니다.
+  //
+  // 고른 쪽의 로고가 있으면 logo 노드, 없으면 그 제조사 이름을 글자로 그리는
+  // 워드마크(text 노드)입니다.
+  // bar.ts 와 같은 구조입니다.
+  const logoSource = str(options, 'LOGO_SOURCE');
+  const showLogoOption = logoSource !== 'none';
+  const brandName = logoSource === 'lens' ? input.fields.LENS_MAKER : input.fields.MAKER;
   const art =
     showLogoOption && input.logoId !== undefined && services.hasLogo(input.logoId)
       ? logoArt(input.logoId)
@@ -104,13 +110,20 @@ export const matteLayout: PresetLayout = (input, services) => {
   // 않습니다. 글 쪽은 좁은 여백에서 사진을 덮는 한계가 남아 있지만(known_limits) 그것은
   // 글자를 줄여야 풀리는 별개의 문제입니다.
   const markHeight = Math.min(fontSize * 1.2, padBottom);
-  const drawn = art === undefined ? undefined : { id: art.id, ...logoMark(art, markHeight) };
+  // 마크가 프레임 폭에서 가져갈 수 있는 몫입니다. 디자인 단위가 사진의 짧은 변 기준이라
+  // 세로 사진은 프레임 폭이 1000u 이고 가로 사진은 1500u 입니다. 같은 로고가 세로
+  // 사진에서 훨씬 큰 몫을 먹어, 소니 로고를 켠 세로 사진에서 노출 줄이 말줄임표로
+  // 잘렸습니다. 프레임 폭을 함께 봐야 두 방향이 같은 균형으로 보입니다.
+  // 여백 액자는 사진 폭에 좌우 여백까지 더한 것이 프레임의 폭입니다.
+  const markMaxWidth = width * LOGO_WIDTH_SHARE;
+  const drawn =
+    art === undefined ? undefined : { id: art.id, ...logoMark(art, markHeight, markMaxWidth) };
   // 워드마크는 자기 글자 폭을 그대로 씁니다. 로고와 같은 폭에 맞출 필요가 없는 이유와
   // 0.45 배를 고른 이유는 bar.ts 에 적어 두었습니다.
   const wordmarkStyle = style(markHeight * 0.45, 'left');
   const wordmarkText =
     showLogoOption && art === undefined && brandName !== undefined && brandName !== ''
-      ? ellipsize(brandName, markHeight * LOGO_MAX_ASPECT, wordmarkStyle, services)
+      ? ellipsize(brandName, Math.min(markHeight * LOGO_MAX_ASPECT, markMaxWidth), wordmarkStyle, services)
       : '';
   // 마크가 예약하는 폭은 실제로 그려질 폭입니다. 상자를 브랜드와 무관하게 고정해 두던
   // 시절에는 소니처럼 가로로 긴 워드마크가 상자 폭에 먼저 걸려 높이가 4분의 1 로

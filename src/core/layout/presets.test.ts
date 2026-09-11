@@ -41,7 +41,7 @@ describe('PRESETS', () => {
     // 기본값이 꺼짐이라 여기서 켭니다.
     const values = Object.fromEntries(PRESETS.map((p) => [p.id, p.values]));
     expect(values).toEqual({
-      bar: { SHOW_LOGO: true },
+      bar: { LOGO_SOURCE: 'body' },
       film: {
         BACKGROUND: '#000000',
         TEXT_COLOR: '#ff9500',
@@ -49,7 +49,7 @@ describe('PRESETS', () => {
         FONT_SIZE: 30,
         BAR_HEIGHT: 100,
       },
-      polaroid: { PAD_TOP: 70, PAD_RIGHT: 70, PAD_BOTTOM: 240, PAD_LEFT: 70, SHOW_LOGO: true },
+      polaroid: { PAD_TOP: 70, PAD_RIGHT: 70, PAD_BOTTOM: 240, PAD_LEFT: 70, LOGO_SOURCE: 'body' },
       letterbox: {
         PAD_TOP: 160,
         PAD_RIGHT: 0,
@@ -67,28 +67,28 @@ describe('PRESETS', () => {
         BACKGROUND: '#f4f2ee',
         FONT_SIZE: 26,
         SUB_SCALE: 2.6,
-        SHOW_LOGO: true,
+        LOGO_SOURCE: 'body',
       },
     });
   });
 
   it('하단 바와 폴라로이드와 포스터만 로고를 켭니다', () => {
-    // 사용자가 고른 세 프레임입니다. 필름 데이터백과 레터박스는 선언 기본값(꺼짐)을
+    // 사용자가 고른 세 프레임입니다. 필름 데이터백과 레터박스는 선언 기본값(없음)을
     // 그대로 씁니다. 위의 표가 이미 값을 통째로 못박지만, 어느 프레임이 켜지는지는
     // 사용자가 직접 요청한 것이라 따로 읽히도록 둡니다.
-    const on = PRESETS.filter((p) => p.values.SHOW_LOGO === true).map((p) => p.id);
+    const on = PRESETS.filter((p) => p.values.LOGO_SOURCE === 'body').map((p) => p.id);
     expect(on).toEqual(['bar', 'polaroid', 'poster']);
     for (const id of ['film', 'letterbox']) {
-      expect(Object.hasOwn(presetById(id).values, 'SHOW_LOGO'), id).toBe(false);
-      expect(valuesFor(presetById(id), {}).get('SHOW_LOGO'), id).toBe(false);
+      expect(Object.hasOwn(presetById(id).values, 'LOGO_SOURCE'), id).toBe(false);
+      expect(valuesFor(presetById(id), {}).get('LOGO_SOURCE'), id).toBe('none');
     }
   });
 
-  it('선언 기본값은 꺼짐이라 프리셋이 켠 것인지 값만 보고 읽을 수 있습니다', () => {
+  it('선언 기본값은 없음이라 프리셋이 켠 것인지 값만 보고 읽을 수 있습니다', () => {
     // 선언 기본값과 프리셋 값이 같으면 어느 쪽이 정한 것인지 구분되지 않습니다.
     for (const options of [BAR_OPTIONS, MATTE_OPTIONS]) {
-      const declared = options.find((o) => o.id === 'SHOW_LOGO');
-      expect(declared?.default).toBe(false);
+      const declared = options.find((o) => o.id === 'LOGO_SOURCE');
+      expect(declared?.default).toBe('none');
     }
   });
 
@@ -268,7 +268,7 @@ describe('bar 프레임과 body-lens 배치의 좌우 대칭', () => {
       logoId: undefined,
       // 로고를 끕니다. 켜 두면 로고가 없는 브랜드에서 워드마크가 text 노드로 끼어들어
       // 좌우 대칭을 보려는 이 검사에 브랜드 이름이 한 줄 더 섞입니다.
-      options: valuesFor(preset, { SHOW_LOGO: false }, 'body-lens'),
+      options: valuesFor(preset, { LOGO_SOURCE: 'none' }, 'body-lens'),
     };
     const scene = layoutFor(preset)(input, services);
     return scene.nodes.filter((node) => node.kind === 'text').map((node) => node.text);
@@ -331,7 +331,7 @@ describe('다섯 프레임에서는 글자가 줄지 않습니다', () => {
       it(`${preset.id} 프레임에 ${arrangement.id} 배치를 얹어도 글자 크기가 옵션 값 그대로입니다`, () => {
         // 로고를 끕니다. 워드마크는 글자 크기 슬라이더가 아니라 마크 상자에서 크기를
         // 얻으므로 이 검사가 보려는 줄이 아닙니다.
-        const options = valuesFor(preset, { SHOW_LOGO: false }, arrangement.id);
+        const options = valuesFor(preset, { LOGO_SOURCE: 'none' }, arrangement.id);
         const fontSize = options.get('FONT_SIZE') as number;
         const subSize = fontSize * (options.get('SUB_SCALE') as number);
         const scene = layoutFor(preset)(
@@ -407,7 +407,7 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
       logoId: undefined,
       // 로고를 끕니다. 이 표는 배치가 정하는 문구만 봅니다. 브랜드 마크는 배치가 아니라
       // 프레임이 정하는 것이고, 로고가 없는 브랜드면 워드마크가 text 노드로 끼어듭니다.
-      options: valuesFor(preset, { SHOW_LOGO: false }, arrangementId),
+      options: valuesFor(preset, { LOGO_SOURCE: 'none' }, arrangementId),
     };
     const scene = layoutFor(preset)(input, services);
     return scene.nodes.filter((node) => node.kind === 'text').map((node) => node.text);

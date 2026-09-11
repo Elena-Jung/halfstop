@@ -286,7 +286,7 @@ describe('matteLayout 로고', () => {
 
   function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
     const options = defaultValues(MATTE_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     for (const [key, value] of Object.entries(extra)) options.set(key, value);
     return options;
   }
@@ -294,14 +294,14 @@ describe('matteLayout 로고', () => {
   const leftTextX = (nodes: SceneNode[], needle: string) =>
     textNodes(nodes).find((n) => n.style.align === 'left' && n.text.includes(needle))?.x;
 
-  it('SHOW_LOGO 기본이 꺼짐이라 로고도 구분선도 워드마크도 그리지 않습니다', () => {
+  it('LOGO_SOURCE 기본이 없음이라 로고도 구분선도 워드마크도 그리지 않습니다', () => {
     const scene = matteLayout(input({ logoId: 'nikon' }), withLogo);
     expect(scene.nodes.some((n) => n.kind === 'logo')).toBe(false);
     expect(scene.nodes.some((n) => n.kind === 'rect')).toBe(false);
     expect(textNodes(scene.nodes).map((n) => n.text)).not.toContain('Canon');
   });
 
-  it('SHOW_LOGO 를 켜고 로고가 있으면 logo 노드를 만듭니다', () => {
+  it('LOGO_SOURCE 를 바디로 두고 로고가 있으면 logo 노드를 만듭니다', () => {
     const scene = matteLayout(input({ options: withShowLogo(), logoId: 'nikon' }), withLogo);
     expect(scene.nodes.find((n) => n.kind === 'logo')).toMatchObject({ logoId: 'nikon' });
   });
@@ -468,7 +468,7 @@ describe('matteLayout 로고', () => {
 describe('matteLayout 워드마크 폴백', () => {
   function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
     const options = defaultValues(MATTE_OPTIONS);
-    options.set('SHOW_LOGO', true);
+    options.set('LOGO_SOURCE', 'body');
     options.set('LOGO_SIDE', 'left');
     for (const [key, value] of Object.entries(extra)) options.set(key, value);
     return options;

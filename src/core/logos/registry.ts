@@ -40,6 +40,16 @@ export interface LogoMark {
 export const LOGO_MAX_ASPECT = 6;
 
 /**
+ * 마크가 프레임 폭에서 가져갈 수 있는 몫입니다. 가로세로 비 상한만으로는 세로 사진을
+ * 지키지 못합니다. 프레임 폭이 가로 사진의 3분의 2라 같은 로고가 그만큼 큰 몫을 먹고,
+ * 좌우로 나눈 슬롯이 좁아져 노출 줄이 잘립니다. 실제로 소니 로고를 켠 세로 사진에서
+ * 0.16 은 세로 사진(프레임 폭 1000u)에서 160u 입니다. 가로 사진(1500u)에서는 240u 라
+ * 소니(232u)가 걸리지 않아 사용자가 이미 보고 정한 가로 모습이 그대로 남고, 세로에서만
+ * 조입니다. 실제 사진으로 두 방향을 모두 그려 확인한 값입니다.
+ */
+export const LOGO_WIDTH_SHARE = 0.16;
+
+/**
  * 로고를 그릴 크기를 정합니다. **높이를 markHeight 로 못박고 폭이 가로세로 비를
  * 따릅니다.** 로고의 높이가 브랜드와 무관하게 일정해야 옆 글자와 나란히 읽힙니다.
  *
@@ -50,16 +60,24 @@ export const LOGO_MAX_ASPECT = 6;
  * 폭에만 상한을 둡니다. 상한에 걸리면 그때는 폭을 기준으로 줄여 가로세로 비를 지키고,
  * 줄어든 만큼 남는 높이를 위아래로 반씩 나눠 가운데에 둡니다.
  *
+ * 상한이 둘입니다. 하나는 가로세로 비(LOGO_MAX_ASPECT)이고, 다른 하나는 부르는 쪽이
+ * 넘기는 maxWidth 입니다. 뒤엣것은 프레임의 폭을 봅니다. 디자인 단위가 사진의 짧은 변
+ * 기준이라 세로 사진은 프레임 폭이 1000u 이고 가로 사진은 1500u 인데, 같은 로고가 세로
+ * 사진에서는 훨씬 큰 몫을 먹습니다. 실제로 소니 로고를 켠 세로 사진에서 노출 줄이
+ * 말줄임표로 잘렸습니다.
+ *
  * 그려질 폭이 브랜드마다 다른 것은 그대로 받아들입니다. 그 폭을 마크가 예약하는 폭으로도
  * 쓰므로 같은 사진 안에서는 로고를 켜고 꺼도 글줄이 흔들리지 않고, 브랜드가 다르면 장비
  * 이름도 달라 옆 글줄이 움직이는 것이 당연합니다.
  */
-export function logoMark(art: { width: number; height: number }, markHeight: number): LogoMark {
+export function logoMark(
+  art: { width: number; height: number },
+  markHeight: number,
+  maxWidth = Infinity,
+): LogoMark {
   const aspect = art.width / art.height;
-  if (aspect <= LOGO_MAX_ASPECT) {
-    return { width: markHeight * aspect, height: markHeight, y: 0 };
-  }
-  const width = markHeight * LOGO_MAX_ASPECT;
+  const wanted = Math.min(aspect, LOGO_MAX_ASPECT) * markHeight;
+  const width = Math.min(wanted, maxWidth);
   const height = width / aspect;
   return { width, height, y: (markHeight - height) / 2 };
 }
