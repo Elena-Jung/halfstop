@@ -245,6 +245,25 @@ DOM 이 없는 설정 자체는 **바꾸지 마십시오.** 화면 렌더링 테
 **새로 쓴 회귀 테스트는 옛 코드에서 실제로 실패하는지 확인하십시오.** 확인하지 않으면 그
 테스트가 아무것도 붙잡지 못합니다. 임시로 되돌려 돌려 보고 결과를 보고하십시오.
 
+## 브라우저로 확인할 때의 함정
+
+**패널이 숨겨져 있으면 화면이 갱신되지 않습니다.** `requestAnimationFrame` 이 돌지 않아
+캔버스가 300x150 기본 크기에 빈 채로 남고, CSS 전환도 `currentTime: 0` 에 멈춘 채
+진행하지 않아 색을 재면 바뀌기 전 값이 나옵니다. **둘 다 앱 결함이 아닙니다.** 이
+저장소에서 다섯 번 넘게 결함으로 오인했습니다.
+
+`document.visibilityState` 가 `hidden` 이면 이 상황입니다. 재기 전에 아래를 돌리십시오.
+
+```js
+window.requestAnimationFrame = (cb) => { cb(performance.now()); return 0; };
+window.cancelAnimationFrame = () => {};
+document.body.style.transition = 'none';
+document.body.offsetHeight;
+```
+
+`document.getAnimations()` 로 멈춘 전환을 직접 볼 수 있습니다. 결함인지 환경인지 가르려면
+전환을 끄고 값이 맞게 나오는지 보십시오. 맞으면 환경입니다.
+
 ## 사람이 봐야 하는 것
 
 브라우저에서 직접 확인해야만 잡히는 결함이 있습니다. 실제로 이렇게 잡은 것들입니다.
