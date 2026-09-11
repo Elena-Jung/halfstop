@@ -40,8 +40,11 @@ export const BRAND_ID_RULES: readonly BrandIdRule[] = [
  * 꼬리에 흔히 붙는 법인격 표기입니다. 지워도 브랜드를 알아보는 데는 지장이 없습니다.
  * 대소문자를 가리지 않습니다. brandLabel 이 원문 대소문자를 지킨 채 이 꼬리만 떼는 데
  * 같은 규칙을 쓰기 때문입니다.
+ *
+ * `CAMERA` 와 `AG` 는 라이카의 법인명 `LEICA CAMERA AG` 때문에 더했습니다. `AG` 는
+ * 독일의 주식회사 표기로 `CO`, `LTD`, `INC` 와 같은 자리입니다.
  */
-const CORPORATE_TAIL = /\b(CORPORATION|CORP|COMPANY|IMAGING|OPTICAL|CO|LTD|INC)\b\.?/gi;
+const CORPORATE_TAIL = /\b(CORPORATION|CORP|COMPANY|IMAGING|OPTICAL|CAMERA|CO|LTD|INC|AG)\b\.?/gi;
 
 /**
  * 화면과 프레임에 보일 제조사 이름입니다. EXIF 의 Make 는 법인명이라 길고, 그대로 그리면
@@ -62,6 +65,31 @@ export function brandLabel(raw: string | undefined): string | undefined {
     .replace(/\s+/g, ' ')
     .trim();
   return trimmed === '' ? raw : trimmed;
+}
+
+/**
+ * 니콘, 캐논, 라이카처럼 EXIF 의 Model 이 제조사 이름으로 시작하는 바디가 있습니다.
+ * `MAKER`(brandLabel(make))와 `BODY`(model)를 나란히 그리면 브랜드가 두 번 나옵니다.
+ * 이 함수가 model 앞머리에서 brandLabel(make)와 겹치는 부분만 뗍니다.
+ *
+ * 대소문자를 가리지 않고 견주되, 앞머리 뒤가 낱말 경계(공백 또는 하이픈)일 때만
+ * 뗍니다. 그렇지 않으면 제조사 `OM` 이 모델 `OM-1` 의 하이픈 앞에서 걸려 뗀 뒤 `1` 만
+ * 남습니다. 리코처럼 모델이 다른 브랜드 이름(`PENTAX`)으로 시작해도 그 이름이
+ * brandLabel(make)(`RICOH`)와 다르면 그대로 둡니다.
+ */
+export function bodyLabel(model: string | undefined, make: string | undefined): string | undefined {
+  if (model === undefined) return undefined;
+  const label = brandLabel(make);
+  if (label === undefined) return model;
+
+  const prefixLength = label.length;
+  if (model.slice(0, prefixLength).toUpperCase() !== label.toUpperCase()) return model;
+
+  const boundary = model.charAt(prefixLength);
+  if (boundary !== '' && boundary !== ' ' && boundary !== '-') return model;
+
+  const rest = model.slice(prefixLength).replace(/^[\s-]+/, '');
+  return rest === '' ? model : rest;
 }
 
 function clean(raw: string): string {

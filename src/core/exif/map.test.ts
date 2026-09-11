@@ -22,6 +22,25 @@ function meta(overrides: Partial<PhotoMeta>): PhotoMeta {
   };
 }
 
+describe('toFields의 BODY', () => {
+  it('니콘처럼 모델명에 제조사가 겹치면 겹치는 앞머리를 뗍니다', () => {
+    // 사용자의 실제 니콘 D750 사진: 하단 바에 NIKON · NIKON D750 처럼 브랜드가 두 번
+    // 나오던 결함입니다.
+    const fields = toFields(meta({ make: 'NIKON CORPORATION', model: 'NIKON D750' }));
+    expect(fields.BODY).toBe('D750');
+  });
+
+  it('소니처럼 모델명이 제조사와 겹치지 않으면 그대로 둡니다', () => {
+    const fields = toFields(meta({ make: 'SONY', model: 'ILCE-7M3' }));
+    expect(fields.BODY).toBe('ILCE-7M3');
+  });
+
+  it('모델이 없으면 키 자체가 없습니다', () => {
+    const fields = toFields(meta({ make: 'SONY' }));
+    expect('BODY' in fields).toBe(false);
+  });
+});
+
 describe('toFields의 LENS_MAKER', () => {
   it('사용자의 실제 사진처럼 소니 바디가 탐론 렌즈를 물리면 LENS_MAKER는 TAMRON입니다', () => {
     // 사용자 사진: SONY ILCE-7M3 바디, 탐론 E 28-75mm F2.8 A063 렌즈. 바디는
