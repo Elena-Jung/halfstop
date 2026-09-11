@@ -61,6 +61,7 @@ export const ko = {
   'option.SECONDARY_SUB': '오른쪽 부 줄',
   'option.FOOTER': '꼬리 줄',
   'option.SHOW_LOGO': '브랜드 로고',
+  'option.LOGO_BRAND_COLOR': '로고에 브랜드 색',
 
   // 옵션 값 이름
   'value.MODE.split': '좌우 나눔',
@@ -88,6 +89,7 @@ export const ko = {
   'status.loaded': '{name} 파일을 불러왔습니다',
   'status.tooMany': '최대 {max}장',
   'status.full': '이미 {max}장입니다',
+  'status.removed': '{count}장을 뺐습니다',
   'status.rendering': '전체 해상도로 그리는 중입니다',
   'status.downloaded': '내려받았습니다. {width}x{height}',
   'status.downloadedClamped': '내려받았습니다. 기기 한계 때문에 {width}x{height} 로 줄였습니다',
@@ -104,6 +106,8 @@ export const ko = {
   'photos.selectAll': '전체 선택',
   'photos.deselectAll': '전체 해제',
   'photos.count': '{count}장',
+  'photos.deleteSelected': '선택 삭제',
+  'photos.deleteAll': '전체 삭제',
 
   // 커스텀 컨트롤
   'control.increase': '{label} 늘리기',
