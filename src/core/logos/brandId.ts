@@ -36,8 +36,33 @@ export const BRAND_ID_RULES: readonly BrandIdRule[] = [
   { pattern: /^LAOWA/, id: 'laowa' },
 ];
 
-/** 꼬리에 흔히 붙는 법인격 표기입니다. 지워도 브랜드를 알아보는 데는 지장이 없습니다. */
-const CORPORATE_TAIL = /\b(CORPORATION|CORP|IMAGING|OPTICAL|CO|LTD|INC)\b\.?/g;
+/**
+ * 꼬리에 흔히 붙는 법인격 표기입니다. 지워도 브랜드를 알아보는 데는 지장이 없습니다.
+ * 대소문자를 가리지 않습니다. brandLabel 이 원문 대소문자를 지킨 채 이 꼬리만 떼는 데
+ * 같은 규칙을 쓰기 때문입니다.
+ */
+const CORPORATE_TAIL = /\b(CORPORATION|CORP|COMPANY|IMAGING|OPTICAL|CO|LTD|INC)\b\.?/gi;
+
+/**
+ * 화면과 프레임에 보일 제조사 이름입니다. EXIF 의 Make 는 법인명이라 길고, 그대로 그리면
+ * 자리를 넘겨 잘립니다. 사용자의 실제 니콘 사진에서 `NIKON CORPORATION` 이
+ * `NIKON CORPORAT...` 으로 잘렸습니다.
+ *
+ * 법인격 꼬리만 떼고 **원문의 대소문자는 그대로 둡니다.** 브랜드마다 표기가
+ * 달라(`SONY`, `Canon`, `Panasonic`) 한쪽으로 맞추면 어느 쪽이든 어색해집니다. EXIF 가
+ * 적어 준 표기가 대개 그 브랜드의 표기입니다.
+ *
+ * 떼고 나면 아무것도 안 남는 이상한 값은 원문을 그대로 돌려줍니다.
+ */
+export function brandLabel(raw: string | undefined): string | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw
+    .replace(CORPORATE_TAIL, '')
+    .replace(/[.,]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return trimmed === '' ? raw : trimmed;
+}
 
 function clean(raw: string): string {
   return raw

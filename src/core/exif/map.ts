@@ -6,6 +6,7 @@ import {
   formatShutter,
   formatTakenAt,
 } from './format';
+import { brandLabel } from '../logos/brandId';
 import { resolveLensMaker } from './lensMaker';
 import type { PhotoMeta } from './read';
 
@@ -16,7 +17,8 @@ export function toFields(meta: PhotoMeta): Partial<Record<TemplateToken, string>
     if (value !== undefined) fields[token] = value;
   };
 
-  put('MAKER', meta.make);
+  // EXIF 의 Make 는 법인명이라 길어서 그대로 그리면 잘립니다. 법인격 꼬리를 뗍니다.
+  put('MAKER', brandLabel(meta.make));
   put('BODY', meta.model);
   put('LENS', meta.lensModel);
   put('LENS_MAKER', resolveLensMaker(meta.lensModel, meta.lensMake));
