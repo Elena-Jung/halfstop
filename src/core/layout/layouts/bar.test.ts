@@ -310,9 +310,10 @@ describe('barLayout 공통', () => {
     expect(wide.height - 1000).toBe(square.height - 1000);
   });
 
-  it('기본 서체는 Inter 입니다', () => {
+  it('기본 서체는 Pretendard 입니다', () => {
+    // 사용자가 Inter 를 별로라고 해서 바꿨습니다. 고른 이유는 fontFamilies.ts 에 있습니다.
     const scene = barLayout(input(), services);
-    expect(textNodes(scene.nodes)[0]?.style.family).toContain('Inter');
+    expect(textNodes(scene.nodes)[0]?.style.family).toContain('Pretendard');
   });
 
   it('서체 옵션을 바꾸면 텍스트 스타일이 따라갑니다', () => {
