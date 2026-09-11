@@ -118,13 +118,15 @@ for (const theme of THEMES) {
  * 2026-09-11 에 파랑 쪽으로 치우친 팔레트를 중성 회색으로 바꾸기로 한 결정을 기계가
  * 지키게 합니다. R, G, B 가 모두 같으면(채도 0) 중성입니다.
  *
- * --accent 와 --danger 는 색이어야 하므로 뺍니다. --on-accent 도 뺐는데, 이 토큰은
- * 늘 --accent(파랑) 위에 놓이는 문자색이라(단추 글자, 체크 표시) 중성 배경 위에 놓이는
- * 나머지 토큰과 성격이 다릅니다. 실제로 어두운 테마의 --on-accent 값(#0a1420)은 파랑
- * 쪽으로 살짝 치우쳐 있어, 이 토큰까지 검사에 넣으면 팔레트 자체가 검사를 통과하지
- * 못합니다.
+ * --accent 와 --danger 만 뺍니다. 그 둘은 색이어야 뜻이 섭니다.
+ *
+ * --on-accent 는 빼지 않습니다. 통제자가 처음 준 값(#0a1420)이 파랑 쪽으로 치우쳐
+ * 있어서 이 토큰까지 넣으면 팔레트가 검사를 통과하지 못했는데, 값을 중성 #141414 로
+ * 바꾸니 accent 대비가 6.73 에서 6.69 로 사실상 그대로였습니다. 대비를 잃지 않고
+ * 중성으로 갈 수 있으니 예외를 둘 이유가 없습니다. 예외가 하나 생기면 다음 사람이
+ * 두 번째 예외를 넣기 쉬워집니다.
  */
-const HUE_TOKENS: ReadonlySet<string> = new Set(['accent', 'danger', 'on-accent']);
+const HUE_TOKENS: ReadonlySet<string> = new Set(['accent', 'danger']);
 
 function saturation(hex: string): number {
   const n = Number.parseInt(hex.slice(1), 16);
