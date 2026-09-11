@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="halfstop">
+  <!--
+    노출 보정 기호입니다. 사진에서 노출을 더하고 빼는 것을 가리키는 그 기호이고,
+    원을 반으로 나눈 모양이 이름의 half 와도 맞습니다. 16px 에서도 뭉개지지 않도록
+    형태를 큰 두 덩어리(윤곽선과 채운 반원)로만 두었습니다.
+
+    타일 색은 앱의 중성 회색 토큰과 같습니다. --bg 가 #1e1e1e, --text 가 #e0e0e0
+    입니다. 토큰을 바꾸면 여기도 함께 맞추십시오. CSS 변수는 여기까지 닿지 않습니다.
+  -->
+  <rect width="32" height="32" rx="7" fill="#1e1e1e"/>
+  <circle cx="16" cy="16" r="9.5" fill="none" stroke="#e0e0e0" stroke-width="2.6"/>
+  <path d="M16 6.5A9.5 9.5 0 0 0 16 25.5Z" fill="#e0e0e0"/>
+</svg>
