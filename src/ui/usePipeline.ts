@@ -26,8 +26,8 @@ import { DEFAULT_FONT_ID, fontById } from '../core/paint/fontFamilies';
 import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
 import { createMeasurer } from '../core/paint/measure';
 import { buildScene } from '../core/render/buildScene';
-import { logoSource } from '../core/render/logoSource';
 import { paintToCanvas } from '../core/render/paintToCanvas';
+import { ensureSceneLogos, logoImage } from '../images/logoImages';
 import type { MessageKey } from '../i18n';
 import { cachedCanvasLimit } from '../platform/canvasLimitCache';
 import { readSettings, writeSettings, type StoredSettings } from '../platform/settingsStore';
@@ -144,6 +144,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   );
 
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
+  // 로고 그림은 받아 와야 그릴 수 있는데 paintToCanvas 는 동기 함수입니다. 받아 온 뒤 이
+  // 값을 올려 다시 그립니다. 서체를 기다리는 fontReady 와 같은 자리이지만, 로고는 없으면
+  // 그 노드만 비고 나머지는 멀쩡히 그려지므로 기다리지 않고 먼저 그린 뒤 채웁니다.
+  const [logoVersion, setLogoVersion] = useState(0);
   const [photos, setPhotos] = useState<readonly Loaded[]>([]);
   const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
   const [busy, setBusy] = useState(false);
@@ -246,11 +250,19 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         services,
       });
 
+      // 워커도 내보내기 직전에 같은 함수를 부릅니다. 한쪽만 챙기면 미리보기와 받은
+      // 파일이 갈라집니다. 이미 캐시에 있으면 false 라 다시 그리지 않습니다.
+      void ensureSceneLogos(scene)
+        .then((added) => {
+          if (added) setLogoVersion((version) => version + 1);
+        })
+        .catch(() => undefined);
+
       paintToCanvas({
         scene,
         canvas,
         photo: previewPhoto.preview.bitmap,
-        logo: logoSource,
+        logo: logoImage,
         targetLongEdge: PREVIEW_LONG_EDGE,
         limit: PREVIEW_LIMIT,
       });
@@ -265,7 +277,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       console.error(error);
       setStatus({ key: toUserMessage(error) });
     }
-  }, [canvasRef, previewPhoto, options, fontReady, preset]);
+  }, [canvasRef, previewPhoto, options, fontReady, preset, logoVersion]);
 
   // 옵션이 연달아 바뀌어도 프레임마다 한 번만 그립니다.
   useEffect(() => {

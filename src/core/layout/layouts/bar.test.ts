@@ -353,49 +353,130 @@ describe('barLayout SHOW_LOGO 기본값', () => {
   });
 });
 
-describe('barLayout LOGO_BRAND_COLOR', () => {
+describe('barLayout 로고 자리', () => {
+  // 기본값에서의 손 계산입니다. BAR_HEIGHT 102 이므로
+  // logoWidth = 61.2, logoHeight = 40.8, ruleWidth = 2.04, markGap = 61.2*0.2 = 12.24,
+  // logoGap = 61.2 + 12.24*2 + 2.04 = 87.72 입니다.
   const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+  const LOGO_GAP = 87.72;
 
-  it('기본은 꺼짐이라 색이 있는 브랜드도 TEXT_COLOR 를 따릅니다', () => {
-    // 캐논 워드마크는 registry.ts 에 #bf1920 으로 올라 있습니다. 옵션을 켜지
-    // 않았으면 이 색이 아니라 지금까지처럼 TEXT_COLOR 가 나가야 합니다.
+  function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
-    const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
-    const logo = scene.nodes.find((n) => n.kind === 'logo');
-    expect(logo?.fill).toBe('#111111');
-  });
+    for (const [key, value] of Object.entries(extra)) options.set(key, value);
+    return options;
+  }
 
-  it('켜면 색이 있는 브랜드는 그 브랜드 색을 씁니다', () => {
-    const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
-    options.set('LOGO_BRAND_COLOR', true);
-    const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
-    const logo = scene.nodes.find((n) => n.kind === 'logo');
-    expect(logo?.fill).toBe('#bf1920');
-  });
-
-  it('켜도 색이 없는 브랜드는 TEXT_COLOR 를 그대로 따릅니다', () => {
-    // 소니는 공식 마크가 검정이라 registry.ts 의 color 가 undefined 입니다. 옵션을
-    // 켜도 억지로 채운 색이 아니라 TEXT_COLOR 로 떨어져야 합니다.
-    const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
-    options.set('LOGO_BRAND_COLOR', true);
-    options.set('TEXT_COLOR', '#222222');
+  it('기본값(LOGO_SIDE right)에서 로고가 오른쪽 슬롯의 글 덩어리 왼쪽에 붙습니다', () => {
+    const options = withShowLogo();
     const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
     const logo = scene.nodes.find((n) => n.kind === 'logo');
-    expect(logo?.fill).toBe('#222222');
+    const secondary = textNodes(scene.nodes).find((n) => n.style.align === 'right');
+    expect(logo).toBeDefined();
+    expect(secondary).toBeDefined();
+    // 오른쪽 글은 끝(photoWidth - SIDE_PADDING = 1440)에 맞춰 있고, 잰 폭만큼 왼쪽이
+    // 덩어리의 시작입니다. 로고 상자는 그보다 logoGap 만큼 더 왼쪽에 섭니다.
+    const blockWidth = services.measureText(secondary!.text, secondary!.style);
+    expect(logo!.x).toBeCloseTo(1440 - blockWidth - LOGO_GAP, 9);
   });
 
-  it('켜도 워드마크 폴백은 브랜드 색이 아니라 TEXT_COLOR 를 씁니다', () => {
-    // 워드마크는 글자입니다. 옆 글줄과 색이 갈리면 글이 아니라 얼룩으로 보입니다.
-    const options = defaultValues(BAR_OPTIONS);
-    options.set('SHOW_LOGO', true);
-    options.set('LOGO_BRAND_COLOR', true);
-    options.set('TEXT_COLOR', '#222222');
-    const scene = barLayout(input({ options, logoId: 'canon' }), services);
-    const wordmark = textNodes(scene.nodes).find((n) => n.x === 60);
-    expect(wordmark?.style.color).toBe('#222222');
+  it('로고와 장비명 사이에 세로 구분선을 긋습니다', () => {
+    const options = withShowLogo();
+    const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    const rule = scene.nodes.find((n) => n.kind === 'rect');
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    const secondary = textNodes(scene.nodes).find((n) => n.style.align === 'right');
+    expect(rule).toBeDefined();
+    // 폭이 높이보다 훨씬 얇아야 선으로 보입니다. 2.04 대 40.8 입니다.
+    expect(rule!.w).toBeCloseTo(2.04, 9);
+    expect(rule!.h).toBeCloseTo(40.8, 9);
+    // 로고와 글 사이에 있습니다. 소니는 가로가 길어 상자를 꽉 채우므로 로고의 오른쪽
+    // 끝이 곧 상자의 오른쪽 끝입니다.
+    const blockLeft = 1440 - services.measureText(secondary!.text, secondary!.style);
+    expect(rule!.x).toBeGreaterThan(logo!.x + logo!.w);
+    expect(rule!.x + rule!.w).toBeLessThan(blockLeft);
+  });
+
+  it('LOGO_SIDE 를 left 로 두면 왼쪽 슬롯에 붙고 그쪽 글이 밀립니다', () => {
+    const options = withShowLogo({ LOGO_SIDE: 'left' });
+    const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    const primary = textNodes(scene.nodes).find((n) => n.style.align === 'left');
+    expect(logo!.x).toBeCloseTo(60, 9);
+    expect(primary!.x).toBeCloseTo(60 + LOGO_GAP, 9);
+  });
+
+  it('로고는 상자 안에서 PNG 의 가로세로 비대로 가운데 정렬됩니다', () => {
+    // 니콘 PNG 는 512x512 정사각형입니다. 상자가 61.2 x 40.8 이라 높이에 맞춰 40.8x40.8
+    // 이 되고, 남는 가로 20.4 를 절반씩 나눠 왼쪽에 10.2 가 붙습니다.
+    const options = withShowLogo({ LOGO_SIDE: 'left' });
+    const scene = barLayout(input({ options, logoId: 'nikon' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    expect(logo!.w).toBeCloseTo(40.8, 9);
+    expect(logo!.h).toBeCloseTo(40.8, 9);
+    expect(logo!.x).toBeCloseTo(70.2, 9);
+    // 세로는 남는 곳이 없어 상자 위끝 그대로입니다. 슬롯 가운데 1051 에서 20.4 위입니다.
+    expect(logo!.y).toBeCloseTo(1030.6, 9);
+  });
+
+  it('브랜드가 달라도 예약하는 폭은 같아 옆 글줄이 흔들리지 않습니다', () => {
+    // 핫셀블라드는 512x40 으로 아주 납작하고 니콘은 정사각형이라, 그려지는 크기가
+    // 크게 다릅니다. 상자가 그림을 따라가면 브랜드를 바꿀 때마다 글이 출렁입니다.
+    const options = withShowLogo({ LOGO_SIDE: 'left' });
+    const flat = barLayout(input({ options, logoId: 'hasselblad' }), withLogo);
+    const square = barLayout(input({ options, logoId: 'nikon' }), withLogo);
+    const leftText = (scene: { nodes: SceneNode[] }) =>
+      textNodes(scene.nodes).find((n) => n.style.align === 'left')?.x;
+    expect(leftText(flat)).toBe(leftText(square));
+    expect(flat.nodes.find((n) => n.kind === 'rect')?.x).toBe(
+      square.nodes.find((n) => n.kind === 'rect')?.x,
+    );
+  });
+
+  it('기본값에서는 로고를 켜고 꺼도 왼쪽 글줄의 기준점이 움직이지 않습니다', () => {
+    // 로고가 오른쪽 슬롯에 붙으므로 왼쪽 슬롯은 SIDE_PADDING 에 그대로 있습니다.
+    const on = barLayout(input({ options: withShowLogo(), logoId: 'sony' }), withLogo);
+    const off = barLayout(input({ logoId: 'sony' }), withLogo);
+    const leftX = (scene: { nodes: SceneNode[] }) =>
+      textNodes(scene.nodes).find((n) => n.style.align === 'left')?.x;
+    expect(leftX(on)).toBe(60);
+    expect(leftX(off)).toBe(60);
+  });
+
+  it('로고에 TEXT_COLOR 를 실어 보냅니다', () => {
+    // 그리는 쪽이 물들일 색입니다. 물들이지 않는 로고는 이 값을 쓰지 않습니다.
+    const options = withShowLogo({ TEXT_COLOR: '#222222' });
+    const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    expect(scene.nodes.find((n) => n.kind === 'logo')?.fill).toBe('#222222');
+  });
+
+  it('MODE single 에서도 로고는 한 덩어리의 왼쪽에 붙고 덩어리째 가운데에 놓입니다', () => {
+    const options = withShowLogo({ MODE: 'single', ALIGN: 'center', PRIMARY_MAIN: 'ABC' });
+    const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    const text = textNodes(scene.nodes)[0];
+    expect(text?.text).toBe('ABC');
+    // 목 측정기로 'ABC' 는 3 * 34 * 0.5 = 51 입니다. 덩어리 폭은 87.72 + 51 = 138.72 이고
+    // 왼쪽 끝은 (1500 - 138.72)/2 = 680.64 입니다. 글은 그 뒤 87.72 부터라 가운데가
+    // 680.64 + 87.72 + 25.5 = 793.86 입니다.
+    expect(logo?.x).toBeCloseTo(680.64, 9);
+    expect(text?.x).toBeCloseTo(793.86, 9);
+  });
+
+  it('로고를 켜지 않으면 구분선도 긋지 않습니다', () => {
+    const scene = barLayout(input({ logoId: 'sony' }), withLogo);
+    expect(scene.nodes.some((n) => n.kind === 'rect')).toBe(false);
+  });
+
+  it('로고 상자의 폭만큼 오른쪽 슬롯의 글 폭이 줄어듭니다', () => {
+    // 줄지 않으면 긴 글이 로고 자리를 침범합니다. half 는
+    // (1500 - 120 - 87.72)/2 - 15 = 631.14 이고, 목 측정기로 34px 한 글자가 17 이라
+    // 631.14 / 17 = 37.1 글자까지 들어갑니다.
+    const options = withShowLogo({ MODE: 'split', SECONDARY_MAIN: 'X'.repeat(200) });
+    const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    const secondary = textNodes(scene.nodes).find((n) => n.style.align === 'right');
+    expect(secondary!.text.endsWith('…')).toBe(true);
+    expect(services.measureText(secondary!.text, secondary!.style)).toBeLessThanOrEqual(631.14);
   });
 });
 
@@ -417,8 +498,8 @@ describe('barLayout 워드마크 폴백', () => {
   };
 
   it('SHOW_LOGO 를 켰는데 그 브랜드의 로고가 없으면 브랜드 이름을 글자로 그립니다', () => {
-    // 캐논은 쓸 만한 출처를 못 찾아 로고 그림이 없습니다(registry.ts). 이 자리가 그
-    // 워드마크 폴백입니다.
+    // services.hasLogo 가 거짓을 돌려주는 자리입니다. 실제로는 로고 데이터에 없는
+    // 브랜드(코닥 같은)에서 이 갈래로 떨어집니다.
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
     const scene = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
@@ -426,30 +507,30 @@ describe('barLayout 워드마크 폴백', () => {
     expect(texts(scene.nodes)).toContain('ABC');
   });
 
-  it('워드마크는 로고와 같은 자리(왼쪽 여백)에 놓입니다', () => {
-    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+  it('워드마크는 로고 상자와 같은 자리에 놓입니다', () => {
+    // LOGO_SIDE 를 left 로 두면 상자의 왼쪽 끝이 SIDE_PADDING(60)에 못박힙니다.
+    // 오른쪽에 붙일 때는 상자의 자리가 글 길이를 따라 움직여 좌표로 가릴 수 없습니다.
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
-
-    const withRealLogo = barLayout(input({ options, logoId: 'sony', fields: shortMakerFields }), withLogo);
-    const logo = withRealLogo.nodes.find((n) => n.kind === 'logo');
+    options.set('LOGO_SIDE', 'left');
 
     const withWordmark = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
-    // PRIMARY 슬롯도 align:'left' 라 텍스트만으로는 못 가릅니다. 워드마크는 로고와
-    // 같은 x(패딩)에 놓이고 PRIMARY 는 로고/워드마크가 예약한 폭만큼 더 들어간
-    // x(패딩+logoGap)에 놓이므로, 좌표로 구분합니다.
-    const wordmark = textNodes(withWordmark.nodes).find((n) => n.x === logo?.x);
+    // PRIMARY 슬롯도 align:'left' 라 텍스트만으로는 못 가릅니다. 워드마크는 상자의
+    // 왼쪽 끝(60)에 놓이고 PRIMARY 는 예약한 폭만큼 더 들어간 x(60+87.72)에 놓이므로,
+    // 좌표로 구분합니다.
+    const wordmark = textNodes(withWordmark.nodes).find((n) => n.x === 60);
 
-    expect(logo).toBeDefined();
     expect(wordmark).toBeDefined();
     expect(wordmark?.text).toBe('ABC');
     expect(wordmark?.style.align).toBe('left');
   });
 
-  it('로고와 워드마크가 예약하는 폭이 같아, 켜고 끌 때 옆 텍스트 배치가 흔들리지 않습니다', () => {
+  it('로고와 워드마크가 예약하는 폭이 같아, 로고가 있고 없는 사진 사이에서 글이 흔들리지 않습니다', () => {
     const withLogo: LayoutServices = { ...services, hasLogo: () => true };
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
+    // 왼쪽 슬롯에 붙여야 예약한 폭이 PRIMARY 의 x 로 드러납니다.
+    options.set('LOGO_SIDE', 'left');
 
     const withRealLogo = barLayout(input({ options, logoId: 'sony', fields: shortMakerFields }), withLogo);
     const withWordmark = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
@@ -466,6 +547,7 @@ describe('barLayout 워드마크 폴백', () => {
   it('브랜드 이름이 로고 자리 폭을 넘으면 줄입니다', () => {
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
+    options.set('LOGO_SIDE', 'left');
     const scene = barLayout(
       input({ options, logoId: 'canon', fields: { MAKER: '가'.repeat(200) } }),
       services,

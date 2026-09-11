@@ -105,8 +105,9 @@ function clean(raw: string): string {
  * EXIF 제조사 문자열이나 렌즈 제조사 추론 결과를 로고 id 로 바꿉니다. 못 알아보면
  * undefined 를 돌려줍니다. 던지지 않습니다.
  *
- * 로고 그림이 없는 브랜드(OM 시스템)도 id 는 돌려줍니다. registry.hasLogo 가 그 id 에
- * 대해 거짓을 내놓고, layout 이 워드마크로 대체합니다.
+ * 여기의 규칙과 로고 그림 목록은 서로 다른 데이터입니다. 그림이 없는 id 를 돌려줘도
+ * registry.hasLogo 가 거짓을 내놓고 layout 이 워드마크로 대체하므로, 상표 문제로 어느
+ * 브랜드의 그림을 빼도 이 규칙은 그대로 두면 됩니다.
  */
 export function brandId(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;

@@ -13,8 +13,8 @@ function recorder(): { ctx: PaintTarget; calls: string[] } {
     translate: (x: number, y: number) => log('translate', x, y),
     fillRect: (x: number, y: number, w: number, h: number) => log('fillRect', x, y, w, h),
     fillText: (t: string, x: number, y: number) => log('fillText', t, x, y),
-    drawImage: (_: unknown, x: number, y: number, w: number, h: number) => log('drawImage', x, y, w, h),
-    fill: (path: unknown, rule?: unknown) => log('fill', String(path), String(rule)),
+    drawImage: (source: unknown, x: number, y: number, w: number, h: number) =>
+      log('drawImage', String(source), x, y, w, h),
     set fillStyle(value: string) {
       log('set fillStyle', value);
     },
@@ -35,15 +35,10 @@ function recorder(): { ctx: PaintTarget; calls: string[] } {
 }
 
 const sources: PaintSources = {
-  photo: {} as CanvasImageSource,
-  // 조각 둘을 서로 다른 채우기 규칙으로 돌려줍니다. 규칙이 조각을 따라가는지 봅니다.
-  logo: (id) =>
-    id === 'nikon'
-      ? [
-          { path: `path:${id}:0` as unknown as Path2D, fillRule: 'nonzero' as const },
-          { path: `path:${id}:1` as unknown as Path2D, fillRule: 'evenodd' as const },
-        ]
-      : null,
+  photo: 'photo' as unknown as CanvasImageSource,
+  // 물들일 색까지 받아야 물들인 그림을 돌려줄 수 있습니다. 그 색이 여기까지 닿는지
+  // 기록에 남기려고 돌려주는 값에 섞습니다.
+  logo: (id, fill) => (id === 'nikon' ? (`logo:${id}:${fill}` as unknown as CanvasImageSource) : null),
 };
 
 const SCENE: Scene = {
@@ -81,7 +76,7 @@ describe('paint', () => {
     paint(SCENE, b.ctx, 0.25, sources);
 
     // 맨 앞 scale 한 줄만 빼고 나머지는 전부 비교합니다. scale로 시작하는 명령을
-    // 통째로 걸러내면 logo 분기 안의 scale까지 사라져, 거기에 pxPerUnit이 섞여
+    // 통째로 걸러내면 나중에 다른 분기가 scale을 쓰게 될 때 거기에 pxPerUnit이 섞여
     // 들어가는 회귀를 놓칩니다. 인덱스 1은 save 다음의 최상위 scale입니다.
     const strip = (calls: string[]) => calls.filter((_, index) => index !== 1);
     expect(strip(a.calls)).toEqual(strip(b.calls));
@@ -110,19 +105,28 @@ describe('paint', () => {
     expect(calls).toContain('set font(normal 400 34px Inter)');
   });
 
-  it('조각마다 그 조각의 채우기 규칙으로 칠합니다', () => {
+  it('로고를 노드가 정한 상자에 그대로 그립니다', () => {
     const { ctx, calls } = recorder();
     paint(SCENE, ctx, 1, sources);
-    // 규칙을 넘기지 않으면 캔버스가 nonzero 로 칠하므로, evenodd 로 설계된 조각의
-    // 속이 메워집니다. 규칙을 조각마다 넘기는지 명령 기록으로 못박습니다.
-    expect(calls).toContain('fill(path:nikon:0,nonzero)');
-    expect(calls).toContain('fill(path:nikon:1,evenodd)');
+    // 상자를 그대로 넘기는지 봅니다. 노드의 w/h 는 layout() 이 로고의 가로세로 비까지
+    // 반영해 정한 값이라, 그리는 쪽이 다시 늘이거나 줄이면 비율이 흐트러집니다.
+    expect(calls).toContain('drawImage(logo:nikon:#111111,60,1036,72,48)');
   });
 
-  it('로고가 없으면 fill을 부르지 않습니다', () => {
+  it('노드의 fill 을 로고를 꺼내는 데 함께 넘깁니다', () => {
+    // 물들일 색을 받지 못하면 검은 잉크 로고가 검은 바탕에서 사라집니다.
+    const seen: string[] = [];
+    const { ctx } = recorder();
+    paint(SCENE, ctx, 1, { ...sources, logo: (_, fill) => (seen.push(fill), null) });
+    expect(seen).toEqual(['#111111']);
+  });
+
+  it('로고 그림이 아직 없으면 그 노드는 건너뜁니다', () => {
     const { ctx, calls } = recorder();
     const noLogo: PaintSources = { ...sources, logo: () => null };
     paint(SCENE, ctx, 1, noLogo);
-    expect(calls.some((c) => c.startsWith('fill(path'))).toBe(false);
+    expect(calls.some((c) => c.startsWith('drawImage(logo'))).toBe(false);
+    // 사진은 그대로 그려집니다. 로고 하나가 없다고 프레임 전체가 비면 안 됩니다.
+    expect(calls).toContain('drawImage(photo,0,0,1500,1000)');
   });
 });

@@ -12,17 +12,15 @@ import { Slider } from './controls/Slider';
 import { TextField } from './controls/TextField';
 
 /**
- * select 선택지의 이름표를 사람이 읽는 말로 바꿉니다. MODE 와 ALIGN 은 사전에 값
- * 이름표가 있고, FONT_FAMILY 는 서체 이름을 보여줍니다. 그 밖의 select 는 값을
- * 그대로 씁니다. 사전에 없는 키를 t() 에 넘기지 않도록 먼저 존재를 확인합니다.
+ * select 선택지의 이름표를 사람이 읽는 말로 바꿉니다. FONT_FAMILY 는 서체 이름을
+ * 보여주고, 나머지는 사전에 `value.<옵션>.<값>` 이 있으면 그것을 씁니다. 어느 옵션이
+ * 이름표를 갖는지는 사전이 정합니다. 여기에 옵션 id 를 늘어놓으면 값을 더할 때마다 두
+ * 곳을 고쳐야 하고, 한쪽만 고치면 화면에 영어 값이 그대로 나옵니다.
  */
 function optionLabel(optionId: string, value: string): string {
   if (optionId === 'FONT_FAMILY') return fontById(value).label;
-  if (optionId === 'MODE' || optionId === 'ALIGN') {
-    const key = `value.${optionId}.${value}`;
-    if (Object.hasOwn(ko, key)) return t(key as MessageKey);
-  }
-  return value;
+  const key = `value.${optionId}.${value}`;
+  return Object.hasOwn(ko, key) ? t(key as MessageKey) : value;
 }
 
 /**

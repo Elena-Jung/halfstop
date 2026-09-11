@@ -4,8 +4,8 @@ import { targetLongEdge } from '../core/export/resolution';
 import { decodeImage } from '../core/io/decode';
 import { fontById } from '../core/paint/fontFamilies';
 import { ensureCanvasFontOnce, type FontFaceSetLike } from '../core/paint/fonts';
-import { logoSource } from '../core/render/logoSource';
 import { paintToCanvas } from '../core/render/paintToCanvas';
+import { ensureSceneLogos, logoImage } from '../images/logoImages';
 import type { RenderJob, RenderReply } from './protocol';
 
 async function run(job: RenderJob): Promise<RenderReply> {
@@ -21,6 +21,11 @@ async function run(job: RenderJob): Promise<RenderReply> {
       fontUrl(job.fontId),
     );
 
+    // paintToCanvas 는 동기 함수라 그리기 전에 로고 그림이 손에 있어야 합니다. 여기서
+    // 기다리지 않으면 미리보기에는 있는 로고가 받은 파일에서만 빠집니다. 서체를 미리
+    // 등록하는 바로 위 줄과 같은 이유이고 같은 자리입니다.
+    await ensureSceneLogos(job.scene);
+
     const image = await decodeImage({
       file: job.file,
       autoOriented: job.autoOriented,
@@ -33,7 +38,7 @@ async function run(job: RenderJob): Promise<RenderReply> {
       scene: job.scene,
       canvas,
       photo: image.bitmap,
-      logo: logoSource,
+      logo: logoImage,
       targetLongEdge: targetLongEdge(job.size, job.scene, {
         width: image.width,
         height: image.height,

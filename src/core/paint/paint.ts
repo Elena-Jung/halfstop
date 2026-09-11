@@ -3,19 +3,13 @@ import type { Scene, SceneNode } from '../layout/types';
 /** 브라우저와 워커의 2D 컨텍스트가 모두 이 모양을 만족합니다. */
 export type PaintTarget = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-/**
- * 0..1 정규화된 박스에 맞춰 둔 로고 조각 하나입니다. 조각마다 채우기 규칙이 다를 수
- * 있어 경로만으로는 부족합니다. 규칙이 어긋나면 글자의 속이 메워지거나 반대로 뚫립니다.
- */
-export interface LogoPiece {
-  path: Path2D;
-  fillRule: CanvasFillRule;
-}
-
 export interface PaintSources {
   photo: CanvasImageSource;
-  /** 0..1 정규화된 박스에 맞춰 둔 조각들입니다. 없으면 null입니다. */
-  logo(logoId: string): readonly LogoPiece[] | null;
+  /**
+   * 그릴 준비가 끝난 로고 그림입니다. 아직 받아 오지 못했으면 null 입니다. fill 은
+   * 물들여야 하는 로고에서 쓸 색이고, 부르는 쪽이 그 색으로 만들어 둔 그림을 돌려줍니다.
+   */
+  logo(logoId: string, fill: string): CanvasImageSource | null;
 }
 
 function paintNode(node: SceneNode, ctx: PaintTarget, sources: PaintSources): void {
@@ -42,14 +36,12 @@ function paintNode(node: SceneNode, ctx: PaintTarget, sources: PaintSources): vo
       return;
 
     case 'logo': {
-      const pieces = sources.logo(node.logoId);
-      if (!pieces) return;
-      ctx.save();
-      ctx.translate(node.x, node.y);
-      ctx.scale(node.w, node.h);
-      ctx.fillStyle = node.fill;
-      for (const piece of pieces) ctx.fill(piece.path, piece.fillRule);
-      ctx.restore();
+      // node.fill 은 "실루엣을 칠할 색" 이 아니라 "물들여야 하는 로고라면 쓸 색" 입니다.
+      // 니콘의 노란 상자처럼 색 자체가 뜻을 갖는 로고는 이 값을 쓰지 않고 원래 색
+      // 그대로 나옵니다. 어느 쪽인지는 로고 데이터가 정합니다.
+      const image = sources.logo(node.logoId, node.fill);
+      if (!image) return;
+      ctx.drawImage(image, node.x, node.y, node.w, node.h);
       return;
     }
   }

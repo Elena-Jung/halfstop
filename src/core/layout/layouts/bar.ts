@@ -1,4 +1,4 @@
-import { logoParts } from '../../logos/registry';
+import { fitLogoBox, logoArt } from '../../logos/registry';
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { bool, num, str, type PresetOption } from '../options';
 import { ellipsize, twoLineGap, twoLineHeight } from '../primitives';
@@ -28,7 +28,10 @@ export const BAR_OPTIONS: PresetOption[] = [
   // 브랜드 이름이 두 번(글자와 로고) 나올 수 있습니다. 이름이 겹치면 템플릿에서
   // {MAKER}를 빼는 것은 사용자의 몫입니다.
   { id: 'SHOW_LOGO', labelKey: 'option.SHOW_LOGO', groupKey: 'frame', type: 'boolean', default: false },
-  { id: 'LOGO_BRAND_COLOR', labelKey: 'option.LOGO_BRAND_COLOR', groupKey: 'frame', type: 'boolean', default: false },
+  // 로고는 장비 이름이 놓인 슬롯에 붙습니다. 어느 슬롯에 장비가 오는지는 배치가 정하고,
+  // 기본 배치(exposure-gear)는 오른쪽에 둡니다. 왼쪽에 장비를 두는 배치도 있어 값으로
+  // 둡니다.
+  { id: 'LOGO_SIDE', labelKey: 'option.LOGO_SIDE', groupKey: 'frame', type: 'select', options: ['left', 'right'], default: 'right' },
   { id: 'DIVIDER', labelKey: 'option.DIVIDER', groupKey: 'arrangement', type: 'text', default: '·' },
   // EXIF 의 Artist 를 읽지 않습니다. 값이 두 곳(EXIF, 이 칸)에서 올 수 있게 되면 어느
   // 쪽이 이기는지가 모호해집니다. 사용자가 직접 치는 값 하나만 둡니다.
@@ -74,18 +77,27 @@ export const barLayout: PresetLayout = (input, services) => {
   // 갈리면 SHOW_LOGO 를 켠 채로 로고 유무만 다른 사진 사이에서 옆 글줄이 흔들립니다.
   const showLogoOption = bool(options, 'SHOW_LOGO');
   const brandName = input.fields.MAKER;
-  const hasRealLogo = showLogoOption && input.logoId !== undefined && services.hasLogo(input.logoId);
-  const showWordmark = showLogoOption && !hasRealLogo && brandName !== undefined && brandName !== '';
-  const showBrandMark = hasRealLogo || showWordmark;
+  const art =
+    showLogoOption && input.logoId !== undefined && services.hasLogo(input.logoId)
+      ? logoArt(input.logoId)
+      : undefined;
+  const showWordmark = showLogoOption && art === undefined && brandName !== undefined && brandName !== '';
+  const showBrandMark = art !== undefined || showWordmark;
   const logoWidth = barHeight * 0.6;
-  const logoGap = showBrandMark ? logoWidth + padding * 0.4 : 0;
+  const logoHeight = barHeight * 0.4;
+  // 로고와 장비명 사이의 세로 구분선입니다. 새 노드 종류를 만들지 않고 아주 얇은 rect
+  // 하나를 세워 긋습니다.
+  const ruleWidth = barHeight * 0.02;
+  // 마크 안쪽의 간격은 프레임 여백이 아니라 마크 크기를 따릅니다. SIDE_PADDING 은 0 까지
+  // 내려가는 값이라, 여백을 따르면 그때 로고와 구분선과 글자가 맞붙습니다.
+  const markGap = logoWidth * 0.2;
+  const logoGap = showBrandMark ? logoWidth + markGap * 2 + ruleWidth : 0;
 
   const footerText = renderTemplate(str(options, 'FOOTER'), input.fields, divider);
   // 꼬리 줄이 있으면 바를 위아래로 나눠 위쪽에 슬롯을, 아래쪽에 꼬리를 둡니다.
   const footerHeight = footerText ? barHeight * 0.32 : 0;
   const slotHeight = barHeight - footerHeight;
   const slotCenterY = photoHeight + slotHeight / 2;
-  const logoHeight = barHeight * 0.4;
 
   // 슬롯이 글자 한 줄 높이보다 좁으면 간격을 0 까지 좁혀도 글자가 사진을 덮습니다. 슬롯
   // 가운데에서 위아래로 반높이씩 뻗는 구조라 간격으로는 막을 수 없습니다. 그래서 글자를
@@ -101,72 +113,129 @@ export const barLayout: PresetLayout = (input, services) => {
   const fontSize = askedFontSize * fit;
   const subSize = askedSubSize * fit;
 
-  if (hasRealLogo && input.logoId !== undefined) {
-    // 브랜드 고유색은 옵션입니다. 공식 마크가 검정인 브랜드는 logoParts().color 가
-    // undefined 라 여기서도 textColor 로 자연히 떨어집니다. 억지로 색을 지어내지
-    // 않습니다.
-    const brandColor = bool(options, 'LOGO_BRAND_COLOR') ? logoParts(input.logoId)?.color : undefined;
-    nodes.push({
-      kind: 'logo',
-      x: padding,
-      y: slotCenterY - logoHeight / 2,
-      w: logoWidth,
-      h: logoHeight,
-      logoId: input.logoId,
-      fill: brandColor ?? textColor,
-    });
-  } else if (showWordmark && brandName !== undefined) {
-    // 로고 높이에 그대로 맞추면(글자 높이 = logoHeight) 로고 상자가 가로 1.5:1
-    // 비율이라 네댓 글자만 넘어도 폭을 크게 넘칩니다. 실제로 이 비율(0.5)로 Inter
-    // 서체에 "Canon"을 그려 보면 로고 폭을 살짝(2~3%) 넘기는데, 말줄임표
-    // 자체가 넓어 "Can…"까지 잘려 나가는 것을 브라우저에서 확인했습니다. 0.45로
-    // 낮추면 "Canon"이 로고 폭 안에 여유 있게(약 8px) 들어갑니다. logoWidth 와의
-    // 비가 BAR_HEIGHT 에 무관하게 일정해 이 여유는 바 높이를 얼마로 두어도
-    // 유지됩니다.
-    const wordmarkSize = logoHeight * 0.45;
-    const wordmarkStyle = style(wordmarkSize, 'left');
-    const text = ellipsize(brandName, logoWidth, wordmarkStyle, services);
-    if (text) {
-      nodes.push({ kind: 'text', x: padding, y: slotCenterY, text, style: wordmarkStyle });
-    }
-  }
-
-  /** 주 줄과 부 줄을 세로 가운데를 기준으로 벌려 놓습니다. */
-  const push = (slot: 'PRIMARY' | 'SECONDARY', x: number, align: TextStyle['align'], width: number) => {
+  /**
+   * 슬롯의 두 줄을 미리 잘라 두고 실제로 그려질 폭을 잽니다. 로고가 글 덩어리에 붙으려면
+   * 자리를 정하기 전에 그 폭을 알아야 하기 때문에, 자르는 일과 놓는 일을 나눴습니다.
+   */
+  const prepare = (slot: 'PRIMARY' | 'SECONDARY', align: TextStyle['align'], width: number) => {
     const resolved = resolveSlot(options, slot, input.fields, divider);
+    const mainStyle = style(fontSize, align);
+    const subStyle = style(subSize, align);
+    const main = ellipsize(resolved.main, width, mainStyle, services);
+    const sub = ellipsize(resolved.sub, width, subStyle, services);
+    return {
+      main,
+      sub,
+      mainStyle,
+      subStyle,
+      width: Math.max(
+        main ? services.measureText(main, mainStyle) : 0,
+        sub ? services.measureText(sub, subStyle) : 0,
+      ),
+    };
+  };
+
+  type Block = ReturnType<typeof prepare>;
+
+  /** 잘라 둔 두 줄을 세로 가운데를 기준으로 벌려 놓습니다. x 는 그 정렬의 기준점입니다. */
+  const place = (block: Block, x: number) => {
     // 두 줄이 들어갈 수 있는 높이는 이 슬롯의 높이입니다.
     const gap = twoLineGap(slotHeight, fontSize, subSize);
-    const twoLines = resolved.main !== '' && resolved.sub !== '';
-
-    if (resolved.main) {
-      const mainStyle = style(fontSize, align);
-      const text = ellipsize(resolved.main, width, mainStyle, services);
-      if (text) {
-        nodes.push({ kind: 'text', x, y: twoLines ? slotCenterY - gap / 2 : slotCenterY, text, style: mainStyle });
-      }
+    const twoLines = block.main !== '' && block.sub !== '';
+    if (block.main) {
+      const y = twoLines ? slotCenterY - gap / 2 : slotCenterY;
+      nodes.push({ kind: 'text', x, y, text: block.main, style: block.mainStyle });
     }
-    if (resolved.sub) {
-      const subStyle = style(subSize, align);
-      const text = ellipsize(resolved.sub, width, subStyle, services);
-      if (text) {
-        nodes.push({ kind: 'text', x, y: twoLines ? slotCenterY + gap / 2 : slotCenterY, text, style: subStyle });
-      }
+    if (block.sub) {
+      const y = twoLines ? slotCenterY + gap / 2 : slotCenterY;
+      nodes.push({ kind: 'text', x, y, text: block.sub, style: block.subStyle });
     }
   };
 
+  /**
+   * 로고(없으면 워드마크)와 세로 구분선을 놓습니다. boxX 는 로고 상자의 왼쪽 끝이고,
+   * 구분선은 그 오른쪽에 붙어 글 덩어리와의 사이를 가릅니다.
+   *
+   * 상자의 크기는 브랜드와 무관하게 일정하고, 그림은 그 안에서 자기 비율대로 가운데
+   * 정렬됩니다. 상자가 브랜드마다 달라지면 예약하는 폭도 달라져 사진을 바꿀 때마다 옆
+   * 글줄이 흔들립니다.
+   */
+  const placeMark = (boxX: number) => {
+    const boxY = slotCenterY - logoHeight / 2;
+    if (art) {
+      const drawn = fitLogoBox(art, { width: logoWidth, height: logoHeight });
+      nodes.push({
+        kind: 'logo',
+        x: boxX + drawn.x,
+        y: boxY + drawn.y,
+        w: drawn.width,
+        h: drawn.height,
+        logoId: art.id,
+        // 물들여야 하는 로고에서만 쓰이는 색입니다. 니콘의 노란 상자처럼 색이 뜻을 갖는
+        // 로고는 이 값을 쓰지 않습니다.
+        fill: textColor,
+      });
+    } else if (brandName !== undefined) {
+      // 로고 높이에 그대로 맞추면(글자 높이 = logoHeight) 로고 상자가 가로 1.5:1
+      // 비율이라 네댓 글자만 넘어도 폭을 크게 넘칩니다. 실제로 이 비율(0.5)로 Inter
+      // 서체에 "Canon"을 그려 보면 로고 폭을 살짝(2~3%) 넘기는데, 말줄임표
+      // 자체가 넓어 "Can…"까지 잘려 나가는 것을 브라우저에서 확인했습니다. 0.45로
+      // 낮추면 "Canon"이 로고 폭 안에 여유 있게(약 8px) 들어갑니다. logoWidth 와의
+      // 비가 BAR_HEIGHT 에 무관하게 일정해 이 여유는 바 높이를 얼마로 두어도
+      // 유지됩니다.
+      const wordmarkStyle = style(logoHeight * 0.45, 'left');
+      const text = ellipsize(brandName, logoWidth, wordmarkStyle, services);
+      if (text) {
+        nodes.push({ kind: 'text', x: boxX, y: slotCenterY, text, style: wordmarkStyle });
+      }
+    }
+    nodes.push({
+      kind: 'rect',
+      x: boxX + logoWidth + markGap,
+      y: boxY,
+      w: ruleWidth,
+      h: logoHeight,
+      fill: textColor,
+      // 글자와 같은 세기로 그으면 선이 글보다 먼저 읽힙니다. 가르는 일만 하면 됩니다.
+      alpha: 0.35,
+    });
+  };
+
+  const textRight = photoWidth - padding;
+
   if (mode === 'single') {
     const align = str(options, 'ALIGN') as TextStyle['align'];
-    // 가운데 정렬은 사진 한가운데를 기준으로 삼으므로 로고 쪽 여백을 양쪽에서 뺍니다.
-    const width =
-      align === 'center' ? photoWidth - (padding + logoGap) * 2 : photoWidth - padding * 2 - logoGap;
-    const x =
-      align === 'left' ? padding + logoGap : align === 'right' ? photoWidth - padding : photoWidth / 2;
-    push('PRIMARY', x, align, width);
+    const block = prepare('PRIMARY', align, photoWidth - padding * 2 - logoGap);
+    // 슬롯이 하나뿐이라 LOGO_SIDE 가 가리킬 다른 슬롯이 없습니다. 로고는 언제나 그 한
+    // 덩어리의 왼쪽에 붙습니다. 좌우 어느 슬롯에 붙든 로고가 글자보다 앞서 읽히는 것이
+    // split 에서의 모습이고, single 만 반대로 두면 같은 옵션이 모드마다 다른 뜻이 됩니다.
+    //
+    // 로고와 글을 한 덩어리로 보고 그 덩어리를 정렬합니다. 글만 정렬하고 로고를 그 옆에
+    // 달면 가운데 정렬에서 덩어리가 오른쪽으로 치우칩니다.
+    const groupWidth = logoGap + block.width;
+    const groupLeft =
+      align === 'left' ? padding : align === 'right' ? textRight - groupWidth : (photoWidth - groupWidth) / 2;
+    if (showBrandMark) placeMark(groupLeft);
+    const textLeft = groupLeft + logoGap;
+    place(
+      block,
+      align === 'left' ? textLeft : align === 'right' ? textLeft + block.width : textLeft + block.width / 2,
+    );
   } else {
-    // 좌우 텍스트가 만나지 않도록 각자 절반보다 조금 좁은 폭을 갖습니다.
+    // 좌우 텍스트가 만나지 않도록 각자 절반보다 조금 좁은 폭을 갖습니다. 로고 자리는 둘
+    // 사이에서 빠지므로, 로고를 켜고 꺼도 두 슬롯의 기준점은 제자리에 있습니다.
     const half = (photoWidth - padding * 2 - logoGap) / 2 - padding * 0.25;
-    push('PRIMARY', padding + logoGap, 'left', half);
-    push('SECONDARY', photoWidth - padding, 'right', half);
+    const logoSide = str(options, 'LOGO_SIDE');
+    const primary = prepare('PRIMARY', 'left', half);
+    const secondary = prepare('SECONDARY', 'right', half);
+    if (showBrandMark) {
+      // 왼쪽 슬롯은 글이 왼쪽 끝에서 시작하므로 로고가 그 앞(여백 자리)에 섭니다.
+      // 오른쪽 슬롯은 글이 오른쪽 끝에 맞춰 있어 덩어리의 왼쪽 끝이 글 길이를 따라
+      // 움직이므로, 잰 폭만큼 물러난 자리에 섭니다.
+      placeMark(logoSide === 'left' ? padding : textRight - secondary.width - logoGap);
+    }
+    place(primary, logoSide === 'left' ? padding + logoGap : padding);
+    place(secondary, textRight);
   }
 
   if (footerText) {

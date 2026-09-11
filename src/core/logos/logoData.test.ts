@@ -1,19 +1,39 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { LOGOS } from './logoData';
 
 /**
- * Path2D 는 브라우저 API 라 environment: 'node' 인 이 테스트에서 쓸 수 없습니다. 그래서
- * 여기서는 데이터의 모양만 봅니다. 경로가 실제로 그 브랜드처럼 보이는지는 사람이 브라우저로
- * 눈으로 확인했고 그 방법과 결과를 .superpowers/sdd/logo-data-report.md 에 적었습니다.
+ * 데이터가 파일과 어긋나면 로고가 늘어나거나 아예 안 나옵니다. 그런데 그 어긋남은
+ * 조용합니다. 그리는 쪽은 데이터의 비율대로 상자를 잡고 비트맵을 그 상자에 늘려 넣을
+ * 뿐이라 아무 오류도 나지 않습니다. 그래서 여기서는 실제 PNG 를 열어 대조합니다.
+ *
+ * 이 테스트는 워커에서 돌지 않으므로 node:fs 를 직접 씁니다. coreBoundary.test.ts 가
+ * 같은 자리에서 같은 이유로 그렇게 합니다.
  */
-const ALLOWED_LICENSES = ['CC0-1.0', 'Public domain'];
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const LOGO_DIR = join(ROOT, 'public', 'logos');
 
+const ALLOWED_LICENSES = ['Public domain'];
 const ID_PATTERN = /^[a-z0-9-]+$/;
-const SUSPECT_STRINGS = ['NaN', 'undefined'];
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/**
+ * PNG 는 서명 8바이트 뒤에 반드시 IHDR 청크가 오고, 그 데이터의 첫 여덟 바이트가 가로와
+ * 세로입니다. 규격이 정한 순서라 앞머리만 읽으면 됩니다. 이미지 라이브러리를 새로 들이지
+ * 않으려고 직접 읽습니다.
+ */
+function pngSize(file: string): { width: number; height: number } {
+  const head = readFileSync(join(LOGO_DIR, file)).subarray(0, 24);
+  expect(head.subarray(0, 8).equals(PNG_SIGNATURE), `${file}: PNG 서명`).toBe(true);
+  expect(head.subarray(12, 16).toString('ascii'), `${file}: 첫 청크`).toBe('IHDR');
+  return { width: head.readUInt32BE(16), height: head.readUInt32BE(20) };
+}
 
 describe('LOGOS', () => {
-  it('항목을 하나 이상 담고 있습니다', () => {
-    expect(LOGOS.length).toBeGreaterThan(0);
+  it('스물다섯 개를 담고 있습니다', () => {
+    expect(LOGOS.length).toBe(25);
   });
 
   it('id 가 소문자와 하이픈, 숫자만 씁니다', () => {
@@ -27,71 +47,22 @@ describe('LOGOS', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('viewBox 의 두 값이 모두 0 보다 큽니다', () => {
+  it('파일 이름이 id 에 .png 를 붙인 것입니다', () => {
     for (const logo of LOGOS) {
-      expect(logo.viewBox.width, logo.id).toBeGreaterThan(0);
-      expect(logo.viewBox.height, logo.id).toBeGreaterThan(0);
+      expect(logo.file, logo.id).toBe(`${logo.id}.png`);
     }
   });
 
-  it('조각을 하나 이상 담고 있습니다', () => {
+  it('적어 둔 파일이 public/logos 아래에 실제로 있습니다', () => {
     for (const logo of LOGOS) {
-      expect(logo.parts.length, logo.id).toBeGreaterThan(0);
+      expect(statSync(join(LOGO_DIR, logo.file)).isFile(), logo.file).toBe(true);
     }
   });
 
-  it('조각의 d 가 비어 있지 않고 M 이나 m 으로 시작합니다', () => {
+  it('width 와 height 가 PNG 의 실제 픽셀 크기와 같습니다', () => {
+    // 이 값이 어긋나면 layout() 이 잡은 상자 비율과 그림의 비율이 달라 로고가 늘어납니다.
     for (const logo of LOGOS) {
-      for (const [index, part] of logo.parts.entries()) {
-        expect(part.d.length, `${logo.id}[${index}]`).toBeGreaterThan(0);
-        expect(['M', 'm'], `${logo.id}[${index}]`).toContain(part.d[0]);
-      }
-    }
-  });
-
-  it('조각의 d 에 NaN 이나 undefined 같은 문자열이 섞이지 않습니다', () => {
-    for (const logo of LOGOS) {
-      for (const part of logo.parts) {
-        for (const suspect of SUSPECT_STRINGS) {
-          expect(part.d.includes(suspect), `${logo.id}: ${suspect}`).toBe(false);
-        }
-      }
-    }
-  });
-
-  it('채우기 규칙을 적었다면 evenodd 뿐입니다', () => {
-    // nonzero 는 기본값이라 적지 않습니다. 다른 값이 들어오면 그리는 쪽이 조용히
-    // 무시하므로 데이터에서 막습니다.
-    for (const logo of LOGOS) {
-      for (const part of logo.parts) {
-        if (part.fillRule !== undefined) {
-          expect(part.fillRule, logo.id).toBe('evenodd');
-        }
-      }
-    }
-  });
-
-  it('행렬을 적었다면 유한한 수 여섯 개입니다', () => {
-    for (const logo of LOGOS) {
-      for (const [index, part] of logo.parts.entries()) {
-        if (part.transform === undefined) continue;
-        expect(part.transform.length, `${logo.id}[${index}]`).toBe(6);
-        for (const value of part.transform) {
-          expect(Number.isFinite(value), `${logo.id}[${index}]: ${value}`).toBe(true);
-        }
-      }
-    }
-  });
-
-  it('행렬이 있다면 납작하지 않습니다', () => {
-    // a*d - b*c 가 0 이면 조각이 선으로 눌려 아무것도 안 보입니다. 행렬을 손으로
-    // 옮기다 자릿수를 빠뜨리면 이렇게 됩니다.
-    for (const logo of LOGOS) {
-      for (const [index, part] of logo.parts.entries()) {
-        if (part.transform === undefined) continue;
-        const [a, b, c, d] = part.transform;
-        expect(Math.abs(a * d - b * c), `${logo.id}[${index}]`).toBeGreaterThan(0);
-      }
+      expect(pngSize(logo.file), logo.id).toEqual({ width: logo.width, height: logo.height });
     }
   });
 
@@ -108,24 +79,13 @@ describe('LOGOS', () => {
     }
   });
 
-  it('color 를 적었다면 소문자 여섯 자리 16진수입니다', () => {
-    // TEXT_COLOR, BACKGROUND 와 같은 표기(소문자, #rrggbb)를 맞춥니다.
-    const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
-    for (const logo of LOGOS) {
-      if (logo.color === undefined) continue;
-      expect(HEX_COLOR_PATTERN.test(logo.color), `${logo.id}: ${logo.color}`).toBe(true);
-    }
-  });
-
-  it('공식 마크가 검정이거나 여러 색인 브랜드는 color 를 비워 둡니다', () => {
-    // .superpowers/sdd/logo-brand-color-report.md 에 브랜드별 근거를 적었습니다.
-    // 소니, 애플, DJI, 시그마, 핫셀블라드는 공식 마크가 검정(또는 검정에 아주
-    // 가까운 단색)이고, 구글과 올림푸스는 원본이 여러 색이라 단색 경로로 표현할
-    // 수 없습니다.
-    const NO_COLOR_IDS = ['sony', 'apple', 'google', 'dji', 'sigma', 'olympus', 'hasselblad'];
-    for (const id of NO_COLOR_IDS) {
-      const logo = LOGOS.find((entry) => entry.id === id);
-      expect(logo?.color, id).toBeUndefined();
-    }
+  it('잉크가 무채색 검정인 일곱 개만 darkInk 입니다', () => {
+    // 그리는 쪽은 이 칸만 보고 물들일지 정합니다. 브랜드 id 를 코드에 늘어놓지 않는
+    // 대신, 어느 브랜드가 어느 쪽인지는 여기서 못박습니다. 근거는
+    // .superpowers/sdd/real-logo-report.md 에 픽셀 값으로 적었습니다.
+    const dark = LOGOS.filter((logo) => logo.darkInk).map((logo) => logo.id);
+    expect([...dark].sort()).toEqual(
+      ['apple', 'fujifilm', 'gopro', 'hasselblad', 'sigma', 'sony', 'viltrox'].sort(),
+    );
   });
 });

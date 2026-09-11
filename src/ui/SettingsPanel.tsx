@@ -74,8 +74,8 @@ export function SettingsPanel(props: {
       .filter((option) => option.id !== 'MODE')
       // split 배치는 좌우가 이미 정해져 정렬 옵션이 뜻이 없습니다.
       .filter((option) => option.id !== 'ALIGN' || mode !== 'split')
-      // 로고 자체를 안 그리면 브랜드 색 옵션도 뜻이 없습니다.
-      .filter((option) => option.id !== 'LOGO_BRAND_COLOR' || showLogo === true)
+      // 로고 자체를 안 그리면 어느 쪽에 붙일지도 뜻이 없습니다.
+      .filter((option) => option.id !== 'LOGO_SIDE' || showLogo === true)
       .map((option) => {
         const pairId = contrastPairId(option.id);
         const pairValue = pairId ? options.get(pairId) : undefined;

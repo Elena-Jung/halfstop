@@ -61,7 +61,7 @@ export const ko = {
   'option.SECONDARY_SUB': '오른쪽 부 줄',
   'option.FOOTER': '꼬리 줄',
   'option.SHOW_LOGO': '브랜드 로고',
-  'option.LOGO_BRAND_COLOR': '로고에 브랜드 색',
+  'option.LOGO_SIDE': '로고가 붙는 쪽',
 
   // 옵션 값 이름
   'value.MODE.split': '좌우 나눔',
@@ -70,6 +70,8 @@ export const ko = {
   'value.ALIGN.left': '왼쪽',
   'value.ALIGN.center': '가운데',
   'value.ALIGN.right': '오른쪽',
+  'value.LOGO_SIDE.left': '왼쪽 슬롯',
+  'value.LOGO_SIDE.right': '오른쪽 슬롯',
 
   // 내보내기
   'export.size': '크기',
