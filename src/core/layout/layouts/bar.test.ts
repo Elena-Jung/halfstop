@@ -354,11 +354,16 @@ describe('barLayout SHOW_LOGO 기본값', () => {
 });
 
 describe('barLayout 로고 자리', () => {
-  // 기본값에서의 손 계산입니다. BAR_HEIGHT 102 이므로
-  // logoWidth = 61.2, logoHeight = 40.8, ruleWidth = 2.04, markGap = 61.2*0.2 = 12.24,
-  // logoGap = 61.2 + 12.24*2 + 2.04 = 87.72 입니다.
+  // 기본값에서의 손 계산입니다. BAR_HEIGHT 102 이므로 markHeight = 40.8,
+  // ruleWidth = 2.04, markGap = 40.8*0.3 = 12.24 이고, 마크가 예약하는 폭은
+  // markWidth + 12.24*2 + 2.04 = markWidth + 26.52 입니다.
+  //
+  // markWidth 는 그려질 폭이라 브랜드마다 다릅니다. 니콘 PNG 는 512x512 라 40.8 이고,
+  // 소니 PNG 는 512x90 이라 40.8 * 512 / 90 = 232.10666… 입니다. 그래서 예약하는 폭은
+  // 니콘이 67.32, 소니가 258.62666… 입니다.
   const withLogo: LayoutServices = { ...services, hasLogo: () => true };
-  const LOGO_GAP = 87.72;
+  const SONY_GAP = 258.62667;
+  const NIKON_GAP = 67.32;
 
   function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
     const options = defaultValues(BAR_OPTIONS);
@@ -377,7 +382,7 @@ describe('barLayout 로고 자리', () => {
     // 오른쪽 글은 끝(photoWidth - SIDE_PADDING = 1440)에 맞춰 있고, 잰 폭만큼 왼쪽이
     // 덩어리의 시작입니다. 로고 상자는 그보다 logoGap 만큼 더 왼쪽에 섭니다.
     const blockWidth = services.measureText(secondary!.text, secondary!.style);
-    expect(logo!.x).toBeCloseTo(1440 - blockWidth - LOGO_GAP, 9);
+    expect(logo!.x).toBeCloseTo(1440 - blockWidth - SONY_GAP, 5);
   });
 
   it('로고와 장비명 사이에 세로 구분선을 긋습니다', () => {
@@ -403,34 +408,70 @@ describe('barLayout 로고 자리', () => {
     const logo = scene.nodes.find((n) => n.kind === 'logo');
     const primary = textNodes(scene.nodes).find((n) => n.style.align === 'left');
     expect(logo!.x).toBeCloseTo(60, 9);
-    expect(primary!.x).toBeCloseTo(60 + LOGO_GAP, 9);
+    expect(primary!.x).toBeCloseTo(60 + SONY_GAP, 5);
   });
 
-  it('로고는 상자 안에서 PNG 의 가로세로 비대로 가운데 정렬됩니다', () => {
-    // 니콘 PNG 는 512x512 정사각형입니다. 상자가 61.2 x 40.8 이라 높이에 맞춰 40.8x40.8
-    // 이 되고, 남는 가로 20.4 를 절반씩 나눠 왼쪽에 10.2 가 붙습니다.
+  it('정사각형 로고는 마크 높이와 같은 폭을 씁니다', () => {
+    // 니콘 PNG 는 512x512 정사각형이라 40.8 x 40.8 입니다. 치우칠 곳이 없어 상자의
+    // 왼쪽 끝(SIDE_PADDING 60)에 그대로 놓입니다.
     const options = withShowLogo({ LOGO_SIDE: 'left' });
     const scene = barLayout(input({ options, logoId: 'nikon' }), withLogo);
     const logo = scene.nodes.find((n) => n.kind === 'logo');
     expect(logo!.w).toBeCloseTo(40.8, 9);
     expect(logo!.h).toBeCloseTo(40.8, 9);
-    expect(logo!.x).toBeCloseTo(70.2, 9);
-    // 세로는 남는 곳이 없어 상자 위끝 그대로입니다. 슬롯 가운데 1051 에서 20.4 위입니다.
+    expect(logo!.x).toBeCloseTo(60, 9);
+    // 슬롯 가운데 1051 에서 반높이 20.4 위입니다.
     expect(logo!.y).toBeCloseTo(1030.6, 9);
+    expect(textNodes(scene.nodes).find((n) => n.style.align === 'left')!.x).toBeCloseTo(
+      60 + NIKON_GAP,
+      9,
+    );
   });
 
-  it('브랜드가 달라도 예약하는 폭은 같아 옆 글줄이 흔들리지 않습니다', () => {
-    // 핫셀블라드는 512x40 으로 아주 납작하고 니콘은 정사각형이라, 그려지는 크기가
-    // 크게 다릅니다. 상자가 그림을 따라가면 브랜드를 바꿀 때마다 글이 출렁입니다.
+  it('가로로 긴 워드마크 로고도 정사각 로고와 같은 높이로 그려집니다', () => {
+    // 이 저장소에서 실제로 난 결함입니다. 상자를 가로세로 1.5대 1 로 고정해 두어
+    // 5.69대 1 인 소니가 폭에 먼저 걸리고 높이는 40.8 의 26%(10.75)로 뭉개졌습니다.
+    // 화면에서 옆 글자의 절반도 안 되는 얼룩으로 보였습니다.
     const options = withShowLogo({ LOGO_SIDE: 'left' });
-    const flat = barLayout(input({ options, logoId: 'hasselblad' }), withLogo);
+    const wide = barLayout(input({ options, logoId: 'sony' }), withLogo);
     const square = barLayout(input({ options, logoId: 'nikon' }), withLogo);
-    const leftText = (scene: { nodes: SceneNode[] }) =>
-      textNodes(scene.nodes).find((n) => n.style.align === 'left')?.x;
-    expect(leftText(flat)).toBe(leftText(square));
-    expect(flat.nodes.find((n) => n.kind === 'rect')?.x).toBe(
-      square.nodes.find((n) => n.kind === 'rect')?.x,
-    );
+    const logo = (scene: { nodes: SceneNode[] }) => scene.nodes.find((n) => n.kind === 'logo');
+    expect(logo(wide)!.h).toBeCloseTo(40.8, 9);
+    expect(logo(wide)!.h).toBe(logo(square)!.h);
+    // 폭은 가로세로 비를 따라갑니다. 40.8 * 512 / 90 입니다.
+    expect(logo(wide)!.w).toBeCloseTo(232.10667, 5);
+  });
+
+  it('폭 상한에 걸린 로고는 높이를 내주고 남는 높이의 한가운데에 섭니다', () => {
+    // 핫셀블라드 PNG 는 512x40 으로 12.8대 1 입니다. 상한 6 에 걸려 폭이 40.8*6 = 244.8,
+    // 높이가 244.8/12.8 = 19.125 가 되고, 남는 40.8-19.125 = 21.675 를 반씩 나눠 위에
+    // 10.8375 가 붙습니다. 마크 위끝이 1030.6 이므로 그림 위끝은 1041.4375 입니다.
+    const options = withShowLogo({ LOGO_SIDE: 'left' });
+    const scene = barLayout(input({ options, logoId: 'hasselblad' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    expect(logo!.w).toBeCloseTo(244.8, 9);
+    expect(logo!.h).toBeCloseTo(19.125, 9);
+    expect(logo!.y).toBeCloseTo(1041.4375, 9);
+    // 세로 구분선은 마크 높이 그대로입니다. 로고가 낮아져도 가르는 일은 같습니다.
+    const rule = scene.nodes.find((n) => n.kind === 'rect');
+    expect(rule!.h).toBeCloseTo(40.8, 9);
+    expect(rule!.y).toBeCloseTo(1030.6, 9);
+  });
+
+  it('예약하는 폭이 그려질 폭을 그대로 따라갑니다', () => {
+    // 브랜드마다 예약하는 폭이 달라지는 것은 받아들인 결과입니다. 브랜드가 다르면 장비
+    // 이름도 달라 옆 글줄이 움직이는 것이 당연하고, 한 사진 안에서 흔들리지만 않으면
+    // 됩니다. 폭을 고정하면 1대 1 과 12.8대 1 을 한 상자에 담아야 해서 어느 한쪽이
+    // 반드시 뭉개집니다.
+    const options = withShowLogo({ LOGO_SIDE: 'left' });
+    const leftText = (id: string) => {
+      const scene = barLayout(input({ options, logoId: id }), withLogo);
+      return textNodes(scene.nodes).find((n) => n.style.align === 'left')!.x;
+    };
+    expect(leftText('nikon')).toBeCloseTo(60 + NIKON_GAP, 9);
+    expect(leftText('sony')).toBeCloseTo(60 + SONY_GAP, 5);
+    // 핫셀블라드는 상한에 걸린 폭 244.8 에 26.52 를 더합니다.
+    expect(leftText('hasselblad')).toBeCloseTo(60 + 271.32, 9);
   });
 
   it('기본값에서는 로고를 켜고 꺼도 왼쪽 글줄의 기준점이 움직이지 않습니다', () => {
@@ -456,11 +497,11 @@ describe('barLayout 로고 자리', () => {
     const logo = scene.nodes.find((n) => n.kind === 'logo');
     const text = textNodes(scene.nodes)[0];
     expect(text?.text).toBe('ABC');
-    // 목 측정기로 'ABC' 는 3 * 34 * 0.5 = 51 입니다. 덩어리 폭은 87.72 + 51 = 138.72 이고
-    // 왼쪽 끝은 (1500 - 138.72)/2 = 680.64 입니다. 글은 그 뒤 87.72 부터라 가운데가
-    // 680.64 + 87.72 + 25.5 = 793.86 입니다.
-    expect(logo?.x).toBeCloseTo(680.64, 9);
-    expect(text?.x).toBeCloseTo(793.86, 9);
+    // 목 측정기로 'ABC' 는 3 * 34 * 0.5 = 51 입니다. 덩어리 폭은 258.62666… + 51 =
+    // 309.62666… 이고 왼쪽 끝은 (1500 - 309.62666…)/2 = 595.18666… 입니다. 글은 그 뒤
+    // 258.62666… 부터라 가운데가 595.18666… + 258.62666… + 25.5 = 879.31333… 입니다.
+    expect(logo?.x).toBeCloseTo(595.18667, 5);
+    expect(text?.x).toBeCloseTo(879.31333, 5);
   });
 
   it('로고를 켜지 않으면 구분선도 긋지 않습니다', () => {
@@ -468,15 +509,15 @@ describe('barLayout 로고 자리', () => {
     expect(scene.nodes.some((n) => n.kind === 'rect')).toBe(false);
   });
 
-  it('로고 상자의 폭만큼 오른쪽 슬롯의 글 폭이 줄어듭니다', () => {
-    // 줄지 않으면 긴 글이 로고 자리를 침범합니다. half 는
-    // (1500 - 120 - 87.72)/2 - 15 = 631.14 이고, 목 측정기로 34px 한 글자가 17 이라
-    // 631.14 / 17 = 37.1 글자까지 들어갑니다.
+  it('마크가 예약한 폭만큼 오른쪽 슬롯의 글 폭이 줄어듭니다', () => {
+    // 줄지 않으면 긴 글이 마크 자리를 침범합니다. half 는
+    // (1500 - 120 - 258.62666…)/2 - 15 = 545.68666… 이고, 목 측정기로 34px 한 글자가
+    // 17 이라 서른두 글자까지 들어갑니다.
     const options = withShowLogo({ MODE: 'split', SECONDARY_MAIN: 'X'.repeat(200) });
     const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
     const secondary = textNodes(scene.nodes).find((n) => n.style.align === 'right');
     expect(secondary!.text.endsWith('…')).toBe(true);
-    expect(services.measureText(secondary!.text, secondary!.style)).toBeLessThanOrEqual(631.14);
+    expect(services.measureText(secondary!.text, secondary!.style)).toBeLessThanOrEqual(545.687);
   });
 });
 
@@ -525,26 +566,37 @@ describe('barLayout 워드마크 폴백', () => {
     expect(wordmark?.style.align).toBe('left');
   });
 
-  it('로고와 워드마크가 예약하는 폭이 같아, 로고가 있고 없는 사진 사이에서 글이 흔들리지 않습니다', () => {
-    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+  it('워드마크는 자기 글자 폭을 예약합니다', () => {
+    // 로고와 같은 폭에 맞출 필요가 없습니다. 한 사진에서 로고와 워드마크 중 한 갈래만
+    // 나오고, 브랜드가 다르면 장비 이름도 달라 옆 글줄이 움직이는 것이 당연합니다.
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
     // 왼쪽 슬롯에 붙여야 예약한 폭이 PRIMARY 의 x 로 드러납니다.
     options.set('LOGO_SIDE', 'left');
+    const scene = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
 
-    const withRealLogo = barLayout(input({ options, logoId: 'sony', fields: shortMakerFields }), withLogo);
-    const withWordmark = barLayout(input({ options, logoId: 'canon', fields: shortMakerFields }), services);
-
-    // 오른쪽(SECONDARY) 슬롯의 x 는 애초에 logoGap 의 영향을 받지 않습니다(오른쪽 끝
-    // 기준). 폭이 흔들리지 않는지는 왼쪽(PRIMARY) 슬롯의 x 로 확인해야 뜻이 있습니다.
-    const primaryText = 'ABC · EOS R6';
-    const leftTextWithLogo = textNodes(withRealLogo.nodes).find((n) => n.text === primaryText);
-    const leftTextWithWordmark = textNodes(withWordmark.nodes).find((n) => n.text === primaryText);
-    expect(leftTextWithLogo).toBeDefined();
-    expect(leftTextWithLogo?.x).toBe(leftTextWithWordmark?.x);
+    // 목 측정기로 'ABC' 는 3 * 18.36 * 0.5 = 27.54 입니다. 예약하는 폭은
+    // 27.54 + 12.24*2 + 2.04 = 54.06 이라 PRIMARY 는 60 + 54.06 에 놓입니다.
+    const leftText = textNodes(scene.nodes).find((n) => n.text === 'ABC · EOS R6');
+    expect(leftText?.x).toBeCloseTo(114.06, 9);
   });
 
-  it('브랜드 이름이 로고 자리 폭을 넘으면 줄입니다', () => {
+  it('같은 사진 안에서는 로고를 켜고 꺼도 그 사진의 글줄이 제자리에 있습니다', () => {
+    // 흔들리면 안 되는 것은 한 사진 안에서입니다. 로고가 오른쪽 슬롯에 붙으므로 왼쪽
+    // 슬롯은 켜든 끄든 SIDE_PADDING 에 그대로 있고, 오른쪽 슬롯은 오른쪽 끝 기준이라
+    // 마크가 그 앞으로 물러날 뿐입니다.
+    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const on = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    const off = barLayout(input({ logoId: 'sony' }), withLogo);
+    const xs = (scene: { nodes: SceneNode[] }) => textNodes(scene.nodes).map((n) => n.x);
+    expect(xs(on)).toEqual(xs(off));
+  });
+
+  it('브랜드 이름이 마크 폭 상한을 넘으면 줄입니다', () => {
+    // 상한은 로고와 같은 markHeight * 6 입니다. EXIF 의 제조사가 유난히 길어도 바 한쪽을
+    // 통째로 먹지 않습니다.
     const options = defaultValues(BAR_OPTIONS);
     options.set('SHOW_LOGO', true);
     options.set('LOGO_SIDE', 'left');
@@ -554,6 +606,8 @@ describe('barLayout 워드마크 폴백', () => {
     );
     const wordmark = textNodes(scene.nodes).find((n) => n.x === 60);
     expect(wordmark?.text.endsWith('…')).toBe(true);
+    // 40.8 * 6 = 244.8 입니다.
+    expect(services.measureText(wordmark!.text, wordmark!.style)).toBeLessThanOrEqual(244.8);
   });
 
   it('MAKER 필드가 없으면 로고 id 가 있어도 워드마크를 그리지 않습니다', () => {

@@ -73,11 +73,21 @@ describe('ARRANGEMENTS', () => {
     expect(values.SECONDARY_SUB).not.toContain('{MAKER}');
   });
 
+  it('로고를 기본으로 켜는 화면의 배치에서만 {MAKER} 를 걷어냈습니다', () => {
+    // 로고가 브랜드를 맡는 자리에서 글자가 브랜드를 다시 말하면 `SONY │ SONY A7M3` 이
+    // 됩니다. 하단 바의 기본 배치(exposure-gear)와 여백 액자의 기본 배치(polaroid),
+    // 그리고 포스터가 그 자리입니다.
+    expect(arrangementById('polaroid').values.PRIMARY_MAIN).toBe('{BODY}');
+    expect(arrangementById('poster').values.SECONDARY_MAIN).not.toContain('{MAKER}');
+  });
+
   it('기본이 아닌 배치의 {MAKER}는 그대로 남아 있습니다', () => {
-    // 제조사가 문장의 일부인 것(shot-on)도 있어 한꺼번에 걷어내지 않았습니다.
+    // 사용자가 일부러 고르는 배치입니다. 제조사가 문장의 일부인 것(shot-on)도 있어
+    // 한꺼번에 걷어내지 않았습니다.
     expect(arrangementById('shot-on').values.PRIMARY_MAIN).toContain('{MAKER}');
     expect(arrangementById('body-lens').values.PRIMARY_MAIN).toContain('{MAKER}');
-    expect(arrangementById('polaroid').values.PRIMARY_MAIN).toContain('{MAKER}');
+    expect(arrangementById('gear-exposure').values.PRIMARY_MAIN).toContain('{MAKER}');
+    expect(arrangementById('one-line').values.PRIMARY_MAIN).toContain('{MAKER}');
   });
 
   it('MODE 가 poster 인 배치는 bar 를 쓸 수 없습니다', () => {

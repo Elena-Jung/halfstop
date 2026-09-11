@@ -273,12 +273,16 @@ describe('matteLayout', () => {
 });
 
 describe('matteLayout 로고', () => {
-  // 기본값에서의 손 계산입니다. FONT_SIZE 30 이므로 markHeight = 36, markWidth = 54,
-  // ruleWidth = 1.8, markGap = 10.8 이고 예약하는 폭은
-  // logoGap = 54 + 10.8*2 + 1.8 = 77.4 입니다. 아래 여백 200 의 한가운데는
-  // areaCenterY = 60 + 1000 + 100 = 1160 이고 상자의 위끝은 1160 - 18 = 1142 입니다.
+  // 기본값에서의 손 계산입니다. FONT_SIZE 30 이므로 markHeight = 36, ruleWidth = 1.8,
+  // markGap = 10.8 입니다. 아래 여백 200 의 한가운데는 areaCenterY = 60 + 1000 + 100 =
+  // 1160 이고 마크의 위끝은 1160 - 18 = 1142 입니다.
+  //
+  // 그려질 폭은 브랜드마다 다릅니다. 높이를 markHeight 로 못박고 폭이 가로세로 비를
+  // 따르기 때문입니다. 니콘(512x512)은 36, 소니(512x90)는 36 * 512/90 = 204.8 입니다.
+  // 예약하는 폭은 그 폭에 좌우 간격과 구분선을 더한 값입니다.
   const withLogo: LayoutServices = { ...services, hasLogo: () => true };
-  const LOGO_GAP = 77.4;
+  const GAP_NIKON = 36 + 10.8 * 2 + 1.8;
+  const GAP_SONY = 204.8 + 10.8 * 2 + 1.8;
 
   function withShowLogo(extra: Record<string, string | number | boolean> = {}) {
     const options = defaultValues(MATTE_OPTIONS);
@@ -307,13 +311,13 @@ describe('matteLayout 로고', () => {
     // 둡니다. 그래서 하단 바와 달리 왼쪽이 기본입니다.
     const scene = matteLayout(input({ options: withShowLogo(), logoId: 'nikon' }), withLogo);
     const logo = scene.nodes.find((n) => n.kind === 'logo');
-    // 상자의 왼쪽 끝은 안쪽 여백 60 입니다. 니콘 PNG 는 512x512 라 상자 높이에 맞춰
-    // 36x36 이 되고, 남는 가로 18 을 반씩 나눠 왼쪽에 9 가 붙습니다.
-    expect(logo?.x).toBeCloseTo(69, 9);
+    // 마크의 왼쪽 끝이 곧 안쪽 여백 60 입니다. 그림을 상자 안에서 가운데로 밀어 넣던
+    // 시절의 치우침이 없어졌습니다. 니콘은 정사각형이라 36x36 그대로입니다.
+    expect(logo?.x).toBeCloseTo(60, 9);
     expect(logo?.y).toBeCloseTo(1142, 9);
     expect(logo?.w).toBeCloseTo(36, 9);
     expect(logo?.h).toBeCloseTo(36, 9);
-    expect(leftTextX(scene.nodes, 'EOS')).toBeCloseTo(60 + LOGO_GAP, 9);
+    expect(leftTextX(scene.nodes, 'EOS')).toBeCloseTo(60 + GAP_NIKON, 9);
   });
 
   it('LOGO_SIDE 를 right 로 두면 오른쪽 덩어리의 왼쪽에 섭니다', () => {
@@ -321,9 +325,8 @@ describe('matteLayout 로고', () => {
     const scene = matteLayout(input({ options, logoId: 'nikon' }), withLogo);
     const logo = scene.nodes.find((n) => n.kind === 'logo');
     // 오른쪽 글은 '50mm' 한 줄이고 목 측정기로 4 * 30 * 0.5 = 60 입니다. 오른쪽 끝
-    // 1560 에서 60 을 물러난 1500 이 덩어리의 시작이라 상자는 1500 - 77.4 = 1422.6 에
-    // 서고, 그림은 그 안에서 9 만큼 더 들어갑니다.
-    expect(logo?.x).toBeCloseTo(1431.6, 9);
+    // 1560 에서 60 을 물러난 1500 이 덩어리의 시작이라 마크는 1500 - GAP_NIKON 에 섭니다.
+    expect(logo?.x).toBeCloseTo(1500 - GAP_NIKON, 9);
     // 왼쪽 슬롯은 마크가 붙지 않으므로 안쪽 여백에 그대로 있습니다.
     expect(leftTextX(scene.nodes, 'EOS')).toBe(60);
   });
@@ -352,27 +355,42 @@ describe('matteLayout 로고', () => {
     expect(rightX(off.nodes)).toBe(1560);
   });
 
-  it('로고와 워드마크가 같은 폭을 예약해, 로고가 있고 없는 사진 사이에서 글이 흔들리지 않습니다', () => {
+  it('로고와 워드마크가 저마다 그려질 폭만큼만 자리를 잡습니다', () => {
+    // 한때는 둘의 폭을 같은 상자에 묶어 두었습니다. 그 탓에 가로로 긴 워드마크가 상자
+    // 폭에 먼저 걸려 높이가 뭉개졌습니다. 지금은 각자 그려질 폭을 그대로 예약합니다.
     const options = withShowLogo();
     const real = matteLayout(input({ options, logoId: 'sony' }), withLogo);
     // services.hasLogo 가 거짓을 돌려주는 자리입니다. 실제로는 로고 데이터에 없는
     // 브랜드에서 이 갈래로 떨어집니다.
     const word = matteLayout(input({ options, logoId: 'sony' }), services);
-    // 60 + 77.4 입니다. 두 값이 비트까지 같아야 뜻이 있으므로 서로 견줍니다.
-    expect(leftTextX(real.nodes, 'EOS')).toBeCloseTo(137.4, 9);
-    expect(leftTextX(word.nodes, 'EOS')).toBe(leftTextX(real.nodes, 'EOS'));
+    expect(leftTextX(real.nodes, 'EOS')).toBeCloseTo(60 + GAP_SONY, 9);
+    // 워드마크는 'Canon' 다섯 글자이고 글자 크기가 36 * 0.45 = 16.2 이므로 목 측정기로
+    // 5 * 16.2 * 0.5 = 40.5 입니다.
+    expect(leftTextX(word.nodes, 'EOS')).toBeCloseTo(60 + 40.5 + 10.8 * 2 + 1.8, 9);
   });
 
-  it('상자 크기가 브랜드와 무관해 납작한 로고와 정사각 로고가 같은 자리를 씁니다', () => {
-    // 핫셀블라드는 512x40 으로 아주 납작하고 니콘은 정사각형이라 그려지는 크기가 크게
-    // 다릅니다. 상자가 그림을 따라가면 브랜드를 바꿀 때마다 글이 출렁입니다.
+  it('로고 높이가 브랜드와 무관하게 일정하고 폭만 가로세로 비를 따릅니다', () => {
+    // 니콘은 정사각형이고 소니는 5.69 대 1 이지만 둘 다 높이가 markHeight 입니다. 높이가
+    // 일정해야 옆 글자와 나란히 읽힙니다.
+    const options = withShowLogo();
+    const square = matteLayout(input({ options, logoId: 'nikon' }), withLogo);
+    const wide = matteLayout(input({ options, logoId: 'sony' }), withLogo);
+    expect(square.nodes.find((n) => n.kind === 'logo')).toMatchObject({ w: 36, h: 36 });
+    expect(wide.nodes.find((n) => n.kind === 'logo')?.h).toBeCloseTo(36, 9);
+    expect(wide.nodes.find((n) => n.kind === 'logo')?.w).toBeCloseTo(204.8, 9);
+  });
+
+  it('폭 상한을 넘는 로고만 높이를 내주고 그만큼 세로 가운데로 옵니다', () => {
+    // 핫셀블라드는 512x40 으로 12.8 대 1 이라 상한 6 에 걸립니다. 폭이 36 * 6 = 216 으로
+    // 묶이고 높이는 216 / 12.8 = 16.875 로 줄며, 남는 세로를 위아래로 반씩 나눕니다.
     const options = withShowLogo();
     const flat = matteLayout(input({ options, logoId: 'hasselblad' }), withLogo);
-    const square = matteLayout(input({ options, logoId: 'nikon' }), withLogo);
-    expect(leftTextX(flat.nodes, 'EOS')).toBe(leftTextX(square.nodes, 'EOS'));
-    expect(flat.nodes.find((n) => n.kind === 'rect')?.x).toBe(
-      square.nodes.find((n) => n.kind === 'rect')?.x,
-    );
+    const logo = flat.nodes.find((n) => n.kind === 'logo');
+    expect(logo?.w).toBeCloseTo(216, 9);
+    expect(logo?.h).toBeCloseTo(16.875, 9);
+    expect(logo?.y).toBeCloseTo(1142 + (36 - 16.875) / 2, 9);
+    // 세로 가운데는 다른 브랜드와 같은 자리입니다.
+    expect((logo?.y ?? 0) + (logo?.h ?? 0) / 2).toBeCloseTo(1160, 9);
   });
 
   it('오른쪽 슬롯의 글 폭이 마크 자리만큼 줄어듭니다', () => {
@@ -391,11 +409,12 @@ describe('matteLayout 로고', () => {
     const logo = scene.nodes.find((n) => n.kind === 'logo');
     const text = textNodes(scene.nodes)[0];
     expect(text?.text).toBe('ABC');
-    // 목 측정기로 'ABC' 는 3 * 30 * 0.5 = 45 입니다. 덩어리 폭은 77.4 + 45 = 122.4 이고
-    // 왼쪽 끝은 (1620 - 122.4)/2 = 748.8 입니다. 글은 그 뒤 77.4 부터라 가운데가
-    // 748.8 + 77.4 + 22.5 = 848.7 입니다.
-    expect(logo?.x).toBeCloseTo(748.8, 9);
-    expect(text?.x).toBeCloseTo(848.7, 9);
+    // 목 측정기로 'ABC' 는 3 * 30 * 0.5 = 45 입니다. 덩어리 폭은 GAP_SONY + 45 이고
+    // 왼쪽 끝은 (1620 - 덩어리 폭)/2 입니다. 글은 그 뒤 GAP_SONY 부터이고 가운데
+    // 정렬이라 다시 절반을 더합니다.
+    const blockLeft = (1620 - (GAP_SONY + 45)) / 2;
+    expect(logo?.x).toBeCloseTo(blockLeft, 9);
+    expect(text?.x).toBeCloseTo(blockLeft + GAP_SONY + 22.5, 9);
   });
 
   it('poster 에서 마크가 쌓인 글 전체의 왼쪽에 서고 어느 줄과도 겹치지 않습니다', () => {
@@ -407,7 +426,7 @@ describe('matteLayout 로고', () => {
     expect(lines).toHaveLength(3);
     expect(logo?.x).toBeCloseTo(60, 9);
     for (const line of lines) {
-      expect(line.x).toBeCloseTo(137.4, 9);
+      expect(line.x).toBeCloseTo(60 + GAP_SONY, 9);
       expect(line.x).toBeGreaterThan((rule?.x ?? 0) + (rule?.w ?? 0));
     }
     // 마크의 세로 가운데가 쌓인 글의 가운데와 같습니다.

@@ -1,4 +1,4 @@
-import { fitLogoBox, logoArt } from '../../logos/registry';
+import { LOGO_MAX_ASPECT, logoArt, logoMark } from '../../logos/registry';
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { bool, num, str, type PresetOption } from '../options';
 import { ellipsize, twoLineGap, twoLineHeight } from '../primitives';
@@ -73,25 +73,45 @@ export const barLayout: PresetLayout = (input, services) => {
   // SHOW_LOGO 가 꺼져 있으면(기본값) 지금까지와 같이 로고 자리를 아예 만들지
   // 않습니다. 켜져 있으면 그 브랜드의 로고가 있는지에 따라 두 갈래로 나뉩니다.
   // 로고가 있으면 logo 노드, 없으면 브랜드 이름을 글자로 그리는 워드마크(text 노드)
-  // 입니다. 워드마크는 로고와 같은 자리와 폭을 씁니다. 이 폭(logoGap)이 두 갈래에서
-  // 갈리면 SHOW_LOGO 를 켠 채로 로고 유무만 다른 사진 사이에서 옆 글줄이 흔들립니다.
+  // 입니다.
   const showLogoOption = bool(options, 'SHOW_LOGO');
   const brandName = input.fields.MAKER;
   const art =
     showLogoOption && input.logoId !== undefined && services.hasLogo(input.logoId)
       ? logoArt(input.logoId)
       : undefined;
-  const showWordmark = showLogoOption && art === undefined && brandName !== undefined && brandName !== '';
-  const showBrandMark = art !== undefined || showWordmark;
-  const logoWidth = barHeight * 0.6;
-  const logoHeight = barHeight * 0.4;
+  // 마크의 높이입니다. 브랜드와 무관하게 일정해야 로고가 옆 글자와 나란히 읽힙니다.
+  const markHeight = barHeight * 0.4;
+  const drawn = art === undefined ? undefined : { id: art.id, ...logoMark(art, markHeight) };
+  // 워드마크는 자기 글자 폭을 그대로 씁니다. 로고와 같은 폭에 맞출 필요가 없습니다. 같은
+  // 사진 안에서는 로고와 워드마크 중 한 갈래만 나오고, 브랜드가 다르면 장비 이름도 달라
+  // 옆 글줄이 움직이는 것이 당연하기 때문입니다. 상한만 로고와 같게 두어 EXIF 의 제조사가
+  // 유난히 길 때 바 한쪽을 통째로 먹지 않게 합니다.
+  //
+  // 글자 크기는 markHeight 의 0.45 배입니다. 마크 자리가 1.5대 1 상자이던 시절 "Canon"이
+  // 그 상자 폭에 들어가도록 고른 값인데, 폭 제약이 사라진 지금도 옆 글자(FONT_SIZE 34 에
+  // markHeight 40.8 이므로 18.36)보다 작게 두는 편이 낫습니다. 워드마크는 로고를 대신하는
+  // 표지이고, 글자로 그려진 것이 본문 글자보다 커지면 본문보다 먼저 읽힙니다.
+  const wordmarkStyle = style(markHeight * 0.45, 'left');
+  const wordmarkText =
+    showLogoOption && art === undefined && brandName !== undefined && brandName !== ''
+      ? ellipsize(brandName, markHeight * LOGO_MAX_ASPECT, wordmarkStyle, services)
+      : '';
+  // 마크가 예약하는 폭은 실제로 그려질 폭입니다. 상자를 브랜드와 무관하게 고정해 두던
+  // 시절에는 소니처럼 가로로 긴 워드마크가 상자 폭에 먼저 걸려 높이가 4분의 1 로
+  // 뭉개졌습니다.
+  const markWidth =
+    drawn?.width ?? (wordmarkText === '' ? 0 : services.measureText(wordmarkText, wordmarkStyle));
+  const showBrandMark = markWidth > 0;
   // 로고와 장비명 사이의 세로 구분선입니다. 새 노드 종류를 만들지 않고 아주 얇은 rect
   // 하나를 세워 긋습니다.
   const ruleWidth = barHeight * 0.02;
-  // 마크 안쪽의 간격은 프레임 여백이 아니라 마크 크기를 따릅니다. SIDE_PADDING 은 0 까지
-  // 내려가는 값이라, 여백을 따르면 그때 로고와 구분선과 글자가 맞붙습니다.
-  const markGap = logoWidth * 0.2;
-  const logoGap = showBrandMark ? logoWidth + markGap * 2 + ruleWidth : 0;
+  // 마크 안쪽의 간격은 프레임 여백이 아니라 마크 높이를 따릅니다. SIDE_PADDING 은 0 까지
+  // 내려가는 값이라, 여백을 따르면 그때 로고와 구분선과 글자가 맞붙습니다. 폭이 아니라
+  // 높이를 따르는 것은 폭이 이제 브랜드마다 다르기 때문입니다. 간격까지 따라 달라지면
+  // 납작한 로고 옆만 헐거워 보입니다.
+  const markGap = markHeight * 0.3;
+  const logoGap = showBrandMark ? markWidth + markGap * 2 + ruleWidth : 0;
 
   const footerText = renderTemplate(str(options, 'FOOTER'), input.fields, divider);
   // 꼬리 줄이 있으면 바를 위아래로 나눠 위쪽에 슬롯을, 아래쪽에 꼬리를 둡니다.
@@ -153,48 +173,35 @@ export const barLayout: PresetLayout = (input, services) => {
   };
 
   /**
-   * 로고(없으면 워드마크)와 세로 구분선을 놓습니다. boxX 는 로고 상자의 왼쪽 끝이고,
-   * 구분선은 그 오른쪽에 붙어 글 덩어리와의 사이를 가릅니다.
+   * 로고(없으면 워드마크)와 세로 구분선을 놓습니다. boxX 는 마크의 왼쪽 끝이고, 구분선은
+   * 그 오른쪽에 붙어 글 덩어리와의 사이를 가릅니다.
    *
-   * 상자의 크기는 브랜드와 무관하게 일정하고, 그림은 그 안에서 자기 비율대로 가운데
-   * 정렬됩니다. 상자가 브랜드마다 달라지면 예약하는 폭도 달라져 사진을 바꿀 때마다 옆
-   * 글줄이 흔들립니다.
+   * 마크가 차지하는 세로는 언제나 markHeight 이고 가로는 그려질 폭 그대로입니다. 로고가
+   * 폭 상한에 걸려 높이를 내준 경우에만 남는 높이를 위아래로 나눠 가운데에 둡니다.
    */
   const placeMark = (boxX: number) => {
-    const boxY = slotCenterY - logoHeight / 2;
-    if (art) {
-      const drawn = fitLogoBox(art, { width: logoWidth, height: logoHeight });
+    const markTop = slotCenterY - markHeight / 2;
+    if (drawn) {
       nodes.push({
         kind: 'logo',
-        x: boxX + drawn.x,
-        y: boxY + drawn.y,
+        x: boxX,
+        y: markTop + drawn.y,
         w: drawn.width,
         h: drawn.height,
-        logoId: art.id,
+        logoId: drawn.id,
         // 물들여야 하는 로고에서만 쓰이는 색입니다. 니콘의 노란 상자처럼 색이 뜻을 갖는
         // 로고는 이 값을 쓰지 않습니다.
         fill: textColor,
       });
-    } else if (brandName !== undefined) {
-      // 로고 높이에 그대로 맞추면(글자 높이 = logoHeight) 로고 상자가 가로 1.5:1
-      // 비율이라 네댓 글자만 넘어도 폭을 크게 넘칩니다. 실제로 이 비율(0.5)로 Inter
-      // 서체에 "Canon"을 그려 보면 로고 폭을 살짝(2~3%) 넘기는데, 말줄임표
-      // 자체가 넓어 "Can…"까지 잘려 나가는 것을 브라우저에서 확인했습니다. 0.45로
-      // 낮추면 "Canon"이 로고 폭 안에 여유 있게(약 8px) 들어갑니다. logoWidth 와의
-      // 비가 BAR_HEIGHT 에 무관하게 일정해 이 여유는 바 높이를 얼마로 두어도
-      // 유지됩니다.
-      const wordmarkStyle = style(logoHeight * 0.45, 'left');
-      const text = ellipsize(brandName, logoWidth, wordmarkStyle, services);
-      if (text) {
-        nodes.push({ kind: 'text', x: boxX, y: slotCenterY, text, style: wordmarkStyle });
-      }
+    } else {
+      nodes.push({ kind: 'text', x: boxX, y: slotCenterY, text: wordmarkText, style: wordmarkStyle });
     }
     nodes.push({
       kind: 'rect',
-      x: boxX + logoWidth + markGap,
-      y: boxY,
+      x: boxX + markWidth + markGap,
+      y: markTop,
       w: ruleWidth,
-      h: logoHeight,
+      h: markHeight,
       fill: textColor,
       // 글자와 같은 세기로 그으면 선이 글보다 먼저 읽힙니다. 가르는 일만 하면 됩니다.
       alpha: 0.35,

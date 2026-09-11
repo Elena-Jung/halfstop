@@ -235,7 +235,7 @@ describe('valuesFor', () => {
 
   it('모르는 배치 id 도 레이아웃의 기본 배치로 떨어집니다', () => {
     const values = valuesFor(presetById('polaroid'), {}, '없는-배치');
-    expect(values.get('PRIMARY_MAIN')).toBe('{MAKER} {BODY}');
+    expect(values.get('PRIMARY_MAIN')).toBe('{BODY}');
     expect(values.get('SECONDARY_MAIN')).toBe('{MM}{F}{SEC}{ISO}');
   });
 });
@@ -382,9 +382,10 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
     'shot-on/bar': ['Shot on SONY ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
     'minimal/bar': ['SONY ILCE-7M3'],
     'film/bar': ['2026-09-10 12:00', '35mm f/2.8 1/500s ISO 200'],
-    'polaroid/matte': ['SONY ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
+    // 로고를 기본으로 켜면서 제조사를 글자에서 걷어냈습니다.
+    'polaroid/matte': ['ILCE-7M3', '35mm · f/2.8 · 1/500s · ISO 200'],
     'letterbox/matte': ['SONY ILCE-7M3 · 35mm · f/2.8'],
-    'poster/matte': ['2026-09-10 12:00', 'SONY ILCE-7M3 · 35mm'],
+    'poster/matte': ['2026-09-10 12:00', 'ILCE-7M3 · 35mm'],
     'one-block/bar': ['SONY ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     'one-block/matte': ['SONY ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     // exposure-gear 는 없어진 아홉 프리셋에서 뽑은 것이 아니라 나중에 만든 배치라

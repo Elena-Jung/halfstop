@@ -1,4 +1,4 @@
-import { fitLogoBox, logoArt } from '../../logos/registry';
+import { LOGO_MAX_ASPECT, logoArt, logoMark } from '../../logos/registry';
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { bool, num, str, type PresetOption } from '../options';
 import { ellipsize, halfHeight, twoLineGap } from '../primitives';
@@ -85,21 +85,18 @@ export const matteLayout: PresetLayout = (input, services) => {
 
   // SHOW_LOGO 가 꺼져 있으면(선언 기본값) 로고 자리를 아예 만들지 않습니다. 켜져 있으면
   // 그 브랜드의 로고가 있는지에 따라 두 갈래로 나뉩니다. 로고가 있으면 logo 노드, 없으면
-  // 브랜드 이름을 글자로 그리는 워드마크(text 노드)입니다. 워드마크는 로고와 같은 자리와
-  // 폭을 씁니다. 이 폭(logoGap)이 두 갈래에서 갈리면 SHOW_LOGO 를 켠 채로 로고 유무만
-  // 다른 사진 사이에서 옆 글줄이 흔들립니다. bar.ts 와 같은 구조입니다.
+  // 브랜드 이름을 글자로 그리는 워드마크(text 노드)입니다. bar.ts 와 같은 구조입니다.
   const showLogoOption = bool(options, 'SHOW_LOGO');
   const brandName = input.fields.MAKER;
   const art =
     showLogoOption && input.logoId !== undefined && services.hasLogo(input.logoId)
       ? logoArt(input.logoId)
       : undefined;
-  const showWordmark = showLogoOption && art === undefined && brandName !== undefined && brandName !== '';
 
-  // 마크 상자의 크기입니다. 하단 바는 바 높이에서 뽑지만, 여백 액자의 아래 여백은 글자
-  // 크기의 열 배를 넘기도 해서 같은 비율을 그대로 옮기면 로고만 거대해집니다. 글 옆에
-  // 붙는 물건이므로 글자 크기를 따르고 비만 하단 바와 같게 둡니다. 기본 하단 바(바 102,
-  // 글자 34)가 내는 40.8 x 61.2 와 같은 모양입니다.
+  // 마크의 높이입니다. 하단 바는 바 높이에서 뽑지만, 여백 액자의 아래 여백은 글자 크기의
+  // 열 배를 넘기도 해서 같은 비율을 그대로 옮기면 로고만 거대해집니다. 글 옆에 붙는
+  // 물건이므로 글자 크기를 따릅니다. 기본 하단 바(바 102, 글자 34)가 내는 40.8 과 같은
+  // 자리입니다.
   //
   // 아래 여백으로 묶는 것은 그 값이 0 까지 내려가기 때문입니다. 마크는 아래 여백의
   // 한가운데에 서므로 높이가 여백을 넘으면 절반이 사진 위로 올라갑니다. 여백이 0 이면
@@ -107,14 +104,27 @@ export const matteLayout: PresetLayout = (input, services) => {
   // 않습니다. 글 쪽은 좁은 여백에서 사진을 덮는 한계가 남아 있지만(known_limits) 그것은
   // 글자를 줄여야 풀리는 별개의 문제입니다.
   const markHeight = Math.min(fontSize * 1.2, padBottom);
-  const markWidth = markHeight * 1.5;
+  const drawn = art === undefined ? undefined : { id: art.id, ...logoMark(art, markHeight) };
+  // 워드마크는 자기 글자 폭을 그대로 씁니다. 로고와 같은 폭에 맞출 필요가 없는 이유와
+  // 0.45 배를 고른 이유는 bar.ts 에 적어 두었습니다.
+  const wordmarkStyle = style(markHeight * 0.45, 'left');
+  const wordmarkText =
+    showLogoOption && art === undefined && brandName !== undefined && brandName !== ''
+      ? ellipsize(brandName, markHeight * LOGO_MAX_ASPECT, wordmarkStyle, services)
+      : '';
+  // 마크가 예약하는 폭은 실제로 그려질 폭입니다. 상자를 브랜드와 무관하게 고정해 두던
+  // 시절에는 소니처럼 가로로 긴 워드마크가 상자 폭에 먼저 걸려 높이가 4분의 1 로
+  // 뭉개졌습니다.
+  const markWidth =
+    drawn?.width ?? (wordmarkText === '' ? 0 : services.measureText(wordmarkText, wordmarkStyle));
   // 로고와 글 사이의 세로 구분선입니다. 새 노드 종류를 만들지 않고 아주 얇은 rect 하나를
   // 세워 긋습니다.
   const ruleWidth = markHeight * 0.05;
-  // 마크 안쪽의 간격은 프레임 여백이 아니라 마크 크기를 따릅니다. 좌우 여백은 0 까지
-  // 내려가는 값이라, 여백을 따르면 그때 로고와 구분선과 글자가 맞붙습니다.
-  const markGap = markWidth * 0.2;
-  const showBrandMark = (art !== undefined || showWordmark) && markHeight > 0;
+  // 마크 안쪽의 간격은 프레임 여백이 아니라 마크 높이를 따릅니다. 좌우 여백은 0 까지
+  // 내려가는 값이라, 여백을 따르면 그때 로고와 구분선과 글자가 맞붙습니다. 폭이 아니라
+  // 높이를 따르는 것은 폭이 이제 브랜드마다 다르기 때문입니다.
+  const markGap = markHeight * 0.3;
+  const showBrandMark = markWidth > 0;
   const logoGap = showBrandMark ? markWidth + markGap * 2 + ruleWidth : 0;
 
   interface Line {
@@ -143,43 +153,34 @@ export const matteLayout: PresetLayout = (input, services) => {
     );
 
   /**
-   * 마크(로고 또는 워드마크)와 세로 구분선을 놓습니다. boxX 는 마크 상자의 왼쪽 끝이고,
+   * 마크(로고 또는 워드마크)와 세로 구분선을 놓습니다. boxX 는 마크의 왼쪽 끝이고,
    * 구분선은 그 오른쪽에 붙어 글 덩어리와의 사이를 가릅니다. 세 모드 모두 글이 아래 여백의
    * 한가운데를 기준으로 위아래로 벌어지므로, 마크의 세로 중심도 언제나 그 자리입니다.
    *
-   * 상자의 크기는 브랜드와 무관하게 일정하고, 그림은 그 안에서 자기 비율대로 가운데
-   * 정렬됩니다. 상자가 브랜드마다 달라지면 예약하는 폭도 달라져 사진을 바꿀 때마다 옆
-   * 글줄이 흔들립니다.
+   * 마크가 차지하는 세로는 언제나 markHeight 이고 가로는 그려질 폭 그대로입니다. 로고가
+   * 폭 상한에 걸려 높이를 내준 경우에만 남는 높이를 위아래로 나눠 가운데에 둡니다.
    */
   const placeMark = (boxX: number) => {
-    const boxY = areaCenterY - markHeight / 2;
-    if (art) {
-      const drawn = fitLogoBox(art, { width: markWidth, height: markHeight });
+    const markTop = areaCenterY - markHeight / 2;
+    if (drawn) {
       nodes.push({
         kind: 'logo',
-        x: boxX + drawn.x,
-        y: boxY + drawn.y,
+        x: boxX,
+        y: markTop + drawn.y,
         w: drawn.width,
         h: drawn.height,
-        logoId: art.id,
+        logoId: drawn.id,
         // 물들여야 하는 로고에서만 쓰이는 색입니다. 니콘의 노란 상자처럼 색이 뜻을 갖는
         // 로고는 이 값을 쓰지 않습니다.
         fill: textColor,
       });
-    } else if (brandName !== undefined) {
-      // 상자 높이에 그대로 맞추면 상자가 가로 1.5:1 비율이라 네댓 글자만 넘어도 폭을
-      // 넘칩니다. 0.45 는 bar.ts 가 브라우저에서 "Canon"을 그려 확인한 값이고, 상자의
-      // 가로세로 비가 같으므로 여기서도 같은 여유가 나옵니다.
-      const wordmarkStyle = style(markHeight * 0.45, 'left');
-      const text = ellipsize(brandName, markWidth, wordmarkStyle, services);
-      if (text) {
-        nodes.push({ kind: 'text', x: boxX, y: areaCenterY, text, style: wordmarkStyle });
-      }
+    } else {
+      nodes.push({ kind: 'text', x: boxX, y: areaCenterY, text: wordmarkText, style: wordmarkStyle });
     }
     nodes.push({
       kind: 'rect',
       x: boxX + markWidth + markGap,
-      y: boxY,
+      y: markTop,
       w: ruleWidth,
       h: markHeight,
       fill: textColor,

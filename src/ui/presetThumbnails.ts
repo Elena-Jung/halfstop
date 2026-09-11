@@ -44,9 +44,8 @@ const THUMBNAIL_LONG_EDGE = 238;
 
 const services: LayoutServices = {
   measureText: createMeasurer(),
-  // 카드 예시는 SHOW_LOGO 를 켜지 않는 프레임 값만 쓰므로 실제로는 불리지 않습니다.
-  // 그래도 로고 레지스트리를 참조하지 않는 편이, 지금 로고 경로를 다시 짜고 있는
-  // 다른 작업과 부딪히지 않아 안전합니다.
+  // 카드는 아래에서 SHOW_LOGO 를 꺼서 그리므로 이 함수는 불리지 않습니다. 로고 레지스트리를
+  // 참조하지 않는 편이 카드가 브랜드 데이터에 매이지 않아 낫습니다.
   hasLogo: () => false,
 };
 
@@ -97,12 +96,18 @@ function renderThumbnail(
   values: ReadonlyMap<string, OptionValue>,
   photo: HTMLCanvasElement,
 ): PresetThumbnail {
+  // 카드는 프레임의 모양을 보이는 것이 목적이라 브랜드 마크를 끕니다. 세 프리셋(하단 바,
+  // 폴라로이드, 포스터)이 SHOW_LOGO 를 켜 두었는데, 카드에는 로고 그림을 실어 보내지
+  // 않으므로(logo: () => null) 켠 채로 두면 워드마크 폴백이 나섭니다. 119px 짜리 카드에서
+  // 'Fujifilm' 은 'fuji…' 로 잘려 얼룩으로 보입니다.
+  const cardValues = new Map(values);
+  cardValues.set('SHOW_LOGO', false);
   const scene = buildScene({
     photoPx: SAMPLE_PHOTO_PX,
     fields: SAMPLE_FIELDS,
     logoId: undefined,
     layout: layoutFor(preset),
-    options: values,
+    options: cardValues,
     services,
   });
 

@@ -137,7 +137,9 @@ export const ARRANGEMENTS: readonly Arrangement[] = [
       MODE: 'split',
       ALIGN: 'center',
       DIVIDER: '·',
-      PRIMARY_MAIN: '{MAKER} {BODY}',
+      // 여백 액자의 기본 배치입니다. exposure-gear 와 같은 이유로 {MAKER}를 뺐습니다.
+      // 자세한 사정은 exposure-gear 의 주석에 있습니다.
+      PRIMARY_MAIN: '{BODY}',
       PRIMARY_SUB: '',
       SECONDARY_MAIN: '{MM}{F}{SEC}{ISO}',
       SECONDARY_SUB: '',
@@ -175,7 +177,8 @@ export const ARRANGEMENTS: readonly Arrangement[] = [
       // 아무 효과가 없지만, 이 작업은 배치와 프레임의 축을 나누는 구조 변경이지 poster
       // 프리셋의 모습을 바꾸는 작업이 아닙니다. 세 줄로 채우는 것은 별도 판단이 필요합니다.
       PRIMARY_SUB: '',
-      SECONDARY_MAIN: '{MAKER} {BODY}{MM}',
+      // 포스터 프리셋이 로고를 기본으로 켭니다. polaroid 와 같은 이유로 {MAKER}를 뺐습니다.
+      SECONDARY_MAIN: '{BODY}{MM}',
       SECONDARY_SUB: '',
       FOOTER: '',
     },
@@ -229,11 +232,17 @@ export const ARRANGEMENTS: readonly Arrangement[] = [
       // "SONY │ SONY A7M3" 처럼 이름이 두 번 나옵니다. bodyLabel 이 이미 제조사 앞머리를
       // 떼므로 니콘은 D750, 소니는 A7M3 이 됩니다.
       //
-      // 로고를 끄면 브랜드가 글에서도 사라지는 것은 감수합니다. 로고가 없는 브랜드에서도
-      // 워드마크 폴백이 이름을 글자로 그리므로 기본 상태에서는 비지 않고, 끄는 것은
-      // 사용자가 일부러 하는 동작이라 그때 {MAKER}를 되돌리는 것도 한 번의 수정입니다.
+      // 같은 까닭으로 여백 액자의 기본 배치인 polaroid 와, 포스터 프리셋이 쓰는 poster
+      // 에서도 뺐습니다. 로고를 기본으로 켜는 프리셋이 셋(하단 바, 폴라로이드, 포스터)인데
+      // 앞선 작업이 하단 바 쪽만 고쳐 두 화면에 "SONY │ SONY A7M3" 이 남아 있었습니다.
+      //
+      // 로고를 끄는 프리셋(필름 데이터백, 레터박스)에서는 제조사가 아예 안 보이게 됩니다.
+      // 알고 받아들인 결과입니다. 그 둘은 날짜와 노출 중심의 모습이고, 브랜드가 필요하면
+      // 사용자가 배치 칸에서 {MAKER}를 한 번 되돌리면 됩니다. 로고를 켜는 프리셋에서는
+      // 로고가 없는 브랜드라도 워드마크 폴백이 이름을 글자로 그리므로 비지 않습니다.
+      //
       // 다른 배치는 건드리지 않았습니다. 사용자가 일부러 고르는 것들이고, shot-on 처럼
-      // 제조사가 문장의 일부인 것도 있습니다.
+      // 제조사가 문장의 일부인 것도, body-lens 처럼 {MAKER}가 제 줄을 갖는 것도 있습니다.
       PRIMARY_MAIN: '{MM}{F}{SEC}',
       PRIMARY_SUB: '{ISO}{TAKEN_AT}',
       SECONDARY_MAIN: '{BODY}',
