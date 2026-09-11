@@ -1,5 +1,6 @@
 import type { OptionValue } from '../core/layout/options';
 import { PRESETS } from '../core/layout/presets';
+import type { ExportFormatId } from '../core/export/formats';
 import type { ExportPreset } from '../core/export/resolution';
 import { t, type MessageKey } from '../i18n';
 import { Listbox, type ListboxOption } from './controls/Listbox';
@@ -36,6 +37,10 @@ export function SettingsPanel(props: {
   setArrangement: (id: string) => void;
   exportSize: ExportPreset;
   setExportSize: (size: ExportPreset) => void;
+  exportFormat: ExportFormatId;
+  setExportFormat: (format: ExportFormatId) => void;
+  /** 이 브라우저가 실제로 만들 수 있는 형식만 들어 있습니다. */
+  exportFormats: readonly ExportFormatId[];
   onDownload: () => void;
   hasPhoto: boolean;
   exportTargetName: string | null;
@@ -53,6 +58,9 @@ export function SettingsPanel(props: {
     setArrangement,
     exportSize,
     setExportSize,
+    exportFormat,
+    setExportFormat,
+    exportFormats,
     onDownload,
     hasPhoto,
     exportTargetName,
@@ -74,6 +82,12 @@ export function SettingsPanel(props: {
       .filter((option) => option.id !== 'MODE')
       // split 배치는 좌우가 이미 정해져 정렬 옵션이 뜻이 없습니다.
       .filter((option) => option.id !== 'ALIGN' || mode !== 'split')
+      // 한 덩이는 PRIMARY 슬롯만 그립니다. 오른쪽 줄 입력을 남겨 두면 고쳐도 미리보기가
+      // 그대로라 고장으로 읽힙니다. poster 는 두 슬롯을 다 쓰므로 여기 걸리지 않습니다.
+      .filter(
+        (option) =>
+          (option.id !== 'SECONDARY_MAIN' && option.id !== 'SECONDARY_SUB') || mode !== 'single',
+      )
       // 로고 자체를 안 그리면 어느 쪽에 붙일지도 뜻이 없습니다.
       .filter((option) => option.id !== 'LOGO_SIDE' || showLogo === true)
       .map((option) => {
@@ -163,6 +177,11 @@ export function SettingsPanel(props: {
           value: size,
           label: t(`export.size.${size}` as MessageKey),
         }));
+        // 키를 단언 없이 조립합니다. 세 형식 중 하나라도 사전에 없으면 tsc 가 잡습니다.
+        const formatOptions: ListboxOption<ExportFormatId>[] = exportFormats.map((format) => ({
+          value: format,
+          label: t(`export.format.${format}`),
+        }));
         return (
           <div className="field-list">
             <div className="hs-field">
@@ -174,6 +193,17 @@ export function SettingsPanel(props: {
                 options={exportOptions}
                 disabled={locked}
                 onChange={setExportSize}
+              />
+            </div>
+            <div className="hs-field">
+              <label htmlFor="export-format">{t('export.format')}</label>
+              <Listbox
+                id="export-format"
+                label={t('export.format')}
+                value={exportFormat}
+                options={formatOptions}
+                disabled={locked}
+                onChange={setExportFormat}
               />
             </div>
             <button type="button" className="hs-button" onClick={onDownload} disabled={!hasPhoto || busy}>

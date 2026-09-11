@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fontUrl } from '../assets/fontUrls';
 import { toFields } from '../core/exif/map';
 import { readExif, type PhotoMeta } from '../core/exif/read';
+import {
+  DEFAULT_EXPORT_FORMAT,
+  EXPORT_FORMAT_IDS,
+  EXPORT_FORMATS,
+  type ExportFormatId,
+} from '../core/export/formats';
 import { PREVIEW_LONG_EDGE, type ExportPreset } from '../core/export/resolution';
+import { canvasSupportsWebp } from '../core/export/webpSupport';
 import {
   arrangementById,
   arrangementForLayout,
@@ -86,6 +93,17 @@ function autoOrientedFlag(): Promise<boolean> {
   return autoOrientedOnce;
 }
 
+/**
+ * WebP 를 만들 수 있는지는 실제로 한 장 만들어 봐야 알 수 있고 그 확인이 비동기입니다.
+ * 세션 동안 달라지지 않는 사실이라 한 번만 재고 프라미스를 재사용합니다. 저장하지는
+ * 않습니다. 재는 데 1x1 캔버스 한 장이면 되어 캐시할 값어치가 없습니다.
+ */
+let webpSupportOnce: Promise<boolean> | null = null;
+function webpSupportedFlag(): Promise<boolean> {
+  webpSupportOnce ??= canvasSupportsWebp();
+  return webpSupportOnce;
+}
+
 export interface Loaded {
   file: File;
   meta: PhotoMeta;
@@ -154,6 +172,11 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 저장 설정에는 담지 않습니다. 내보내기 크기는 그때그때 고르는 값이지 사진 프레임에
   // 딸린 값이 아닙니다.
   const [exportSize, setExportSize] = useState<ExportPreset>('original');
+  // 형식도 크기와 같은 자리입니다. 프레임의 모양이 아니라 내려받는 순간의 선택입니다.
+  const [exportFormat, setExportFormat] = useState<ExportFormatId>(DEFAULT_EXPORT_FORMAT);
+  // 재는 동안에는 거짓입니다. 고를 수 있게 두었다가 누른 뒤에 실패하는 것보다, 못 만드는
+  // 형식은 아예 목록에 없는 편이 낫습니다.
+  const [webpSupported, setWebpSupported] = useState(false);
   // 캔버스 aria-label 이 사진 위에 실제로 적힌 글을 읽어 줄 수 있도록, 그린 장면의
   // 글자 노드를 그대로 모아 둡니다. 화면이 이 값을 그대로 보여 주지 않고 t() 로
   // 문장에 끼워 넣습니다.
@@ -199,6 +222,23 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   useEffect(() => {
     photosRef.current = photos;
   }, [photos]);
+
+  // 확인이 끝나면 형식 목록이 한 칸 늘어납니다. canvasSupportsWebp 는 스스로 실패를
+  // 삼키고 거짓을 돌려주므로 여기에 따로 잡을 것이 없습니다.
+  useEffect(() => {
+    let alive = true;
+    void webpSupportedFlag().then((supported) => {
+      if (alive) setWebpSupported(supported);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const exportFormats = useMemo(
+    () => EXPORT_FORMAT_IDS.filter((id) => id !== 'webp' || webpSupported),
+    [webpSupported],
+  );
 
   // 고른 서체가 준비되기 전에 measureText를 부르면 대체 서체 폭으로 배치가 계산됩니다.
   useEffect(() => {
@@ -513,6 +553,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         services,
       });
 
+      const format = EXPORT_FORMATS[exportFormat];
       const result = await client.render({
         file: previewPhoto.file,
         scene,
@@ -520,15 +561,15 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         orientation: previewPhoto.meta.orientation,
         limit,
         size: exportSize,
-        format: 'image/jpeg',
-        quality: 0.92,
+        format: format.mime,
+        quality: format.quality,
         fontId,
       });
 
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `${previewPhoto.file.name.replace(/\.[^.]+$/, '')}-halfstop.jpg`;
+      anchor.download = `${previewPhoto.file.name.replace(/\.[^.]+$/, '')}-halfstop${format.extension}`;
       anchor.click();
       // 클릭 직후에 회수하면 브라우저가 blob을 다 읽기 전에 주소가 사라져 파일이
       // 잘릴 수 있습니다. 이 앱이 내보내는 것은 수십 메가바이트짜리 사진입니다.
@@ -545,7 +586,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     } finally {
       setBusy(false);
     }
-  }, [previewPhoto, options, fontId, fontReady, preset, exportSize]);
+  }, [previewPhoto, options, fontId, fontReady, preset, exportSize, exportFormat]);
 
   return {
     status,
@@ -572,5 +613,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setArrangement,
     exportSize,
     setExportSize,
+    exportFormat,
+    setExportFormat,
+    exportFormats,
   };
 }

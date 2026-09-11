@@ -59,6 +59,9 @@ export function App() {
     setArrangement,
     exportSize,
     setExportSize,
+    exportFormat,
+    setExportFormat,
+    exportFormats,
   } = usePipeline(canvasRef);
 
   const orientation = useRailOrientation();
@@ -189,6 +192,9 @@ export function App() {
             setArrangement={setArrangement}
             exportSize={exportSize}
             setExportSize={setExportSize}
+            exportFormat={exportFormat}
+            setExportFormat={setExportFormat}
+            exportFormats={exportFormats}
             onDownload={() => void download()}
             hasPhoto={hasPreview}
             exportTargetName={exportTargetName}
