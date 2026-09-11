@@ -437,10 +437,18 @@ body {
   gap: var(--space-2);
 }
 
+/*
+ * 항목보다 위 층으로 읽혀야 하는 묶음 이름표입니다. 항목과 크기가 같으면 굵기만으로는
+ * 층이 갈리지 않아 같은 층처럼 읽힙니다. 작고 흐리고 자간이 넓으면 이름표로 읽혀 아래
+ * 항목들과 층이 나뉩니다. .photo-strip legend 는 화면에 보이지 않지만 같은 층이라 규칙을
+ * 맞춥니다.
+ */
 .preset-list legend {
   padding: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
   margin-bottom: var(--space-1);
 }
 
@@ -465,6 +473,7 @@ body {
 .preset-item[data-selected='true'] {
   background: var(--surface-raised);
   border-color: var(--accent);
+  font-weight: 600;
 }
 
 /*
@@ -541,6 +550,11 @@ body {
   font-size: var(--text-md);
 }
 
+/* 필드 이름은 항목(입력 자체)보다 한 층 위로 읽히도록 흐리게만 합니다. 크기는 그대로 둡니다. */
+.hs-field > label {
+  color: var(--text-dim);
+}
+
 /*
  * 창 전체를 덮는 드롭 표시입니다. 배경은 --accent 를 옅게 섞어 만들어 색이 두
  * 자리(문자열과 이 규칙)로 갈라지지 않게 합니다.
@@ -571,10 +585,13 @@ body {
   min-width: 0;
 }
 
+/* 화면에는 sr-only 로 감춰지지만 .preset-list legend 와 같은 층이라 규칙을 맞춥니다. */
 .photo-strip legend {
   padding: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
   margin-bottom: var(--space-1);
 }
 
