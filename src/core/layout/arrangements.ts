@@ -223,8 +223,8 @@ export const ARRANGEMENTS: readonly Arrangement[] = [
       // 잘렸습니다. 부 줄 크기(주 줄의 0.7배)에서는 349u로 여유 있게 들어갑니다.
       // 가로 사진에서만 확인하고 넘어갔다면 놓쳤을 결함이라 세로도 반드시 함께
       // 봐야 합니다.
-      PRIMARY_MAIN: '{TAKEN_AT}',
-      PRIMARY_SUB: '{ISO}{MM}{F}{SEC}',
+      PRIMARY_MAIN: '{MM}{F}{SEC}',
+      PRIMARY_SUB: '{ISO}{TAKEN_AT}',
       SECONDARY_MAIN: '{MAKER}{BODY}',
       SECONDARY_SUB: '{LENS}',
       FOOTER: '',

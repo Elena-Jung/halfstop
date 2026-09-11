@@ -23,7 +23,7 @@ export const BAR_OPTIONS: PresetOption[] = [
   { id: 'FONT_SIZE', labelKey: 'option.FONT_SIZE', groupKey: 'frame', type: 'number', default: 34, unit: 'u', min: 8, max: 120 },
   { id: 'SUB_SCALE', labelKey: 'option.SUB_SCALE', groupKey: 'frame', type: 'range', min: 0.4, max: 1, step: 0.05, default: 0.7 },
   { id: 'FONT_WEIGHT', labelKey: 'option.FONT_WEIGHT', groupKey: 'frame', type: 'range', min: 100, max: 900, step: 100, default: 400 },
-  { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'frame', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
+  { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'arrangement', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
   // 기본을 꺼짐으로 둡니다. 켜면 body-lens 처럼 {MAKER}를 이미 글자로 그리는 배치에서
   // 브랜드 이름이 두 번(글자와 로고) 나올 수 있습니다. 이름이 겹치면 템플릿에서
   // {MAKER}를 빼는 것은 사용자의 몫입니다.

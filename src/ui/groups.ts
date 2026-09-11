@@ -3,8 +3,11 @@ import type { OptionGroup, PresetOption } from '../core/layout/options';
 
 export type RailTab = 'preset' | OptionGroup | 'export';
 
-/** 레일에 보일 순서입니다. 프리셋을 먼저 고르고 그 위에서 다듬는 흐름을 따릅니다. */
-export const RAIL_TABS: readonly RailTab[] = ['preset', 'frame', 'arrangement', 'export'];
+/**
+ * 레일에 보일 순서입니다. 프리셋으로 프레임 모양을 고르고, 배치로 무엇을 적을지 정한 뒤,
+ * 세부조정에서 수치를 다듬고 마지막에 내려받는 흐름입니다. 사용자가 정한 우선순위입니다.
+ */
+export const RAIL_TABS: readonly RailTab[] = ['preset', 'arrangement', 'frame', 'export'];
 
 /** 탭 단추와 그 단추가 여는 패널을 aria-controls/aria-labelledby 로 잇는 id 입니다. */
 export function railTabId(tab: RailTab): string {

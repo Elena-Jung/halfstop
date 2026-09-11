@@ -105,8 +105,12 @@ export function App() {
             <span className="photo-count">{t('photos.count', { count: photos.length })}</span>
           )}
 
+          {/*
+           * 할 말이 없으면 내용만 비웁니다. 요소를 통째로 빼면 화면 낭독기가 나중 변화를
+           * 읽지 못합니다. 이 줄이 모든 오류가 사용자에게 닿는 유일한 자리입니다.
+           */}
           <p role="status" className="status-line">
-            {t(status.key, status.vars)}
+            {status === null ? '' : t(status.key, status.vars)}
           </p>
         </div>
 

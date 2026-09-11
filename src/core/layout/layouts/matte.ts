@@ -17,7 +17,7 @@ export const MATTE_OPTIONS: PresetOption[] = [
   // poster 에서는 가운데 줄이 커야 하므로 1보다 큰 값도 받습니다.
   { id: 'SUB_SCALE', labelKey: 'option.SUB_SCALE', groupKey: 'frame', type: 'range', min: 0.4, max: 3, step: 0.05, default: 0.7 },
   { id: 'FONT_WEIGHT', labelKey: 'option.FONT_WEIGHT', groupKey: 'frame', type: 'range', min: 100, max: 900, step: 100, default: 400 },
-  { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'frame', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
+  { id: 'FONT_FAMILY', labelKey: 'option.FONT_FAMILY', groupKey: 'arrangement', type: 'select', options: FONT_IDS, default: DEFAULT_FONT_ID },
   { id: 'DIVIDER', labelKey: 'option.DIVIDER', groupKey: 'arrangement', type: 'text', default: '·' },
   // EXIF 의 Artist 를 읽지 않습니다. 값이 두 곳(EXIF, 이 칸)에서 올 수 있게 되면 어느
   // 쪽이 이기는지가 모호해집니다. 사용자가 직접 치는 값 하나만 둡니다.

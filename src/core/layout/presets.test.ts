@@ -166,10 +166,10 @@ describe('프리셋 값과 coerce', () => {
 describe('valuesFor', () => {
   it('배치가 선언 기본값을 덮습니다', () => {
     // bar 레이아웃의 기본 배치는 exposure-gear 입니다. 선언 기본값의 PRIMARY_MAIN 은
-    // '{MAKER}{BODY}'인데 exposure-gear 가 {TAKEN_AT} 으로 덮습니다.
+    // '{MAKER}{BODY}'인데 exposure-gear 가 노출값으로 덮습니다.
     const values = valuesFor(presetById('bar'), {});
-    expect(values.get('PRIMARY_MAIN')).toBe('{TAKEN_AT}');
-    expect(values.get('PRIMARY_SUB')).toBe('{ISO}{MM}{F}{SEC}');
+    expect(values.get('PRIMARY_MAIN')).toBe('{MM}{F}{SEC}');
+    expect(values.get('PRIMARY_SUB')).toBe('{ISO}{TAKEN_AT}');
     expect(values.get('SECONDARY_SUB')).toBe('{LENS}');
     expect(values.get('FOOTER')).toBe('');
   });
@@ -208,7 +208,7 @@ describe('valuesFor', () => {
     // 새는 대신 bar 의 기본 배치인 exposure-gear 가 깔립니다.
     const values = valuesFor(presetById('bar'), {}, 'poster');
     expect(values.get('MODE')).toBe('split');
-    expect(values.get('PRIMARY_MAIN')).toBe('{TAKEN_AT}');
+    expect(values.get('PRIMARY_MAIN')).toBe('{MM}{F}{SEC}');
   });
 
   it('모르는 배치 id 도 레이아웃의 기본 배치로 떨어집니다', () => {
@@ -362,8 +362,8 @@ describe('배치별 장면 문구, 프리셋을 줄이기 전후로 같습니다
     'one-block/bar': ['SONY · ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     'one-block/matte': ['SONY · ILCE-7M3 · FE 24-70mm F2.8 GM', '35mm · f/2.8 · 1/500s · ISO 200'],
     'exposure-gear/bar': [
-      '2026-09-10 12:00',
-      'ISO 200 · 35mm · f/2.8 · 1/500s',
+      '35mm · f/2.8 · 1/500s',
+      'ISO 200 · 2026-09-10 12:00',
       'SONY · ILCE-7M3',
       'FE 24-70mm F2.8 GM',
     ],

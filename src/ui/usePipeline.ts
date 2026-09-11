@@ -128,7 +128,8 @@ function initialPhotoSettings(stored: StoredSettings | null): {
 }
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const [status, setStatus] = useState<StatusMessage>({ key: 'status.preparing' });
+  // null 은 할 말이 없다는 뜻입니다. 상태 줄 요소는 그대로 남고 내용만 빕니다.
+  const [status, setStatus] = useState<StatusMessage | null>({ key: 'status.preparing' });
   // 사진이 하나도 없을 때 잠긴 설정 패널에 보일 값입니다. 사진이 생기면 그 사진 자신의
   // 설정으로 넘어갑니다.
   const emptyStored = useMemo(() => readSettings(), []);
@@ -371,11 +372,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     // 미리보기 대상 규칙(고른 것 중 가장 앞선 인덱스)과도 맞습니다.
     setSelected(new Set(decoded.map((_, offset) => addedFrom + offset)));
 
-    setStatus(
-      overflow > 0
-        ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } }
-        : { key: 'status.readyToDrop' },
-    );
+    // 다 불러왔으면 상태 줄을 비웁니다. 장수는 옆에 따로 나오므로 여기서 할 말이 없고,
+    // 예전에는 status.readyToDrop 을 그대로 두어 사진이 가득한 화면에도 "사진을 끌어다
+    // 놓거나 위에서 고르십시오" 가 남아 있었습니다.
+    setStatus(overflow > 0 ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } } : null);
   }, []);
 
   const toggleSelected = useCallback((index: number) => {

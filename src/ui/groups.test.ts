@@ -25,7 +25,9 @@ describe('groupOptions', () => {
   });
 
   it('레일 칸은 네 개이고 순서가 정해져 있습니다', () => {
-    expect(RAIL_TABS).toEqual(['preset', 'frame', 'arrangement', 'export']);
+    // 프리셋으로 모양을 고르고, 배치로 무엇을 적을지 정한 뒤, 세부조정에서 수치를 다듬고
+    // 마지막에 내려받는 순서입니다. 사용자가 정한 우선순위입니다.
+    expect(RAIL_TABS).toEqual(['preset', 'arrangement', 'frame', 'export']);
   });
 });
 
