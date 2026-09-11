@@ -1,3 +1,4 @@
+import { logoParts } from '../../logos/registry';
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { bool, num, str, type PresetOption } from '../options';
 import { ellipsize, twoLineGap, twoLineHeight } from '../primitives';
@@ -20,6 +21,7 @@ export const BAR_OPTIONS: PresetOption[] = [
   // 브랜드 이름이 두 번(글자와 로고) 나올 수 있습니다. 이름이 겹치면 템플릿에서
   // {MAKER}를 빼는 것은 사용자의 몫입니다.
   { id: 'SHOW_LOGO', labelKey: 'option.SHOW_LOGO', groupKey: 'frame', type: 'boolean', default: false },
+  { id: 'LOGO_BRAND_COLOR', labelKey: 'option.LOGO_BRAND_COLOR', groupKey: 'frame', type: 'boolean', default: false },
   { id: 'DIVIDER', labelKey: 'option.DIVIDER', groupKey: 'arrangement', type: 'text', default: '·' },
   { id: 'PRIMARY_MAIN', labelKey: 'option.PRIMARY_MAIN', groupKey: 'arrangement', type: 'text', default: '{MAKER}{BODY}' },
   { id: 'PRIMARY_SUB', labelKey: 'option.PRIMARY_SUB', groupKey: 'arrangement', type: 'text', default: '' },
@@ -90,6 +92,10 @@ export const barLayout: PresetLayout = (input, services) => {
   const subSize = askedSubSize * fit;
 
   if (hasRealLogo && input.logoId !== undefined) {
+    // 브랜드 고유색은 옵션입니다. 공식 마크가 검정인 브랜드는 logoParts().color 가
+    // undefined 라 여기서도 textColor 로 자연히 떨어집니다. 억지로 색을 지어내지
+    // 않습니다.
+    const brandColor = bool(options, 'LOGO_BRAND_COLOR') ? logoParts(input.logoId)?.color : undefined;
     nodes.push({
       kind: 'logo',
       x: padding,
@@ -97,7 +103,7 @@ export const barLayout: PresetLayout = (input, services) => {
       w: logoWidth,
       h: logoHeight,
       logoId: input.logoId,
-      fill: textColor,
+      fill: brandColor ?? textColor,
     });
   } else if (showWordmark && brandName !== undefined) {
     // 로고 높이에 그대로 맞추면(글자 높이 = logoHeight) 로고 상자가 가로 1.5:1

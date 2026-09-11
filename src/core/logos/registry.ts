@@ -9,17 +9,20 @@ export function hasLogo(id: string): boolean {
 }
 
 /**
- * 로고를 이루는 조각들과 viewBox 를 돌려줍니다. Path2D 를 여기서 만들지 않습니다.
- * Path2D 는 브라우저 API 라 src/core/ 가 environment: 'node' 테스트를 도는 데
+ * 로고를 이루는 조각들과 viewBox, 브랜드 고유색을 돌려줍니다. Path2D 를 여기서 만들지
+ * 않습니다. Path2D 는 브라우저 API 라 src/core/ 가 environment: 'node' 테스트를 도는 데
  * 걸림돌이 되기 때문입니다. Path2D 로 만드는 일은 그리는 쪽(usePipeline.ts,
  * render.worker.ts)에서 합니다. 조각의 transform 도 그쪽에서 DOMMatrix 로 적용합니다.
+ *
+ * color 는 공식 마크가 검정인 브랜드에서 undefined 입니다. 부르는 쪽이 그때 TEXT_COLOR 로
+ * 채웁니다.
  */
 export function logoParts(
   id: string,
-): { parts: readonly LogoPart[]; viewBox: LogoArt['viewBox'] } | undefined {
+): { parts: readonly LogoPart[]; viewBox: LogoArt['viewBox']; color: string | undefined } | undefined {
   const logo = LOGOS.find((entry) => entry.id === id);
   if (!logo) return undefined;
-  return { parts: logo.parts, viewBox: logo.viewBox };
+  return { parts: logo.parts, viewBox: logo.viewBox, color: logo.color };
 }
 
 export interface FitBox {

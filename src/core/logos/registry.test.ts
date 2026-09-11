@@ -17,7 +17,18 @@ describe('hasLogo', () => {
 describe('logoParts', () => {
   it('조각들과 viewBox 를 돌려줍니다', () => {
     const sony = LOGOS.find((logo) => logo.id === 'sony')!;
-    expect(logoParts('sony')).toEqual({ parts: sony.parts, viewBox: sony.viewBox });
+    expect(logoParts('sony')).toEqual({ parts: sony.parts, viewBox: sony.viewBox, color: undefined });
+  });
+
+  it('공식 마크가 검정인 브랜드는 color 가 undefined 입니다', () => {
+    // 소니는 simple-icons 원자료가 있지만 공식 마크는 검정이라 데이터에 color 를
+    // 두지 않았습니다.
+    expect(logoParts('sony')?.color).toBeUndefined();
+  });
+
+  it('색이 있는 브랜드는 그 색을 그대로 돌려줍니다', () => {
+    // 캐논 워드마크는 원본 SVG 전체가 #bf1920 한 색입니다.
+    expect(logoParts('canon')?.color).toBe('#bf1920');
   });
 
   it('조각의 행렬을 그대로 실어 보냅니다', () => {

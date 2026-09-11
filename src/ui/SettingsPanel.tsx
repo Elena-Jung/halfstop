@@ -60,6 +60,7 @@ export function SettingsPanel(props: {
 
   const grouped = groupOptions(presetOptions);
   const mode = options.get('MODE');
+  const showLogo = options.get('SHOW_LOGO');
   // 고른 사진이 없으면 미리보기에 그릴 것도, 값을 적용할 대상도 없습니다. busy 와
   // 마찬가지로 패널 전체를 잠급니다.
   const locked = busy || !hasPhoto;
@@ -71,6 +72,8 @@ export function SettingsPanel(props: {
       .filter((option) => option.id !== 'MODE')
       // split 배치는 좌우가 이미 정해져 정렬 옵션이 뜻이 없습니다.
       .filter((option) => option.id !== 'ALIGN' || mode !== 'split')
+      // 로고 자체를 안 그리면 브랜드 색 옵션도 뜻이 없습니다.
+      .filter((option) => option.id !== 'LOGO_BRAND_COLOR' || showLogo === true)
       .map((option) => {
         const pairId = contrastPairId(option.id);
         const pairValue = pairId ? options.get(pairId) : undefined;

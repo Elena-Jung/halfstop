@@ -107,4 +107,25 @@ describe('LOGOS', () => {
       expect(ALLOWED_LICENSES, logo.id).toContain(logo.license);
     }
   });
+
+  it('color 를 적었다면 소문자 여섯 자리 16진수입니다', () => {
+    // TEXT_COLOR, BACKGROUND 와 같은 표기(소문자, #rrggbb)를 맞춥니다.
+    const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
+    for (const logo of LOGOS) {
+      if (logo.color === undefined) continue;
+      expect(HEX_COLOR_PATTERN.test(logo.color), `${logo.id}: ${logo.color}`).toBe(true);
+    }
+  });
+
+  it('공식 마크가 검정이거나 여러 색인 브랜드는 color 를 비워 둡니다', () => {
+    // .superpowers/sdd/logo-brand-color-report.md 에 브랜드별 근거를 적었습니다.
+    // 소니, 애플, DJI, 시그마, 핫셀블라드는 공식 마크가 검정(또는 검정에 아주
+    // 가까운 단색)이고, 구글과 올림푸스는 원본이 여러 색이라 단색 경로로 표현할
+    // 수 없습니다.
+    const NO_COLOR_IDS = ['sony', 'apple', 'google', 'dji', 'sigma', 'olympus', 'hasselblad'];
+    for (const id of NO_COLOR_IDS) {
+      const logo = LOGOS.find((entry) => entry.id === id);
+      expect(logo?.color, id).toBeUndefined();
+    }
+  });
 });

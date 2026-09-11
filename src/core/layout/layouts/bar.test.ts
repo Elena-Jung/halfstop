@@ -352,6 +352,52 @@ describe('barLayout SHOW_LOGO 기본값', () => {
   });
 });
 
+describe('barLayout LOGO_BRAND_COLOR', () => {
+  const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+
+  it('기본은 꺼짐이라 색이 있는 브랜드도 TEXT_COLOR 를 따릅니다', () => {
+    // 캐논 워드마크는 registry.ts 에 #bf1920 으로 올라 있습니다. 옵션을 켜지
+    // 않았으면 이 색이 아니라 지금까지처럼 TEXT_COLOR 가 나가야 합니다.
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    expect(logo?.fill).toBe('#111111');
+  });
+
+  it('켜면 색이 있는 브랜드는 그 브랜드 색을 씁니다', () => {
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    options.set('LOGO_BRAND_COLOR', true);
+    const scene = barLayout(input({ options, logoId: 'canon' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    expect(logo?.fill).toBe('#bf1920');
+  });
+
+  it('켜도 색이 없는 브랜드는 TEXT_COLOR 를 그대로 따릅니다', () => {
+    // 소니는 공식 마크가 검정이라 registry.ts 의 color 가 undefined 입니다. 옵션을
+    // 켜도 억지로 채운 색이 아니라 TEXT_COLOR 로 떨어져야 합니다.
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    options.set('LOGO_BRAND_COLOR', true);
+    options.set('TEXT_COLOR', '#222222');
+    const scene = barLayout(input({ options, logoId: 'sony' }), withLogo);
+    const logo = scene.nodes.find((n) => n.kind === 'logo');
+    expect(logo?.fill).toBe('#222222');
+  });
+
+  it('켜도 워드마크 폴백은 브랜드 색이 아니라 TEXT_COLOR 를 씁니다', () => {
+    // 워드마크는 글자입니다. 옆 글줄과 색이 갈리면 글이 아니라 얼룩으로 보입니다.
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('SHOW_LOGO', true);
+    options.set('LOGO_BRAND_COLOR', true);
+    options.set('TEXT_COLOR', '#222222');
+    const scene = barLayout(input({ options, logoId: 'canon' }), services);
+    const wordmark = textNodes(scene.nodes).find((n) => n.x === 60);
+    expect(wordmark?.style.color).toBe('#222222');
+  });
+});
+
 describe('barLayout 워드마크 폴백', () => {
   // 워드마크 크기는 logoHeight * 0.45 입니다. 기본 BAR_HEIGHT 120 에서
   // logoHeight = 48 이므로 size = 21.6 입니다. 이 목(mock) 측정기(글자당 size*0.5)로는
