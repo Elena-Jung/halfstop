@@ -30,7 +30,15 @@ import { cachedCanvasLimit } from '../platform/canvasLimitCache';
 import { readSettings, writeSettings, type StoredSettings } from '../platform/settingsStore';
 import { createRenderClient, type RenderClient } from '../worker/client';
 import { toUserMessage } from './errorMessage';
-import { applyToSelected, capItems, MAX_PHOTOS, previewIndex, toggleSelectAll } from './photos';
+import {
+  applyToSelected,
+  capItems,
+  MAX_PHOTOS,
+  previewIndex,
+  reindexSelection,
+  removeAt,
+  toggleSelectAll,
+} from './photos';
 
 /** 화면이 t() 로 옮길 상태 문구입니다. 훅은 키와 값만 들고, 문자열은 만들지 않습니다. */
 export interface StatusMessage {
@@ -204,9 +212,13 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     };
   }, [fontId, loadedFonts]);
 
+  // fontReady 가 사진 없이 처음 참이 될 때만 반응합니다. photos.length 를 의존성에
+  // 두면 전체 삭제로 장수가 0으로 떨어질 때도 다시 돌아, 방금 몇 장을 뺐는지 알리는
+  // status.removed 문구를 곧바로 덮어써 버립니다. photosRef 는 위 동기화 effect 가
+  // 같은 커밋에서 먼저 갱신해 두므로 여기서 최신 값을 그대로 읽을 수 있습니다.
   useEffect(() => {
-    if (fontReady && photos.length === 0) setStatus({ key: 'status.readyToDrop' });
-  }, [fontReady, photos.length]);
+    if (fontReady && photosRef.current.length === 0) setStatus({ key: 'status.readyToDrop' });
+  }, [fontReady]);
 
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -379,6 +391,30 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setSelected((previous) => toggleSelectAll(photosRef.current.length, previous));
   }, []);
 
+  /**
+   * 고른 사진만 화면에서 뺍니다. 파일을 지우는 것이 아니라 목록에서만 빼는 것이라
+   * 확인 창을 두지 않고, 대신 몇 장을 뺐는지 상태 문구로 알립니다.
+   */
+  const removeSelected = useCallback(() => {
+    if (selected.size === 0) return;
+    const current = photosRef.current;
+    const { kept, removed } = removeAt(current, selected);
+    for (const photo of removed) closePhoto(photo);
+    setPhotos(kept);
+    setSelected(reindexSelection(selected, selected, current.length));
+    setStatus({ key: 'status.removed', vars: { count: removed.length } });
+  }, [selected]);
+
+  /** 불러온 사진을 전부 뺍니다. 사진이 없으면 아무 일도 하지 않습니다. */
+  const removeAll = useCallback(() => {
+    const current = photosRef.current;
+    if (current.length === 0) return;
+    for (const photo of current) closePhoto(photo);
+    setPhotos([]);
+    setSelected(new Set());
+    setStatus({ key: 'status.removed', vars: { count: current.length } });
+  }, []);
+
   const setOption = useCallback((id: string, value: OptionValue) => {
     setPhotos((previous) =>
       applyToSelected(previous, selected, (photo) => ({
@@ -505,6 +541,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     selected,
     toggleSelected,
     toggleAll,
+    removeSelected,
+    removeAll,
     hasPreview: previewPhoto !== null,
     exportTargetName: previewPhoto?.file.name ?? null,
     frameText,

@@ -578,7 +578,20 @@ body {
   margin-bottom: var(--space-1);
 }
 
-.photo-select-all {
+/*
+ * 세 단추(전체 선택/해제, 선택 삭제, 전체 삭제)를 한 묶음으로 가로 나란히 둡니다.
+ * 묶음 자체는 줄어들지 않아 photo-grid 만 남는 폭을 먹고 넘치면 스스로 스크롤합니다.
+ */
+.photo-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.photo-select-all,
+.photo-delete-selected,
+.photo-delete-all {
   flex: 0 0 auto;
   font-size: var(--text-sm);
   padding: var(--space-1) var(--space-3);
@@ -587,6 +600,14 @@ body {
   background: var(--surface);
   color: inherit;
   cursor: pointer;
+}
+
+/* 고른 사진이 없을 때 선택 삭제가 이 상태로 잠깁니다. */
+.photo-select-all:disabled,
+.photo-delete-selected:disabled,
+.photo-delete-all:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 /*

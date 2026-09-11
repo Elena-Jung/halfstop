@@ -7,17 +7,22 @@ import type { Loaded } from './usePipeline';
  * 감추고 옆의 표시자로 상태를 그리는 방식도 같아서, 사용자가 두 가지 고르는 방식을
  * 따로 배우지 않아도 됩니다.
  *
- * fieldset 이 disabled 이면 그 안의 모든 입력과 단추(전체 선택 포함)가 함께 잠깁니다.
- * preset-list 가 이미 쓰는 방식과 같습니다.
+ * fieldset 이 disabled 이면 그 안의 모든 입력과 단추(전체 선택, 선택 삭제, 전체 삭제
+ * 포함)가 함께 잠깁니다. preset-list 가 이미 쓰는 방식과 같습니다.
+ *
+ * 세 단추(전체 선택/해제, 선택 삭제, 전체 삭제)는 한 묶음(.photo-actions)으로 가로
+ * 나란히 둡니다. 이 줄은 한 줄을 유지하는 것이 설계 목적이라 세로로 쌓지 않습니다.
  */
 export function PhotoStrip(props: {
   photos: readonly Loaded[];
   selected: ReadonlySet<number>;
   onToggle: (index: number) => void;
   onToggleAll: () => void;
+  onRemoveSelected: () => void;
+  onRemoveAll: () => void;
   disabled: boolean;
 }) {
-  const { photos, selected, onToggle, onToggleAll, disabled } = props;
+  const { photos, selected, onToggle, onToggleAll, onRemoveSelected, onRemoveAll, disabled } = props;
 
   if (photos.length === 0) return null;
 
@@ -26,9 +31,22 @@ export function PhotoStrip(props: {
   return (
     <fieldset className="photo-strip" disabled={disabled}>
       <legend className="sr-only">{t('photos.legend')}</legend>
-      <button type="button" className="photo-select-all" onClick={onToggleAll}>
-        {allSelected ? t('photos.deselectAll') : t('photos.selectAll')}
-      </button>
+      <div className="photo-actions">
+        <button type="button" className="photo-select-all" onClick={onToggleAll}>
+          {allSelected ? t('photos.deselectAll') : t('photos.selectAll')}
+        </button>
+        <button
+          type="button"
+          className="photo-delete-selected"
+          onClick={onRemoveSelected}
+          disabled={selected.size === 0}
+        >
+          {t('photos.deleteSelected')}
+        </button>
+        <button type="button" className="photo-delete-all" onClick={onRemoveAll}>
+          {t('photos.deleteAll')}
+        </button>
+      </div>
       <div className="photo-grid">
         {photos.map((photo, index) => {
           const isSelected = selected.has(index);

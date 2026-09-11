@@ -63,3 +63,45 @@ export function applyToSelected<T>(
 ): T[] {
   return items.map((item, index) => (selected.has(index) ? update(item) : item));
 }
+
+/**
+ * remove 에 담긴 인덱스를 목록에서 뺍니다. 뺀 항목은 removed 로 따로 돌려주어 호출자가
+ * 그 항목이 들고 있던 자원(디코딩된 비트맵, 썸네일 객체 URL)을 회수할 수 있게 합니다.
+ * remove 에 범위 밖 인덱스가 섞여 있어도 무시할 뿐 던지지 않습니다.
+ */
+export function removeAt<T>(
+  items: readonly T[],
+  remove: ReadonlySet<number>,
+): { kept: readonly T[]; removed: readonly T[] } {
+  const kept: T[] = [];
+  const removed: T[] = [];
+  items.forEach((item, index) => {
+    if (remove.has(index)) removed.push(item);
+    else kept.push(item);
+  });
+  return { kept, removed };
+}
+
+/**
+ * removed 에 담긴 인덱스가 목록에서 빠지면 그 뒤에 있던 항목의 인덱스가 앞으로
+ * 당겨집니다. selected 에 남아 있던 인덱스를 당겨진 만큼 옮겨 새 목록 기준으로 다시
+ * 셉니다. removed 에 든 인덱스 자체는 그 항목이 사라졌으므로 결과에서 빠집니다.
+ * total 은 removed 를 적용하기 전 전체 길이이고, 그 범위를 벗어난 selected 의
+ * 인덱스는 무시합니다.
+ */
+export function reindexSelection(
+  selected: ReadonlySet<number>,
+  removed: ReadonlySet<number>,
+  total: number,
+): ReadonlySet<number> {
+  const next = new Set<number>();
+  for (const index of selected) {
+    if (index < 0 || index >= total || removed.has(index)) continue;
+    let shift = 0;
+    for (const removedIndex of removed) {
+      if (removedIndex < index) shift += 1;
+    }
+    next.add(index - shift);
+  }
+  return next;
+}
