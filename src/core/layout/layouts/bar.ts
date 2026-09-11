@@ -1,6 +1,6 @@
 import { DEFAULT_FONT_ID, FONT_IDS, fontById, fontStack } from '../../paint/fontFamilies';
 import { bool, num, str, type PresetOption } from '../options';
-import { ellipsize, twoLineGap } from '../primitives';
+import { ellipsize, twoLineGap, twoLineHeight } from '../primitives';
 import { resolveSlot } from '../slots';
 import { renderTemplate } from '../template';
 import type { PresetLayout, SceneNode, TextStyle } from '../types';
@@ -32,8 +32,8 @@ export const barLayout: PresetLayout = (input, services) => {
   const options = input.options;
   const barHeight = num(options, 'BAR_HEIGHT');
   const padding = num(options, 'SIDE_PADDING');
-  const fontSize = num(options, 'FONT_SIZE');
-  const subSize = fontSize * num(options, 'SUB_SCALE');
+  const askedFontSize = num(options, 'FONT_SIZE');
+  const askedSubSize = askedFontSize * num(options, 'SUB_SCALE');
   const textColor = str(options, 'TEXT_COLOR');
   const divider = str(options, 'DIVIDER');
   const mode = str(options, 'MODE');
@@ -74,6 +74,20 @@ export const barLayout: PresetLayout = (input, services) => {
   const slotHeight = barHeight - footerHeight;
   const slotCenterY = photoHeight + slotHeight / 2;
   const logoHeight = barHeight * 0.4;
+
+  // 슬롯이 글자 한 줄 높이보다 좁으면 간격을 0 까지 좁혀도 글자가 사진을 덮습니다. 슬롯
+  // 가운데에서 위아래로 반높이씩 뻗는 구조라 간격으로는 막을 수 없습니다. 그래서 글자를
+  // 슬롯에 맞춰 줄입니다. 바 높이를 대신 늘리면 사용자가 고른 프레임 크기가 슬라이더 값과
+  // 달라지므로, 프레임을 그대로 두고 글자를 줄이는 쪽을 골랐습니다.
+  //
+  // 슬롯이 넉넉하면 계수가 정확히 1 이고 1 을 곱한 값은 비트까지 같습니다. 지금 프레임
+  // 값들은 모두 그쪽이라 겉모습이 달라지지 않습니다.
+  //
+  // 꼬리 줄은 슬롯 아래에 따로 놓이므로 이 계수에 들어가지 않습니다. 슬롯이 두 줄 높이를
+  // 지키면 꼬리 줄의 위끝은 사진 아래변보다 slotHeight 의 절반 이상 아래에 있습니다.
+  const fit = Math.min(1, slotHeight / twoLineHeight(askedFontSize, askedSubSize));
+  const fontSize = askedFontSize * fit;
+  const subSize = askedSubSize * fit;
 
   if (hasRealLogo && input.logoId !== undefined) {
     nodes.push({

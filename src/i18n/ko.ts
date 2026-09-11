@@ -15,19 +15,16 @@ export const ko = {
   'rail.export': '내보내기',
   'rail.label': '설정 묶음',
 
-  // 프리셋 이름
-  'preset.body-lens': '바디와 렌즈',
-  'preset.gear-exposure': '장비와 노출',
-  'preset.one-line': '한 줄',
-  'preset.shot-on': 'Shot on',
-  'preset.minimal': '미니멀',
+  // 프리셋 이름. 사진을 감싸는 모양만 설명합니다. 어떤 정보가 들어가는지는 배치 이름이
+  // 설명하므로 두 목록의 이름이 겹치지 않습니다.
+  'preset.bar': '하단 바',
   'preset.film': '필름 데이터백',
   'preset.polaroid': '폴라로이드',
   'preset.letterbox': '레터박스',
   'preset.poster': '포스터',
 
-  // 배치 이름. 어떤 정보가 어디 들어가는지를 설명합니다. id 는 지금 같은 이름의
-  // 프리셋에서 1:1 로 뽑았지만, 배치 칸에서는 프레임과 별개로 골라 쓸 수 있습니다.
+  // 배치 이름. 어떤 정보가 어디 들어가는지를 설명합니다. id 는 예전 프리셋에서 1:1 로
+  // 뽑았지만, 배치 칸에서는 프레임과 별개로 골라 쓸 수 있습니다.
   'arrangement.body-lens': '왼쪽에 제조사와 바디, 오른쪽에 렌즈 제조사와 모델, 꼬리에 노출값',
   'arrangement.gear-exposure': '왼쪽에 장비와 렌즈, 오른쪽에 노출값',
   'arrangement.one-line': '한 줄에 장비와 노출값 전부',

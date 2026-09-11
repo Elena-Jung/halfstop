@@ -23,8 +23,9 @@ export interface Arrangement {
 }
 
 /**
- * 아홉 프리셋에서 1:1 로 뽑았습니다. 프리셋마다 슬롯 템플릿이 서로 달라 하나로 합칠 수
- * 없었습니다. 비슷한 배치를 묶는 것은 이 작업의 범위 밖이고 나중에 따로 판단합니다.
+ * 예전의 아홉 프리셋에서 1:1 로 뽑았습니다. 프리셋마다 슬롯 템플릿이 서로 달라 하나로
+ * 합칠 수 없었습니다. 그 뒤 프리셋은 프레임 전용 다섯 개로 줄었지만 이 목록은 그대로
+ * 둡니다. 없어진 프리셋이 보여 주던 문구 구성이 여기 남아 있어야 사라지지 않습니다.
  *
  * 거기에 one-block 하나를 더했습니다. 프리셋에서 뽑은 것이 아니라 사용자가 신고한 요구를
  * 채우려고 만든 것입니다. 좌우로 나뉜 배치에서 한 덩이로 바꿀 때 렌즈 정보가 사라지지 않는
@@ -191,11 +192,36 @@ export const ARRANGEMENTS: readonly Arrangement[] = [
   },
 ];
 
-export const DEFAULT_ARRANGEMENT_ID = 'body-lens';
+/**
+ * 레이아웃마다의 기본 배치입니다. 새 사진이 처음 들어올 때와, 지금 배치를 새 프레임의
+ * 레이아웃에서 쓸 수 없을 때 씁니다.
+ *
+ * 프리셋은 배치를 가리키지 않습니다. 프리셋마다 배치를 하나씩 달아 두었더니 두 목록이
+ * 거울처럼 보여 같은 일을 하는 것으로 읽혔고, 프레임을 고르는 것이 배치까지 바꾸면 두
+ * 칸의 역할이 다시 섞입니다. 그래서 배치의 출발점을 프리셋이 아니라 레이아웃에 답니다.
+ */
+export const DEFAULT_ARRANGEMENT_BY_LAYOUT: Record<'bar' | 'matte', string> = {
+  bar: 'body-lens',
+  matte: 'polaroid',
+};
 
 /** 저장된 설정에 없는 id 가 남아 있어도 화면이 비지 않도록 기본값으로 떨어집니다. */
 export function arrangementById(id: string): Arrangement {
   return ARRANGEMENTS.find((arrangement) => arrangement.id === id) ?? ARRANGEMENTS[0]!;
+}
+
+/**
+ * 그 레이아웃에서 쓸 수 있는 배치를 돌려줍니다. 지금 배치를 쓸 수 있으면 그대로 두고,
+ * 쓸 수 없거나 목록에 없는 id 면 그 레이아웃의 기본 배치로 떨어집니다. 프레임을 바꿔도
+ * 배치가 따라 바뀌지 않게 하는 자리입니다.
+ */
+export function arrangementForLayout(
+  id: string | undefined,
+  layout: 'bar' | 'matte',
+): Arrangement {
+  const found = id === undefined ? undefined : ARRANGEMENTS.find((a) => a.id === id);
+  if (found && found.layouts.includes(layout)) return found;
+  return arrangementById(DEFAULT_ARRANGEMENT_BY_LAYOUT[layout]);
 }
 
 /**

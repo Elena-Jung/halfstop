@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BAR_OPTIONS, barLayout } from './bar';
+import { ARRANGEMENTS } from '../arrangements';
 import { defaultValues } from '../options';
 import { halfHeight } from '../primitives';
 import type { LayoutInput, LayoutServices, SceneNode } from '../types';
@@ -122,7 +123,7 @@ describe('barLayout 두 줄 y 좌표', () => {
     expect((footer?.y ?? 0) - (sub?.y ?? 0)).toBeGreaterThanOrEqual(halfHeight(23.8) * 2);
   });
 
-  it('슬롯이 한 줄보다 좁아지면 두 줄 간격을 0으로 좁힙니다', () => {
+  it('슬롯이 한 줄보다 좁아지면 글자를 슬롯에 맞춰 줄입니다', () => {
     const options = defaultValues(BAR_OPTIONS);
     options.set('BAR_HEIGHT', 60);
     options.set('PRIMARY_SUB', '{LENS}');
@@ -132,14 +133,102 @@ describe('barLayout 두 줄 y 좌표', () => {
     expect(nodes.length).toBe(4);
     const main = nodes.find((n) => n.text === 'Canon · EOS R6');
     const sub = nodes.find((n) => n.text === 'RF 50mm');
-    // slotHeight 가 40.8 인데 34 크기 글자 한 줄이 차지하는 높이가 42.16 입니다. 두 줄을
-    // 넣을 자리가 애초에 없으므로 간격을 0 까지 좁혀 둘을 겹쳐 놓는 것이 최선입니다.
-    // 이 조합에서는 글자 상단이 999.32 로 사진을 0.68 만큼 덮습니다. 간격으로는 더 줄일 수
-    // 없고 글자 크기나 바 높이를 손대야 합니다. 설정 화면에서 막을 몫으로 남겨 둡니다.
+    // slotHeight 는 60 - 60*0.32 = 40.8 입니다. 34 크기 글자 한 줄이 위아래로 차지하는
+    // 높이가 34*0.62*2 = 42.16 이라 두 줄을 넣을 자리가 애초에 없습니다. 간격을 0 까지
+    // 좁혀도 글자가 사진을 덮으므로, 슬롯에 딱 들어가는 크기 40.8/1.24 = 32.9032... 로
+    // 줄입니다. 부 줄은 SUB_SCALE 0.7 을 유지해 32.9032... * 0.7 = 23.0323... 입니다.
+    expect(main?.style.size).toBeCloseTo(32.9032, 4);
+    expect(sub?.style.size).toBeCloseTo(23.0323, 4);
+    // 두 줄이 슬롯을 꽉 채우므로 간격은 0 이고 둘 다 슬롯 가운데에 놓입니다.
     expect(main?.y).toBeCloseTo(1020.4);
     expect(sub?.y).toBeCloseTo(1020.4);
-    // 남은 침범을 숫자로 못박아 둡니다. 앵커만 보는 검사로는 침범이 더 나빠져도 통과합니다.
-    expect((main?.y ?? 0) - halfHeight(34)).toBeCloseTo(999.32);
+    // 줄인 결과 주 줄의 글자 위끝이 사진 아래변에 정확히 닿습니다. 예전에는 같은 조합에서
+    // 999.32 로 사진을 0.68 만큼 덮었습니다.
+    expect((main?.y ?? 0) - halfHeight(main?.style.size ?? 0)).toBeCloseTo(1000);
+  });
+
+  it('바 높이를 최소까지 내려도 글자가 사진을 덮지 않습니다', () => {
+    // 예전에는 기본 글자 크기 34 에서 7.48u 를 덮었습니다. 슬라이더로 닿을 수 있는
+    // 가장 나쁜 자리입니다.
+    const options = defaultValues(BAR_OPTIONS);
+    options.set('BAR_HEIGHT', 40);
+    options.set('PRIMARY_SUB', '{LENS}');
+    options.set('FOOTER', '{ISO}');
+    const scene = barLayout(input({ options }), services);
+    const tops = textNodes(scene.nodes).map((n) => n.y - halfHeight(n.style.size));
+    expect(Math.min(...tops)).toBeGreaterThanOrEqual(1000 - 1e-9);
+  });
+});
+
+describe('barLayout 글자가 사진을 덮지 않는 불변식', () => {
+  // 한두 사례만 찍으면 구멍이 남으므로 조합을 훑습니다. 바 높이는 옵션 선언의 최소부터
+  // 최대까지, 글자 크기와 부 줄 비율은 그 범위의 끝과 가운데를, 배치는 bar 에서 쓸 수
+  // 있는 것 전부를, 로고 표시는 켜고 끈 두 경우를 돌립니다.
+  const PHOTO_HEIGHT = 1000;
+  const BAR_HEIGHTS = [40, 41, 45, 55, 60, 80, 90, 100, 120, 140, 160, 170, 200, 260, 330, 420, 500];
+  const FONT_SIZES = [8, 12, 24, 28, 30, 34, 40, 60, 90, 120];
+  const SUB_SCALES = [0.4, 0.55, 0.7, 0.85, 1];
+
+  const barArrangements = ARRANGEMENTS.filter((a) => a.layouts.includes('bar'));
+
+  const sweepFields: LayoutInput['fields'] = {
+    MAKER: 'SONY',
+    BODY: 'ILCE-7M3',
+    LENS: 'FE 24-70mm F2.8 GM',
+    LENS_MAKER: 'SONY',
+    MM: '35mm',
+    F: 'f/2.8',
+    SEC: '1/500s',
+    ISO: 'ISO 200',
+    TAKEN_AT: '2026-09-10 12:00',
+  };
+
+  it('어떤 조합에서도 글자 위끝이 사진 아래변보다 위로 올라가지 않습니다', () => {
+    const withLogo: LayoutServices = { ...services, hasLogo: () => true };
+    const violations: string[] = [];
+    let tightest = Infinity;
+    let combinations = 0;
+
+    for (const arrangement of barArrangements) {
+      for (const barHeight of BAR_HEIGHTS) {
+        for (const fontSize of FONT_SIZES) {
+          for (const subScale of SUB_SCALES) {
+            for (const showLogo of [false, true]) {
+              combinations += 1;
+              const options = defaultValues(BAR_OPTIONS);
+              for (const [key, value] of Object.entries(arrangement.values)) options.set(key, value);
+              options.set('BAR_HEIGHT', barHeight);
+              options.set('FONT_SIZE', fontSize);
+              options.set('SUB_SCALE', subScale);
+              options.set('SHOW_LOGO', showLogo);
+
+              const scene = barLayout(
+                input({ options, fields: sweepFields, logoId: 'sony' }),
+                showLogo ? withLogo : services,
+              );
+
+              for (const node of textNodes(scene.nodes)) {
+                // 앵커가 아니라 글자 위끝으로 봅니다. 중심선이 사진 아래에 있어도 글자
+                // 윗부분은 사진을 덮을 수 있습니다.
+                const top = node.y - halfHeight(node.style.size);
+                tightest = Math.min(tightest, top - PHOTO_HEIGHT);
+                if (top < PHOTO_HEIGHT - 1e-9) {
+                  violations.push(
+                    `${arrangement.id} 바 ${barHeight} 글자 ${fontSize} 부 ${subScale} 로고 ${showLogo}: 위끝 ${top}`,
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    expect(combinations).toBe(barArrangements.length * 17 * 10 * 5 * 2);
+    expect(violations.slice(0, 10)).toEqual([]);
+    // 딱 맞닿는 조합이 실제로 훑혔는지 봅니다. 여유가 남기만 하면 이 검사는 헐거운
+    // 조합만 돌고도 통과할 수 있습니다.
+    expect(tightest).toBeLessThan(1e-6);
   });
 });
 

@@ -3,7 +3,11 @@ import { fontUrl } from '../assets/fontUrls';
 import { toFields } from '../core/exif/map';
 import { readExif, type PhotoMeta } from '../core/exif/read';
 import { PREVIEW_LONG_EDGE, type ExportPreset } from '../core/export/resolution';
-import { ARRANGEMENTS, arrangementById, arrangementValuesFor } from '../core/layout/arrangements';
+import {
+  arrangementById,
+  arrangementForLayout,
+  arrangementValuesFor,
+} from '../core/layout/arrangements';
 import { detectAutoOrientation } from '../core/io/autoOrientProbe';
 import { decodeImage, type DecodedImage } from '../core/io/decode';
 import { swapsAxes } from '../core/io/orientation';
@@ -11,7 +15,6 @@ import {
   DEFAULT_PRESET_ID,
   layoutFor,
   optionsFor,
-  type Preset,
   presetById,
   valuesFor,
 } from '../core/layout/presets';
@@ -107,27 +110,20 @@ function closePhoto(photo: Loaded): void {
   URL.revokeObjectURL(photo.thumbUrl);
 }
 
-/**
- * 저장된 배치 id 가 목록에 없거나 지금 프리셋의 레이아웃에서 못 쓰는 것이면 프리셋이
- * 가리키는 기본 배치로 떨어집니다. `presetById` 가 없는 id 에 기본값을 돌려주는 것과
- * 같은 방식입니다. 옛 저장값에는 이 필드가 아예 없어 항상 이 자리를 거칩니다.
- */
-function resolveArrangementId(preset: Preset, storedId: string | undefined): string {
-  const found = storedId !== undefined ? ARRANGEMENTS.find((a) => a.id === storedId) : undefined;
-  return found && found.layouts.includes(preset.layout) ? found.id : preset.arrangementId;
-}
-
-/** 새로 불러온 사진의 시작 설정입니다. 저장된 마지막 설정이 없으면 기본 프리셋입니다. */
+/** 새로 불러온 사진의 시작 설정입니다. 저장된 마지막 설정이 없으면 기본 프레임입니다. */
 function initialPhotoSettings(stored: StoredSettings | null): {
   presetId: string;
   arrangementId: string;
   values: Map<string, OptionValue>;
 } {
   const preset = presetById(stored?.presetId ?? DEFAULT_PRESET_ID);
+  // 저장된 배치 id 가 목록에 없거나 이 프레임의 레이아웃에서 못 쓰는 것이면 그 레이아웃의
+  // 기본 배치로 떨어집니다. 옛 저장값에는 이 필드가 아예 없어 항상 이 자리를 거칩니다.
+  const arrangement = arrangementForLayout(stored?.arrangementId, preset.layout);
   return {
     presetId: preset.id,
-    arrangementId: resolveArrangementId(preset, stored?.arrangementId),
-    values: valuesFor(preset, stored?.values ?? {}),
+    arrangementId: arrangement.id,
+    values: valuesFor(preset, stored?.values ?? {}, arrangement.id),
   };
 }
 
@@ -137,9 +133,13 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 설정으로 넘어갑니다.
   const emptyStored = useMemo(() => readSettings(), []);
   const emptyPreset = useMemo(() => presetById(emptyStored?.presetId ?? DEFAULT_PRESET_ID), [emptyStored]);
-  const emptyOptions = useMemo(
-    () => valuesFor(emptyPreset, emptyStored?.values ?? {}),
+  const emptyArrangement = useMemo(
+    () => arrangementForLayout(emptyStored?.arrangementId, emptyPreset.layout),
     [emptyPreset, emptyStored],
+  );
+  const emptyOptions = useMemo(
+    () => valuesFor(emptyPreset, emptyStored?.values ?? {}, emptyArrangement.id),
+    [emptyPreset, emptyStored, emptyArrangement],
   );
 
   const [loadedFonts, setLoadedFonts] = useState<ReadonlySet<string>>(() => new Set());
@@ -163,7 +163,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   );
   const options = previewPhoto?.values ?? emptyOptions;
   const presetOptions = useMemo(() => optionsFor(preset), [preset]);
-  const arrangementId = previewPhoto?.arrangementId ?? emptyPreset.arrangementId;
+  const arrangementId = previewPhoto?.arrangementId ?? emptyArrangement.id;
 
   const servicesRef = useRef<LayoutServices | null>(null);
   const limitRef = useRef<CanvasLimit | null>(null);
@@ -424,18 +424,24 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     );
   }, [selected]);
 
-  // 프리셋을 바꾸면 값도 그 프리셋 기준으로 새로 만듭니다. 이전 프리셋에서 만진 값을
-  // 그대로 들고 가면 레이아웃이 달라 뜻이 어긋납니다. 어느 배치 카드가 골라져 있는지도
-  // 그 프리셋의 기본 배치로 되돌립니다.
+  // 프레임을 바꾸면 프레임 값은 그 프리셋 기준으로 새로 만듭니다. 이전 프레임에서 만진
+  // 값을 그대로 들고 가면 레이아웃이 달라 뜻이 어긋납니다.
+  //
+  // 배치는 따라오지 않습니다. 프레임을 고르는 것이 배치까지 바꾸면 두 칸의 역할이 다시
+  // 섞입니다. 다만 지금 배치를 새 레이아웃에서 쓸 수 없으면(예: 꼬리 줄을 쓰는 bar 전용
+  // 배치에서 여백 액자 프레임으로) 그 레이아웃의 기본 배치로 떨어집니다.
   const setPreset = useCallback((id: string) => {
     const next = presetById(id);
     setPhotos((previous) =>
-      applyToSelected(previous, selected, (photo) => ({
-        ...photo,
-        presetId: next.id,
-        arrangementId: next.arrangementId,
-        values: valuesFor(next, {}),
-      })),
+      applyToSelected(previous, selected, (photo) => {
+        const arrangement = arrangementForLayout(photo.arrangementId, next.layout);
+        return {
+          ...photo,
+          presetId: next.id,
+          arrangementId: arrangement.id,
+          values: valuesFor(next, {}, arrangement.id),
+        };
+      }),
     );
   }, [selected]);
 

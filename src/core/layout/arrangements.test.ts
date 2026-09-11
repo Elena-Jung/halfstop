@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   ARRANGEMENTS,
-  DEFAULT_ARRANGEMENT_ID,
+  DEFAULT_ARRANGEMENT_BY_LAYOUT,
   arrangementById,
+  arrangementForLayout,
   arrangementValuesFor,
 } from './arrangements';
 
@@ -18,7 +19,7 @@ const VALUE_KEYS = [
 ];
 
 describe('ARRANGEMENTS', () => {
-  it('아홉 프리셋에서 뽑은 아홉 개에 한 덩이 하나를 더해 열 개입니다', () => {
+  it('예전 아홉 프리셋에서 뽑은 아홉 개에 한 덩이 하나를 더해 열 개입니다', () => {
     expect(ARRANGEMENTS).toHaveLength(10);
   });
 
@@ -73,11 +74,50 @@ describe('ARRANGEMENTS', () => {
 
 describe('arrangementById', () => {
   it('id 로 찾습니다', () => {
-    expect(arrangementById(DEFAULT_ARRANGEMENT_ID).id).toBe(DEFAULT_ARRANGEMENT_ID);
+    expect(arrangementById('poster').id).toBe('poster');
   });
 
-  it('모르는 id 는 기본 배치로 떨어집니다', () => {
-    expect(arrangementById('없는-id').id).toBe(DEFAULT_ARRANGEMENT_ID);
+  it('모르는 id 는 목록의 첫 배치로 떨어집니다', () => {
+    expect(arrangementById('없는-id').id).toBe(ARRANGEMENTS[0]!.id);
+  });
+});
+
+describe('DEFAULT_ARRANGEMENT_BY_LAYOUT', () => {
+  it('두 레이아웃 모두 자기 레이아웃에서 쓸 수 있는 배치를 가리킵니다', () => {
+    for (const layout of ['bar', 'matte'] as const) {
+      const arrangement = arrangementById(DEFAULT_ARRANGEMENT_BY_LAYOUT[layout]);
+      expect(arrangement.id, layout).toBe(DEFAULT_ARRANGEMENT_BY_LAYOUT[layout]);
+      expect(arrangement.layouts, layout).toContain(layout);
+    }
+  });
+});
+
+describe('arrangementForLayout', () => {
+  it('그 레이아웃에서 쓸 수 있으면 그대로 둡니다', () => {
+    // 프레임을 바꿔도 배치가 따라 바뀌지 않는 자리입니다.
+    expect(arrangementForLayout('one-line', 'bar').id).toBe('one-line');
+    expect(arrangementForLayout('one-block', 'matte').id).toBe('one-block');
+  });
+
+  it('그 레이아웃에서 쓸 수 없으면 기본 배치로 떨어집니다', () => {
+    // body-lens 는 꼬리 줄을 써서 bar 전용입니다.
+    expect(arrangementForLayout('body-lens', 'matte').id).toBe('polaroid');
+    // poster 는 matte 전용입니다. bar 에 새면 split 처럼 그려집니다.
+    expect(arrangementForLayout('poster', 'bar').id).toBe('body-lens');
+  });
+
+  it('모르는 id 와 없는 값은 기본 배치로 떨어집니다', () => {
+    expect(arrangementForLayout('없는-id', 'bar').id).toBe('body-lens');
+    expect(arrangementForLayout(undefined, 'matte').id).toBe('polaroid');
+  });
+
+  it('돌려준 배치는 언제나 그 레이아웃에서 쓸 수 있습니다', () => {
+    for (const layout of ['bar', 'matte'] as const) {
+      for (const arrangement of [...ARRANGEMENTS.map((a) => a.id), '없는-id', undefined]) {
+        const resolved = arrangementForLayout(arrangement, layout);
+        expect(resolved.layouts, `${arrangement} -> ${layout}`).toContain(layout);
+      }
+    }
   });
 });
 
