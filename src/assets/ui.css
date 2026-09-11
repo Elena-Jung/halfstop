@@ -167,7 +167,6 @@ body {
  * 썸네일이 많아지면 남는 폭이 줄어 단추 글자가 여러 줄로 접히고, 그러면 줄 전체가 다시
  * 높아집니다. 이 둘은 줄어들지도 접히지도 않게 둡니다.
  */
-.intake > .file-picker,
 .intake > .photo-count {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -383,7 +382,7 @@ body {
   flex-direction: row;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
@@ -394,6 +393,48 @@ body {
   height: 24px;
   flex: 0 0 auto;
   display: block;
+}
+
+/*
+ * 사진을 넣는 일은 칸을 고르는 일과 성격이 달라 선 하나로 탭과 가릅니다. 좁은 화면에서
+ * 레일이 가로로 누우면 선도 세로로 바뀝니다.
+ */
+.rail-pick-slot {
+  display: flex;
+  align-items: center;
+  padding-right: var(--space-2);
+  border-right: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+/* 아이콘만 있는 단추입니다. 이름은 감춘 입력의 aria-label 이 맡습니다. */
+.rail-pick {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.rail-pick:hover:not([data-disabled='true']) {
+  background: var(--surface-raised);
+}
+
+.rail-pick[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.rail-pick:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .rail-tabs {
@@ -431,13 +472,22 @@ body {
 
   .rail {
     flex-direction: column;
-    padding: var(--space-2) var(--space-1);
+    padding: var(--space-3) var(--space-2);
     border-top: none;
     border-left: 1px solid var(--border);
   }
 
   .rail-tabs {
     flex-direction: column;
+  }
+
+  .rail-pick-slot {
+    padding-right: 0;
+    padding-bottom: var(--space-2);
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    align-self: stretch;
+    justify-content: center;
   }
 
   .rail-foot {
@@ -544,6 +594,16 @@ body {
 .preset-item:hover:not([data-selected='true']) {
   background: var(--surface-raised);
   border-color: var(--text-dim);
+}
+
+/*
+ * 사진이 없거나 내보내는 중이면 fieldset 이 안의 라디오를 통째로 잠급니다. 그런데
+ * 잠긴 티가 나지 않아 눌러도 아무 일이 없는 카드를 사용자가 계속 누르게 됩니다.
+ * 화면 낭독기는 사용 불가로 읽는데 눈으로는 멀쩡해 보여 둘이 어긋나기도 했습니다.
+ */
+.preset-list:disabled .preset-item {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .preset-item[data-selected='true'] {

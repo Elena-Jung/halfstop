@@ -26,10 +26,12 @@ export function Rail(props: {
   onSelect: (tab: RailTab) => void;
   orientation: 'vertical' | 'horizontal';
   disabled: boolean;
+  /** 마크 바로 아래에 놓을 파일 고르기입니다. tablist 밖에 둡니다. */
+  filePicker: ReactNode;
   /** 레일 맨 끝에 놓을 요소입니다. 지금은 테마 선택기 하나입니다. */
   themeToggle: ReactNode;
 }) {
-  const { selected, onSelect, orientation, disabled, themeToggle } = props;
+  const { selected, onSelect, orientation, disabled, filePicker, themeToggle } = props;
 
   const focusTab = (tab: RailTab) => {
     document.getElementById(railTabId(tab))?.focus();
@@ -73,6 +75,12 @@ export function Rail(props: {
        * 말합니다. 파비콘과 같은 파일을 써서 두 벌로 갈라지지 않게 합니다.
        */}
       <img src="/favicon.svg" alt="" className="rail-mark" />
+
+      {/*
+       * 사진을 넣는 일은 칸을 고르는 일과 성격이 다르므로 선 하나로 탭과 가릅니다.
+       * tablist 밖에 두어야 화면 낭독기가 탭 개수를 바르게 셉니다.
+       */}
+      <div className="rail-pick-slot">{filePicker}</div>
 
       {/*
        * tablist 안에는 탭만 둡니다. 마크와 테마 단추를 그 안에 넣으면 화면 낭독기가

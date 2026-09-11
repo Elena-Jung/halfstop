@@ -89,18 +89,6 @@ export function App() {
          * 넣어도 아래 미리보기가 밀려나지 않습니다.
          */}
         <div className="intake">
-          <label className="file-picker" data-disabled={!ready || busy}>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              onChange={onPick}
-              disabled={!ready || busy}
-              className="hs-radio-input"
-            />
-            <span>{t('action.pick')}</span>
-          </label>
-
           {photos.length > 0 && (
             <PhotoStrip
               photos={photos}
@@ -182,11 +170,32 @@ export function App() {
             busy={busy}
           />
 
+          {/*
+           * 파일 고르기가 레일로 왔습니다. 위 줄은 이제 썸네일과 그 조작만 담아서
+           * 사진이 있을 때만 뜻이 있고, 없을 때는 미리보기 칸 전체가 놓는 곳입니다.
+           *
+           * 아이콘만 남으므로 접근 가능한 이름을 aria-label 로 붙입니다. 그리고 레일의
+           * tablist 안에 넣지 않습니다. 넣으면 화면 낭독기가 탭 개수를 잘못 셉니다.
+           */}
           <Rail
             selected={tab}
             onSelect={setTab}
             orientation={orientation}
             disabled={busy}
+            filePicker={
+              <label className="rail-pick" data-disabled={!ready || busy} title={t('action.pick')}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={onPick}
+                  disabled={!ready || busy}
+                  aria-label={t('action.pick')}
+                  className="hs-radio-input"
+                />
+                <ImagePlus aria-hidden="true" size={20} />
+              </label>
+            }
             themeToggle={<ThemeToggle theme={theme} onToggle={toggleTheme} />}
           />
         </div>
