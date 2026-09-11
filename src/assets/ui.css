@@ -132,6 +132,25 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* 그림과 이름을 한 덩어리로 묶어 테마 단추와 양끝으로 갈라 놓습니다. */
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/*
+ * 파비콘과 같은 파일입니다. 제목 글자(--text-lg, 20px)보다 조금 커야 옆에서 눌리지 않고
+ * 짝으로 보입니다.
+ */
+.app-mark {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  display: block;
+}
+
 .app-title {
   font-size: var(--text-lg);
 }

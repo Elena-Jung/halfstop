@@ -73,7 +73,15 @@ export function App() {
     <DropZone disabled={busy} onFiles={load}>
       <main className="app">
         <div className="app-header">
-          <h1 className="app-title">halfstop</h1>
+          {/*
+           * 파비콘과 같은 파일을 씁니다. 두 벌로 나누면 한쪽만 고쳐집니다. 이름이 바로
+           * 옆에 글자로 있으므로 그림은 장식이고, alt 를 비워 화면 낭독기가 같은 말을
+           * 두 번 읽지 않게 합니다.
+           */}
+          <div className="app-brand">
+            <img src="/favicon.svg" alt="" className="app-mark" />
+            <h1 className="app-title">halfstop</h1>
+          </div>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
 
