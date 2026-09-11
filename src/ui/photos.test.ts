@@ -4,6 +4,7 @@ import {
   capItems,
   MAX_PHOTOS,
   previewIndex,
+  reindexActive,
   reindexSelection,
   removeAt,
   toggleSelectAll,
@@ -30,15 +31,28 @@ describe('capItems', () => {
 
 describe('previewIndex', () => {
   it('아무것도 안 골랐으면 null 입니다', () => {
-    expect(previewIndex(new Set())).toBeNull();
+    expect(previewIndex(new Set(), null)).toBeNull();
   });
 
-  it('고른 것 중 가장 작은 인덱스를 돌려줍니다', () => {
-    expect(previewIndex(new Set([3, 1, 4]))).toBe(1);
+  it('고른 것이 없으면 활성 인덱스가 있어도 null 입니다', () => {
+    expect(previewIndex(new Set(), 2)).toBeNull();
+  });
+
+  it('활성 인덱스가 고른 것 안에 있으면 가장 앞선 것이 따로 있어도 그것입니다', () => {
+    expect(previewIndex(new Set([1, 3, 4]), 4)).toBe(4);
+  });
+
+  it('활성 인덱스가 고른 것 밖이면 가장 작은 인덱스로 떨어집니다', () => {
+    // 활성인 사진의 선택을 방금 푼 경우입니다. 화면이 비지 않고 다른 고른 사진으로 갑니다.
+    expect(previewIndex(new Set([3, 1, 4]), 2)).toBe(1);
+  });
+
+  it('활성 인덱스가 없으면 가장 작은 인덱스입니다', () => {
+    expect(previewIndex(new Set([3, 1, 4]), null)).toBe(1);
   });
 
   it('하나만 골랐으면 그 인덱스입니다', () => {
-    expect(previewIndex(new Set([5]))).toBe(5);
+    expect(previewIndex(new Set([5]), 5)).toBe(5);
   });
 });
 
@@ -124,5 +138,28 @@ describe('reindexSelection', () => {
   it('범위 밖 인덱스를 넘겨도 던지지 않고 무시합니다', () => {
     const result = reindexSelection(new Set([10, -1, 1]), new Set([0]), 3);
     expect(result).toEqual(new Set([0]));
+  });
+});
+
+describe('reindexActive', () => {
+  it('앞쪽을 빼면 활성 인덱스가 뺀 개수만큼 당겨집니다', () => {
+    // 전체 6개 중 1, 2 를 빼면 5번째 사진은 새 목록에서 3번째입니다.
+    expect(reindexActive(5, new Set([1, 2]), 6)).toBe(3);
+  });
+
+  it('뒤쪽을 빼면 활성 인덱스가 그대로입니다', () => {
+    expect(reindexActive(1, new Set([3]), 5)).toBe(1);
+  });
+
+  it('활성인 사진 자체가 지워지면 null 입니다', () => {
+    expect(reindexActive(2, new Set([2]), 4)).toBeNull();
+  });
+
+  it('활성 인덱스가 없으면 무엇을 빼도 null 입니다', () => {
+    expect(reindexActive(null, new Set([0]), 3)).toBeNull();
+  });
+
+  it('범위 밖 인덱스를 넘겨도 던지지 않고 null 입니다', () => {
+    expect(reindexActive(9, new Set([0]), 3)).toBeNull();
   });
 });

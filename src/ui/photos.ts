@@ -26,8 +26,23 @@ export function capItems<T>(items: readonly T[], max: number = MAX_PHOTOS): {
   return { kept: items.slice(0, max), overflow: Math.max(0, items.length - max) };
 }
 
-/** 미리보기 대상은 고른 것 중 목록 순서로 가장 앞선 인덱스입니다. 아무것도 안 골랐으면 null 입니다. */
-export function previewIndex(selected: ReadonlySet<number>): number | null {
+/**
+ * 미리보기 대상은 마지막에 누른 사진(active)입니다. 그 사진이 고른 것 안에 있으면 그것을
+ * 돌려주므로 썸네일을 누를 때마다 예외 없이 그 사진이 화면에 뜹니다.
+ *
+ * 예전에는 고른 것 중 가장 앞선 인덱스였습니다. 규칙 자체는 한결같았지만 누른 사진이
+ * 앞선 인덱스가 될 때만 화면이 움직여, 셋째 장을 누르면 가만히 있고 첫째 장을 누르면
+ * 화면이 튀었습니다. 사용자가 이것을 썸네일이 작아서 어떤 때는 체크만 되는 것으로
+ * 읽었습니다.
+ *
+ * active 가 고른 것 밖이면(활성인 사진의 선택을 방금 푼 경우) 예전 규칙인 가장 앞선
+ * 인덱스로 떨어집니다. 고른 것이 없으면 null 입니다.
+ */
+export function previewIndex(
+  selected: ReadonlySet<number>,
+  active: number | null,
+): number | null {
+  if (active !== null && selected.has(active)) return active;
   let min: number | null = null;
   for (const index of selected) {
     if (min === null || index < min) min = index;
@@ -104,4 +119,21 @@ export function reindexSelection(
     next.add(index - shift);
   }
   return next;
+}
+
+/**
+ * 활성 인덱스에도 reindexSelection 과 똑같은 당김을 적용합니다. 선택 집합만 다시 세고
+ * 활성 인덱스를 그대로 두면 삭제 뒤에 엉뚱한 사진이 미리보기에 뜹니다.
+ *
+ * 활성인 사진 자체가 지워졌으면 null 이고, 그러면 previewIndex 가 남은 고른 것 중 가장
+ * 앞선 것으로 떨어집니다.
+ */
+export function reindexActive(
+  active: number | null,
+  removed: ReadonlySet<number>,
+  total: number,
+): number | null {
+  if (active === null) return null;
+  for (const index of reindexSelection(new Set([active]), removed, total)) return index;
+  return null;
 }

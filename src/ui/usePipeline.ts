@@ -45,6 +45,7 @@ import {
   capItems,
   MAX_PHOTOS,
   previewIndex,
+  reindexActive,
   reindexSelection,
   removeAt,
   toggleSelectAll,
@@ -168,6 +169,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   const [logoVersion, setLogoVersion] = useState(0);
   const [photos, setPhotos] = useState<readonly Loaded[]>([]);
   const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
+  // 마지막에 누른 썸네일입니다. 미리보기 대상을 이것으로 정하면 썸네일을 누를 때마다
+  // 예외 없이 그 사진이 뜹니다. 고른 것 안에 없으면(방금 선택을 푼 경우) previewIndex 가
+  // 가장 앞선 것으로 떨어뜨리므로 화면이 비지 않습니다.
+  const [active, setActive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // 저장 설정에는 담지 않습니다. 내보내기 크기는 그때그때 고르는 값이지 사진 프레임에
   // 딸린 값이 아닙니다.
@@ -182,7 +187,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 문장에 끼워 넣습니다.
   const [frameText, setFrameText] = useState('');
 
-  const previewIdx = useMemo(() => previewIndex(selected), [selected]);
+  const previewIdx = useMemo(() => previewIndex(selected, active), [selected, active]);
   const previewPhoto = previewIdx !== null ? (photos[previewIdx] ?? null) : null;
 
   const preset = useMemo(
@@ -420,9 +425,11 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     // 반영됩니다. 그래서 이 시점의 ref 가 곧 반영 직전의 목록입니다.
     const addedFrom = photosRef.current.length;
     setPhotos((previous) => [...previous, ...decoded]);
-    // 방금 더한 사진들만 고른 채로 둡니다. 이어서 그 사진들을 다듬는 것이 자연스러운 흐름이고,
-    // 미리보기 대상 규칙(고른 것 중 가장 앞선 인덱스)과도 맞습니다.
+    // 방금 더한 사진들만 고른 채로 둡니다. 이어서 그 사진들을 다듬는 것이 자연스러운 흐름입니다.
+    // 미리보기는 그중 첫 장으로 갑니다. 더하기 전에 보던 사진에 그대로 머무르면 방금 넣은
+    // 사진이 어떻게 나왔는지 확인할 수 없습니다.
     setSelected(new Set(decoded.map((_, offset) => addedFrom + offset)));
+    setActive(addedFrom);
 
     // 다 불러왔으면 상태 줄을 비웁니다. 장수는 옆에 따로 나오므로 여기서 할 말이 없고,
     // 예전에는 status.readyToDrop 을 그대로 두어 사진이 가득한 화면에도 "사진을 끌어다
@@ -430,6 +437,12 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setStatus(overflow > 0 ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } } : null);
   }, []);
 
+  /**
+   * 누른 썸네일을 활성으로 올립니다. 선택을 켜는 경우든 끄는 경우든 똑같이 올립니다.
+   * 켜는 경우에는 그 사진이 곧 미리보기가 되고, 끄는 경우에는 활성 인덱스가 고른 것
+   * 밖으로 나가 previewIndex 가 남은 고른 것 중 가장 앞선 것으로 떨어뜨립니다. 다시
+   * 켜면 활성이 이미 이 인덱스라 그 사진으로 돌아옵니다.
+   */
   const toggleSelected = useCallback((index: number) => {
     setSelected((previous) => {
       const next = new Set(previous);
@@ -437,6 +450,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       else next.add(index);
       return next;
     });
+    setActive(index);
   }, []);
 
   const toggleAll = useCallback(() => {
@@ -454,8 +468,10 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     for (const photo of removed) closePhoto(photo);
     setPhotos(kept);
     setSelected(reindexSelection(selected, selected, current.length));
+    // 선택 집합만 다시 세고 활성 인덱스를 그대로 두면 삭제 뒤에 엉뚱한 사진이 뜹니다.
+    setActive(reindexActive(active, selected, current.length));
     setStatus({ key: 'status.removed', vars: { count: removed.length } });
-  }, [selected]);
+  }, [selected, active]);
 
   /** 불러온 사진을 전부 뺍니다. 사진이 없으면 아무 일도 하지 않습니다. */
   const removeAll = useCallback(() => {
@@ -464,6 +480,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     for (const photo of current) closePhoto(photo);
     setPhotos([]);
     setSelected(new Set());
+    setActive(null);
     setStatus({ key: 'status.removed', vars: { count: current.length } });
   }, []);
 
@@ -598,6 +615,9 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     ready: fontReady,
     photos,
     selected,
+    // 지금 화면에 떠 있는 사진입니다. active 를 그대로 내보내면 선택이 풀려 떨어진
+    // 경우에 표시와 화면이 어긋나므로, 떨어진 결과인 previewIdx 를 내보냅니다.
+    activeIndex: previewIdx,
     toggleSelected,
     toggleAll,
     removeSelected,

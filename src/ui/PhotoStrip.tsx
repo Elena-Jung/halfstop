@@ -17,17 +17,24 @@ import type { Loaded } from './usePipeline';
  *
  * 전체 선택과 전체 해제만 글자로 둡니다. 아이콘으로는 뜻이 통하지 않는다고 사용자가
  * 짚었습니다. 지우는 단추 둘은 아이콘이라 aria-label 과 title 이 유일한 이름입니다.
+ *
+ * 고른 사진과 지금 화면에 떠 있는 사진은 다른 표시를 씁니다. 여러 장을 고르면 전부
+ * 강조색 테두리가 되는데 그중 한 장만 미리보기에 뜨므로, 그 한 장이 어느 것인지
+ * data-active 로 따로 알립니다.
  */
 export function PhotoStrip(props: {
   photos: readonly Loaded[];
   selected: ReadonlySet<number>;
+  /** 지금 미리보기에 떠 있는 사진입니다. 사진이 없거나 아무것도 안 골랐으면 null 입니다. */
+  active: number | null;
   onToggle: (index: number) => void;
   onToggleAll: () => void;
   onRemoveSelected: () => void;
   onRemoveAll: () => void;
   disabled: boolean;
 }) {
-  const { photos, selected, onToggle, onToggleAll, onRemoveSelected, onRemoveAll, disabled } = props;
+  const { photos, selected, active, onToggle, onToggleAll, onRemoveSelected, onRemoveAll, disabled } =
+    props;
 
   if (photos.length === 0) return null;
 
@@ -44,6 +51,7 @@ export function PhotoStrip(props: {
               key={photo.thumbUrl}
               className="photo-item"
               data-selected={isSelected}
+              data-active={index === active}
               title={photo.file.name}
             >
               <div className="photo-thumb-wrap">

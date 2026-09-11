@@ -44,6 +44,7 @@ export function App() {
     ready,
     photos,
     selected,
+    activeIndex,
     toggleSelected,
     toggleAll,
     removeSelected,
@@ -97,6 +98,7 @@ export function App() {
               <PhotoStrip
                 photos={photos}
                 selected={selected}
+                active={activeIndex}
                 onToggle={toggleSelected}
                 onToggleAll={toggleAll}
                 onRemoveSelected={removeSelected}
