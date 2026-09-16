@@ -96,43 +96,42 @@ export function App() {
          * 넣어도 아래 미리보기가 밀려나지 않습니다.
          */}
         <div className="intake">
-          {photos.length > 0 && (
-            <>
-              <PhotoStrip
-                photos={photos}
-                selected={selected}
-                active={activeIndex}
-                onToggle={toggleSelected}
-                onToggleAll={toggleAll}
-                onRemoveSelected={removeSelected}
-                onRemoveAll={removeAll}
-                disabled={busy}
-              />
+          <PhotoStrip
+            photos={photos}
+            selected={selected}
+            active={activeIndex}
+            onToggle={toggleSelected}
+            onToggleAll={toggleAll}
+            onRemoveSelected={removeSelected}
+            onRemoveAll={removeAll}
+            disabled={busy}
+          />
 
-              {/*
-               * 사진을 더 넣는 길입니다. 레일에도 같은 일을 하는 단추가 있었는데 한 가지
-               * 일에 두 자리를 두면 어느 쪽이 무엇인지 사용자가 매번 다시 판단해야 하므로
-               * 레일 쪽을 걷어내고 이 줄로 모았습니다.
-               *
-               * 눈에 보이는 글자는 `추가` 한 낱말입니다. 옆의 그림이 이미 이미지를 뜻하므로
-               * 글자가 그것을 되풀이할 이유가 없습니다. 다만 화면 낭독기 사용자는 그림을
-               * 보지 못하므로 aria-label 은 무엇을 더하는지 밝히는 action.pick 을 씁니다.
-               */}
-              <label className="photo-add" data-disabled={!ready || busy}>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  onChange={onPick}
-                  disabled={!ready || busy}
-                  aria-label={t('action.pick')}
-                  className="hs-radio-input"
-                />
-                <ImagePlus aria-hidden="true" size={20} />
-                <span>{t('action.add')}</span>
-              </label>
-            </>
-          )}
+          {/*
+           * 사진을 더 넣는 길입니다. 레일에도 같은 일을 하는 단추가 있었는데 한 가지 일에
+           * 두 자리를 두면 어느 쪽이 무엇인지 사용자가 매번 다시 판단해야 하므로 레일 쪽을
+           * 걷어내고 이 줄로 모았습니다.
+           *
+           * 눈에 보이는 글자는 `추가` 한 낱말입니다. 옆의 그림이 이미 이미지를 뜻하므로
+           * 글자가 그것을 되풀이할 이유가 없습니다. 다만 화면 낭독기 사용자는 그림을 보지
+           * 못하므로 aria-label 은 무엇을 더하는지 밝히는 action.pick 을 씁니다.
+           *
+           * 사진이 없을 때도 살아 있어야 합니다. 이 줄에서 유일하게 잠기지 않는 조작이고,
+           * 옆의 세 단추는 고르거나 지울 사진이 없으므로 잠깁니다.
+           */}
+          <label className="photo-add" data-disabled={!ready || busy}>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={onPick}
+              disabled={!ready || busy}
+              aria-label={t('action.pick')}
+              className="hs-radio-input"
+            />
+            <ImagePlus aria-hidden="true" size={20} />
+            <span>{t('action.add')}</span>
+          </label>
 
           {/*
            * 할 말이 없으면 내용만 비웁니다. 요소를 통째로 빼면 화면 낭독기가 나중 변화를

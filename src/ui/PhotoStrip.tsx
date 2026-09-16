@@ -21,6 +21,11 @@ import type { Loaded } from './usePipeline';
  * 고른 사진과 지금 화면에 떠 있는 사진은 다른 표시를 씁니다. 여러 장을 고르면 전부
  * 강조색 테두리가 되는데 그중 한 장만 미리보기에 뜨므로, 그 한 장이 어느 것인지
  * data-active 로 따로 알립니다.
+ *
+ * 사진이 없어도 이 줄을 그립니다. 예전에는 통째로 빠져 있다가 첫 사진을 넣는 순간 나타나
+ * 아래 미리보기를 밀어 내렸습니다. 사용자가 그 출렁임을 지적했습니다. 빈 줄일 때는
+ * 썸네일 자리만 비고 장수와 세 단추는 잠긴 채로 자리를 지킵니다. 잠그는 일은 바깥의
+ * fieldset 이 맡으므로 여기서 단추마다 disabled 를 붙이지 않습니다.
  */
 export function PhotoStrip(props: {
   photos: readonly Loaded[];
@@ -36,12 +41,11 @@ export function PhotoStrip(props: {
   const { photos, selected, active, onToggle, onToggleAll, onRemoveSelected, onRemoveAll, disabled } =
     props;
 
-  if (photos.length === 0) return null;
-
-  const allSelected = photos.length > 0 && selected.size === photos.length;
+  const empty = photos.length === 0;
+  const allSelected = !empty && selected.size === photos.length;
 
   return (
-    <fieldset className="photo-strip" disabled={disabled}>
+    <fieldset className="photo-strip" disabled={disabled || empty}>
       <legend className="sr-only">{t('photos.legend')}</legend>
       <div className="photo-grid">
         {photos.map((photo, index) => {
@@ -76,7 +80,13 @@ export function PhotoStrip(props: {
       </div>
 
       <div className="photo-tools">
-        <span className="photo-count">{t('photos.count', { count: photos.length })}</span>
+        {/*
+         * 장수는 사진이 있을 때만 말이 됩니다. `0장` 은 알려 주는 것이 없으면서 자리만
+         * 차지합니다. 다만 요소를 빼면 줄의 폭이 튀므로 자리는 남기고 글자만 비웁니다.
+         */}
+        <span className="photo-count">
+          {empty ? '' : t('photos.count', { count: photos.length })}
+        </span>
         <div className="photo-actions">
           <button type="button" className="photo-select-all" onClick={onToggleAll}>
             {allSelected ? t('photos.deselectAll') : t('photos.selectAll')}
