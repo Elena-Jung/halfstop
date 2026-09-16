@@ -300,12 +300,16 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     };
   }, [fontId, loadedFonts]);
 
-  // fontReady 가 사진 없이 처음 참이 될 때만 반응합니다. photos.length 를 의존성에
-  // 두면 전체 삭제로 장수가 0으로 떨어질 때도 다시 돌아, 방금 몇 장을 뺐는지 알리는
-  // status.removed 문구를 곧바로 덮어써 버립니다. photosRef 는 위 동기화 effect 가
-  // 같은 커밋에서 먼저 갱신해 두므로 여기서 최신 값을 그대로 읽을 수 있습니다.
+  // 서체가 준비되면 "준비하는 중입니다" 를 걷어 상태 줄을 비웁니다. 예전에는 이 자리에서
+  // 사진을 넣으라는 안내를 띄웠는데, 점선 상자 안에 이미 같은 말이 있고 그 옆에 추가
+  // 단추도 있어 같은 말이 세 번이었습니다. 사용자가 그것을 지적했습니다.
+  //
+  // photos.length 를 의존성에 두지 않습니다. 두면 전체 삭제로 장수가 0 으로 떨어질 때도
+  // 다시 돌아, 방금 몇 장을 뺐는지 알리는 status.removed 문구를 곧바로 덮어씁니다.
+  // photosRef 는 위 동기화 effect 가 같은 커밋에서 먼저 갱신해 두므로 여기서 최신 값을
+  // 그대로 읽을 수 있습니다.
   useEffect(() => {
-    if (fontReady && photosRef.current.length === 0) setStatus({ key: 'status.readyToDrop' });
+    if (fontReady && photosRef.current.length === 0) setStatus(null);
   }, [fontReady]);
 
   const repaint = useCallback(() => {
@@ -472,8 +476,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setActive(addedFrom);
 
     // 다 불러왔으면 상태 줄을 비웁니다. 장수는 옆에 따로 나오므로 여기서 할 말이 없고,
-    // 예전에는 status.readyToDrop 을 그대로 두어 사진이 가득한 화면에도 "사진을 끌어다
-    // 놓거나 위에서 고르십시오" 가 남아 있었습니다.
+    // 예전에는 사진을 넣으라는 안내를 그대로 두어 사진이 가득한 화면에도 그 말이 남아
+    // 있었습니다.
     setStatus(overflow > 0 ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } } : null);
   }, []);
 

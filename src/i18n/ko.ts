@@ -98,7 +98,6 @@ export const ko = {
 
   // 상태
   'status.preparing': '준비하는 중입니다',
-  'status.readyToDrop': '사진을 끌어다 놓거나 눌러서 고르십시오',
   'status.reading': '읽는 중입니다',
   'status.loaded': '{name} 파일을 불러왔습니다',
   'status.tooMany': '최대 {max}장',
