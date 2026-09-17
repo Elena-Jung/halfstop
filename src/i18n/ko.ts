@@ -91,9 +91,6 @@ export const ko = {
   'action.download': '내려받기',
   'action.downloading': '만드는 중입니다',
   'action.pick': '사진 고르기',
-  // 아이콘이 이미 이미지를 뜻하므로 글자가 그것을 되풀이하지 않습니다. 화면 낭독기에는
-  // 무엇을 더하는지 밝혀야 하므로 aria-label 은 action.pick 을 그대로 씁니다.
-  'action.add': '추가',
   'export.target': '{name} 사진을 내려받습니다',
 
   // 상태

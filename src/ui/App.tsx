@@ -36,6 +36,8 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const {
     status,
+    toast,
+    dismissToast,
     options,
     setOption,
     load,
@@ -112,14 +114,15 @@ export function App() {
            * 두 자리를 두면 어느 쪽이 무엇인지 사용자가 매번 다시 판단해야 하므로 레일 쪽을
            * 걷어내고 이 줄로 모았습니다.
            *
-           * 눈에 보이는 글자는 `추가` 한 낱말입니다. 옆의 그림이 이미 이미지를 뜻하므로
-           * 글자가 그것을 되풀이할 이유가 없습니다. 다만 화면 낭독기 사용자는 그림을 보지
-           * 못하므로 aria-label 은 무엇을 더하는지 밝히는 action.pick 을 씁니다.
+           * 글자를 두지 않습니다. 옆에 그림이 이미 이미지를 뜻하고, 지우는 단추 둘도
+           * 아이콘만으로 서 있어 이 줄의 언어가 하나로 맞습니다. 다만 화면 낭독기
+           * 사용자는 그림을 보지 못하므로 aria-label 은 무엇을 더하는지 밝히는
+           * action.pick 을 씁니다. 마우스를 쓰는 사람에게는 title 이 같은 말을 합니다.
            *
            * 사진이 없을 때도 살아 있어야 합니다. 이 줄에서 유일하게 잠기지 않는 조작이고,
            * 옆의 세 단추는 고르거나 지울 사진이 없으므로 잠깁니다.
            */}
-          <label className="photo-add" data-disabled={!ready || busy}>
+          <label className="photo-add" data-disabled={!ready || busy} title={t('action.pick')}>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -130,7 +133,6 @@ export function App() {
               className="hs-radio-input"
             />
             <ImagePlus aria-hidden="true" size={20} />
-            <span>{t('action.add')}</span>
           </label>
 
           {/*
@@ -220,6 +222,26 @@ export function App() {
             disabled={busy}
             themeToggle={<ThemeToggle theme={theme} onToggle={toggleTheme} />}
           />
+        </div>
+
+        {/*
+         * 오류만 뜨는 자리입니다. 상태 줄에 두면 윗줄 한구석에 조용히 앉아 있다가 다음
+         * 문구에 덮여 사라집니다.
+         *
+         * role="alert" 는 화면 낭독기가 하던 말을 끊고 읽는다는 뜻입니다. 오류는 지금 한
+         * 동작이 실패했다는 소식이라 그 대우가 맞습니다. 다만 그 역할이 제구실을 하려면
+         * 요소가 미리 문서에 있어야 하므로, 통째로 넣었다 뺐다 하지 않고 늘 두고 내용만
+         * 채웁니다.
+         *
+         * 스스로 물러나지만 누르면 그전에도 닫힙니다. 문구를 다 읽은 사람을 기다리게 할
+         * 이유가 없습니다.
+         */}
+        <div className="toast-slot" role="alert">
+          {toast !== null && (
+            <button type="button" className="toast" onClick={dismissToast}>
+              {t(toast.key, toast.vars)}
+            </button>
+          )}
         </div>
       </main>
     </DropZone>

@@ -24,7 +24,22 @@ export interface RasterRequest {
  */
 export async function decodeRaster(request: RasterRequest): Promise<DecodedImage> {
   const hint = resizeHint(request.maxLongEdge, request.sourceSize);
-  const bitmap = await createImageBitmap(request.file, hint);
+
+  // 열 수 없는 파일에서 브라우저가 던지는 오류를 우리 문구로 바꿔 다시 던집니다.
+  // createImageBitmap 은 내용이 깨졌든 잘렸든 비었든 한결같이
+  // `InvalidStateError: The source image could not be decoded.` 를 냅니다. 그 영어
+  // 문구는 화면 쪽 규칙표(src/ui/errorMessage.ts)가 모르는 말이라 "알 수 없는 문제가
+  // 생겼습니다" 로 떨어졌고, 사용자는 무엇을 해야 할지 알 수 없었습니다.
+  //
+  // 규칙표를 늘리지 않고 여기서 바꾸는 이유가 있습니다. 그 표는 우리가 던지는 말을
+  // 보도록 설계되어 있고, 브라우저 문구는 판마다 달라 표에 적어 두면 어느 브라우저에서
+  // 조용히 어긋납니다. 원래 오류는 cause 로 달아 두어 개발자가 잃지 않습니다.
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(request.file, hint);
+  } catch (cause) {
+    throw new Error('사진을 디코딩하지 못했습니다', { cause });
+  }
 
   if (request.autoOriented || request.orientation === 1) {
     return { bitmap, width: bitmap.width, height: bitmap.height };

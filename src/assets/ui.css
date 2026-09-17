@@ -1003,11 +1003,12 @@ body {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
   /* label 은 기본이 content-box 라 테두리 2px 이 더해져 조작 묶음보다 2px 높아집니다. */
   box-sizing: border-box;
+  /* 글자를 뺐으므로 정사각형입니다. 옆 조작 묶음의 단추와 같은 크기입니다. */
+  width: 40px;
   height: 40px;
-  padding: 0 var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -1502,4 +1503,46 @@ body {
 .hs-button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+/*
+ * 오류 토스트입니다. 상태 줄은 윗줄 한구석에 있어 사진을 못 열었다는 경고가 눈에 띄지
+ * 않고 다음 문구에 덮여 사라졌습니다. 사용자가 그 자리에 경고를 두지 말라고 했습니다.
+ *
+ * 빈 칸은 늘 문서에 있습니다. role="alert" 는 요소가 미리 있어야 내용이 바뀔 때 읽히고,
+ * 통째로 넣었다 뺐다 하면 화면 낭독기가 첫 오류를 놓칩니다. 그래서 칸은 두고 내용만
+ * 채웁니다. 빈 칸이 화면을 가리지 않도록 pointer-events 를 끕니다.
+ */
+.toast-slot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--space-6);
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+}
+
+/*
+ * 누르면 닫히므로 단추입니다. div 에 onClick 을 붙이면 키보드로 닫을 수 없습니다.
+ * 테두리만 danger 로 두고 배경은 surface 그대로입니다. 바탕을 붉게 칠하면 글자와의
+ * 명암비를 따로 지켜야 하는데, 이 토스트는 두 테마를 오가고 그 짝은 검사에 없습니다.
+ */
+.toast {
+  pointer-events: auto;
+  max-width: 480px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  transition: background-color var(--motion-fast);
+}
+
+.toast:hover {
+  background: var(--surface-raised);
 }

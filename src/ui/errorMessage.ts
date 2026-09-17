@@ -20,6 +20,9 @@ export const RULES: readonly Rule[] = [
   { match: /HEIC/, key: 'error.decode' },
   { match: /RAW/, key: 'error.decode' },
   { match: /사진 크기가 올바르지 않습니다/, key: 'error.decode' },
+  // 파일이 깨졌거나 잘렸거나 비어 있어 브라우저가 그림으로 못 푸는 경우입니다.
+  // decodeRaster 가 브라우저의 영어 문구를 이 말로 바꿔 던집니다.
+  { match: /사진을 디코딩하지 못했습니다/, key: 'error.decode' },
   // 그리기는 멀쩡한데 저장 형식만 못 만드는 경우입니다. 캔버스 키로 묶으면 그리기 자체가
   // 안 된다는 더 심각한 진단이 나가므로 따로 알립니다.
   { match: /인코딩을 지원하지 않습니다/, key: 'error.encoding' },

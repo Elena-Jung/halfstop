@@ -155,7 +155,10 @@ function initialPhotoSettings(stored: StoredSettings | null): {
 
 export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   // null 은 할 말이 없다는 뜻입니다. 상태 줄 요소는 그대로 남고 내용만 빕니다.
-  const [status, setStatus] = useState<StatusMessage | null>({ key: 'status.preparing' });
+  const [status, setStatusRaw] = useState<StatusMessage | null>({ key: 'status.preparing' });
+  // 오류는 상태 줄이 아니라 토스트로 갑니다. 아래 report 가 갈라 보냅니다.
+  const [toast, setToast] = useState<StatusMessage | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 사진이 하나도 없을 때 잠긴 설정 패널에 보일 값입니다. 사진이 생기면 그 사진 자신의
   // 설정으로 넘어갑니다.
   const emptyStored = useMemo(() => readSettings(), []);
@@ -181,6 +184,43 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // 가장 앞선 것으로 떨어뜨리므로 화면이 비지 않습니다.
   const [active, setActive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /**
+   * 사용자에게 할 말을 내놓는 유일한 자리입니다. 오류는 토스트로, 나머지는 상태 줄로
+   * 갑니다.
+   *
+   * 오류를 상태 줄에 두면 사진을 못 연 경고가 윗줄 한구석에 조용히 앉아 있다가 다음
+   * 문구에 덮여 사라집니다. 사용자가 그 자리에 경고를 두지 말라고 했습니다. 토스트는
+   * 눈에 띄는 자리에 잠깐 떴다가 스스로 물러납니다.
+   *
+   * 가르는 기준을 키 앞머리로 둡니다. 부르는 자리마다 어느 쪽으로 보낼지 따로 정하면
+   * 새 오류를 더할 때 한 곳을 빠뜨립니다.
+   */
+  const report = useCallback((message: StatusMessage | null) => {
+    if (message !== null && message.key.startsWith('error.')) {
+      if (toastTimer.current !== null) clearTimeout(toastTimer.current);
+      // 상태 줄도 함께 비웁니다. 오류가 이리로 빠지면 `읽는 중입니다` 같은 진행 문구를
+      // 걷어 줄 사람이 없어 그 자리에 그대로 남고, 끝난 일을 하는 중이라고 말합니다.
+      setStatusRaw(null);
+      setToast(message);
+      // 한 문장을 읽을 만한 시간입니다. 누르면 그전에도 닫힙니다.
+      toastTimer.current = setTimeout(() => setToast(null), 6000);
+      return;
+    }
+    setStatusRaw(message);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimer.current !== null) clearTimeout(toastTimer.current);
+    setToast(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (toastTimer.current !== null) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
   // 미리보기를 그릴 때마다 그 장면의 크기를 적어 둡니다. 숫자 칸을 px 로 보일 때 1u 가
   // 몇 픽셀인지 셈하려면 장면의 긴 변이 필요한데, 장면은 rAF 콜백 안에서 만들어집니다.
   // 여기서 따로 한 번 더 만들면 글자 폭을 재느라 값이 바뀔 때마다 배치가 두 번 돕니다.
@@ -293,7 +333,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
         setLoadedFonts((previous) => new Set(previous).add(fontId));
       })
       .catch(() => {
-        if (alive) setStatus({ key: 'status.fontFailed', vars: { font: fontById(fontId).label } });
+        if (alive) report({ key: 'status.fontFailed', vars: { font: fontById(fontId).label } });
       });
     return () => {
       alive = false;
@@ -309,7 +349,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
   // photosRef 는 위 동기화 effect 가 같은 커밋에서 먼저 갱신해 두므로 여기서 최신 값을
   // 그대로 읽을 수 있습니다.
   useEffect(() => {
-    if (fontReady && photosRef.current.length === 0) setStatus(null);
+    if (fontReady && photosRef.current.length === 0) report(null);
   }, [fontReady]);
 
   const repaint = useCallback(() => {
@@ -363,7 +403,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       );
     } catch (error) {
       console.error(error);
-      setStatus({ key: toUserMessage(error) });
+      report({ key: toUserMessage(error) });
     }
   }, [canvasRef, previewPhoto, options, fontReady, preset, logoVersion]);
 
@@ -384,7 +424,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     // 자리만큼만 받습니다.
     const room = Math.max(0, MAX_PHOTOS - photosRef.current.length);
     if (room === 0) {
-      setStatus({ key: 'status.full', vars: { max: MAX_PHOTOS } });
+      report({ key: 'status.full', vars: { max: MAX_PHOTOS } });
       return;
     }
     const { kept, overflow } = capItems(files, room);
@@ -394,7 +434,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     // 남아야 합니다. 세대 번호로 늦게 끝난 요청이 먼저 끝난 요청을 덮어쓰는 것도
     // 막습니다.
     const generation = (loadGenerationRef.current += 1);
-    setStatus({ key: 'status.reading' });
+    report({ key: 'status.reading' });
 
     const initial = initialPhotoSettings(readSettings());
     const decoded: Loaded[] = [];
@@ -458,7 +498,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     }
 
     if (decoded.length === 0) {
-      setStatus({ key: lastError ? toUserMessage(lastError) : 'error.decode' });
+      report({ key: lastError ? toUserMessage(lastError) : 'error.decode' });
       return;
     }
 
@@ -478,7 +518,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     // 다 불러왔으면 상태 줄을 비웁니다. 장수는 옆에 따로 나오므로 여기서 할 말이 없고,
     // 예전에는 사진을 넣으라는 안내를 그대로 두어 사진이 가득한 화면에도 그 말이 남아
     // 있었습니다.
-    setStatus(overflow > 0 ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } } : null);
+    report(overflow > 0 ? { key: 'status.tooMany', vars: { max: MAX_PHOTOS } } : null);
   }, []);
 
   /**
@@ -514,7 +554,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setSelected(reindexSelection(selected, selected, current.length));
     // 선택 집합만 다시 세고 활성 인덱스를 그대로 두면 삭제 뒤에 엉뚱한 사진이 뜹니다.
     setActive(reindexActive(active, selected, current.length));
-    setStatus({ key: 'status.removed', vars: { count: removed.length } });
+    report({ key: 'status.removed', vars: { count: removed.length } });
   }, [selected, active]);
 
   /** 불러온 사진을 전부 뺍니다. 사진이 없으면 아무 일도 하지 않습니다. */
@@ -525,7 +565,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     setPhotos([]);
     setSelected(new Set());
     setActive(null);
-    setStatus({ key: 'status.removed', vars: { count: current.length } });
+    report({ key: 'status.removed', vars: { count: current.length } });
   }, []);
 
   const setOption = useCallback((id: string, value: OptionValue) => {
@@ -597,7 +637,7 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
     if (!previewPhoto || !services || !client || !fontReady) return;
 
     setBusy(true);
-    setStatus({ key: 'status.rendering' });
+    report({ key: 'status.rendering' });
     try {
       // 실제 캔버스 한계는 큰 할당을 여러 번 해 봐야 알 수 있어 느립니다. 미리보기에는
       // 필요 없으니 내보내기 직전인 여기서 처음 재고, 이후로는 캐시된 값을 씁니다.
@@ -636,14 +676,14 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
       // 잘릴 수 있습니다. 이 앱이 내보내는 것은 수십 메가바이트짜리 사진입니다.
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 
-      setStatus(
+      report(
         result.clamped
           ? { key: 'status.downloadedClamped', vars: { width: result.width, height: result.height } }
           : { key: 'status.downloaded', vars: { width: result.width, height: result.height } },
       );
     } catch (error) {
       console.error(error);
-      setStatus({ key: toUserMessage(error) });
+      report({ key: toUserMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -651,6 +691,8 @@ export function usePipeline(canvasRef: React.RefObject<HTMLCanvasElement | null>
 
   return {
     status,
+    toast,
+    dismissToast,
     options,
     setOption,
     load,

@@ -67,7 +67,19 @@ export function integer(tag: { value?: unknown } | undefined): number | undefine
  * HEIC를 JPEG로 바꾼 뒤 읽으면 메타데이터가 이미 사라졌거나 달라져 있습니다.
  */
 export async function readExif(buffer: ArrayBuffer): Promise<PhotoMeta> {
-  const tags = await ExifReader.load(buffer, { expanded: false, async: true });
+  // EXIF 를 못 읽는 것과 사진을 못 여는 것은 다른 일입니다. ExifReader 는 자기가 모르는
+  // 컨테이너를 만나면 `Invalid image format` 을 던지는데, 그 예외가 그대로 올라가면 사진
+  // 한 장이 통째로 버려집니다. 그림을 열 수 있는지는 디코더가 정할 일이고, EXIF 가 없거나
+  // 깨진 사진도 프레임은 씌울 수 있습니다. 그래서 여기서는 빈 정보로 넘깁니다.
+  //
+  // 실제로 깨진 파일을 넣었을 때 이 예외가 먼저 터져 화면에 "알 수 없는 문제가 생겼습니다"
+  // 가 떴습니다. 이제 디코더까지 가서 열 수 없는 사진이라는 제 문구가 나옵니다.
+  let tags: Awaited<ReturnType<typeof ExifReader.load>>;
+  try {
+    tags = await ExifReader.load(buffer, { expanded: false, async: true });
+  } catch {
+    tags = {} as Awaited<ReturnType<typeof ExifReader.load>>;
+  }
   return {
     make: text(tags.Make),
     model: text(tags.Model),
